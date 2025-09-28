@@ -6,6 +6,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Models\Complexe;
+use App\Models\Etablissement;
 
 class User extends Authenticatable
 {
@@ -18,9 +20,10 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
+        'nom',
         'email',
         'password',
+        'role',
     ];
 
     /**
@@ -44,5 +47,15 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+     public function complexe()
+    {
+        return $this->hasOne(Complexe::class, 'user_id');
+    }
+
+    // Relation 1-1 : un utilisateur peut diriger un établissement
+    public function etablissement()
+    {
+        return $this->hasOne(Etablissement::class, 'user_id');
     }
 }

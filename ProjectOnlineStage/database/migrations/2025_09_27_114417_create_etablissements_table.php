@@ -9,8 +9,8 @@ return new class extends Migration
     public function up()
     {
         Schema::create('etablissements', function (Blueprint $table) {
-            $table->string('code_efp', 10)->primary();
-            $table->string('nom_efp', 100)->nullable(false);
+            $table->string('code_efp')->primary();
+            $table->string('nom_efp')->nullable(false);
             $table->foreignId('complexe_id')->constrained('complexes')->onDelete('cascade');
             $table->foreignId('user_id')
                   ->unique()

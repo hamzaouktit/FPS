@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('formateurs', function (Blueprint $table) {
-            $table->string('mle', 20)->primary(); // PK string
-            $table->string('nom_formateur', 100)->nullable(false);
+            $table->string('mle')->primary(); // PK string
+            $table->string('nom_formateur')->nullable(false);
             $table->timestamps();
         });
     }

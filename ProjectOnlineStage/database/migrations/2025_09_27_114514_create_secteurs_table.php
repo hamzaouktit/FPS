@@ -9,7 +9,7 @@ return new class extends Migration
     public function up()
     {
         Schema::create('secteurs', function (Blueprint $table) {
-            $table->string('nom_secteur', 50)->primary();
+            $table->string('nom_secteur')->primary();
         });
     }
 

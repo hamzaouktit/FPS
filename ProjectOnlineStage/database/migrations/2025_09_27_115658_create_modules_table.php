@@ -9,9 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('modules', function (Blueprint $table) {
-            $table->string('code_module', 20)->primary(); // PK string
-            $table->string('nom_module', 100)->nullable(false);
-            $table->string('regional', 1)->nullable(); // N/O
+            $table->string('code_module')->primary(); // PK string
+            $table->string('nom_module')->nullable(false);
+            $table->string('regional')->nullable(); // N/O
             $table->timestamps();
         });
     }

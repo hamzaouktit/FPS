@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('niveaux', function (Blueprint $table) {
-            $table->string('niveau', 5)->primary(); // PK string
+            $table->string('niveau')->primary(); // PK string
             $table->timestamps();
         });
     }

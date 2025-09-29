@@ -11,11 +11,11 @@ return new class extends Migration
         Schema::create('formations', function (Blueprint $table) {
             $table->id(); // PK auto-incrément
             $table->integer('annee')->nullable(false);
-            $table->string('code_efp', 10);
-            $table->string('niveau', 5);
-            $table->string('code_filiere', 20);
-            $table->string('type_formation', 20)->nullable();
-            $table->string('creneau', 10)->nullable();
+            $table->string('code_efp');
+            $table->string('niveau');
+            $table->string('code_filiere');
+            $table->string('type_formation')->nullable();
+            $table->string('creneau')->nullable();
             $table->foreign('code_efp')->references('code_efp')->on('etablissements')->onDelete('cascade');
             $table->foreign('niveau')->references('niveau')->on('niveaux')->onDelete('cascade');
             $table->foreign('code_filiere')->references('code_filiere')->on('filieres')->onDelete('cascade');

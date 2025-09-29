@@ -14,11 +14,11 @@ return new class extends Migration
     {
         Schema::create('affectations', function (Blueprint $table) {
             $table->id();
-            $table->string('groupe', 20);
-            $table->string('code_module', 20);
-            $table->string('mle_formateur', 20)->nullable();
-            $table->string('mode', 20)->nullable();
-            $table->decimal('mh_affectee', 5, 2)->default(0);
+            $table->string('groupe');
+            $table->string('code_module');
+            $table->string('mle_formateur')->nullable();
+            $table->string('mode')->nullable();
+            $table->decimal('mh_affectee')->default(0);
             $table->timestamp('date_affectation')->nullable();
             $table->foreign('groupe')->references('groupe')->on('groupes')->onDelete('cascade');
             $table->foreign('code_module')->references('code_module')->on('modules')->onDelete('cascade');

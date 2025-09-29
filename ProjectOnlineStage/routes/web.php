@@ -32,6 +32,10 @@ Route::middleware(['auth'])->group(function () {
     // Routes pour l'administration de l'établissement
     Route::prefix('administrationetablissement')->name('administration.etablissement.')->group(function () {
         Route::get('/dashboard', [DashboardEtablissementController::class, 'index'])->name('dashboard');
+        Route::get('/import', [DashboardEtablissementController::class, 'importForm'])->name('import');        
+        Route::post('/import', [DashboardEtablissementController::class, 'importExcel'])->name('import.process');
+        Route::get('/filter-options', [DashboardEtablissementController::class, 'getFilteredOptions'])
+        ->name('filter.options');
     });
     
-});
+}); 

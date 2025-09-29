@@ -9,9 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('filieres', function (Blueprint $table) {
-            $table->string('code_filiere', 20)->primary(); // PK string
-            $table->string('nom_filiere', 100)->nullable(false);
-            $table->string('nom_secteur', 50);
+            $table->string('code_filiere')->primary(); // PK string
+            $table->string('nom_filiere')->nullable(false);
+            $table->string('nom_secteur');
             $table->foreign('nom_secteur')->references('nom_secteur')->on('secteurs')->onDelete('cascade');
             $table->timestamps();
         });

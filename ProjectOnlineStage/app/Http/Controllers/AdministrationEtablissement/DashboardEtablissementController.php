@@ -1,547 +1,331 @@
 <?php
+
 namespace App\Http\Controllers\AdministrationEtablissement;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
+use App\Models\Etablissement;
+use App\Models\Formation;
+use App\Models\Groupe;
+use App\Models\Avancement;
+use App\Models\Affectation;
+use App\Models\Module;
+use App\Models\Formateur;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Imports\AvancementImport;
 use App\Imports\DataImport;
+use Illuminate\Support\Facades\Log;
 
 class DashboardEtablissementController extends Controller
 {
     public function index(Request $request)
     {
         $user = Auth::user();
-        
-        if ($user->role !== 'directeur_etablissement') {
-            return redirect()->route('welcome')
-                ->with('error', 'Accès refusé. Vous n\'êtes pas directeur d\'établissement.');
-        }
-        
         $etablissement = $user->etablissement;
-        if (!$etablissement) {
-            return redirect()->route('welcome')
-                ->with('error', 'Aucun établissement associé à votre compte. Veuillez contacter l\'administrateur.');
-        }
 
+        if (!$etablissement) {
+            return redirect()->route('welcome')->with('error', 'Aucun établissement associé à cet utilisateur.');
+        }
+        
+        // Récupération des filtres
         $filters = [
-            'formateur' => $request->input('formateur'),
-            'module' => $request->input('module'),
             'groupe' => $request->input('groupe'),
-            'secteur' => $request->input('secteur'),
-            'filiere' => $request->input('filiere'),
+            'module' => $request->input('module'),
+            'formateur' => $request->input('formateur'),
             'niveau' => $request->input('niveau'),
+            'filiere' => $request->input('filiere'),
+            'annee' => $request->input('annee', date('Y')),
         ];
 
-        $stats = $this->getStats($etablissement);
-        $chartData = $this->getChartData($etablissement, $filters);
-        $heuresData = $this->getHeuresData($etablissement, $filters);
-        $tableauDetaille = $this->getTableauDetaille($etablissement, $filters);
-        $filterOptions = $this->getFilterOptions($etablissement);
-        $nonAssigned = $this->getNonAssignedEntities($etablissement, $filters);
+        // Construction de la requête de base avec les avancements de l'établissement
+        $avancementsQuery = Avancement::whereHas('groupe.formation', function($query) use ($etablissement) {
+            $query->where('code_efp', $etablissement->code_efp);
+        });
+
+        // Application des filtres
+        if ($filters['groupe']) {
+            $avancementsQuery->where('groupe', $filters['groupe']);
+        }
+        if ($filters['module']) {
+            $avancementsQuery->where('code_module', $filters['module']);
+        }
+        if ($filters['formateur']) {
+            $avancementsQuery->where(function($query) use ($filters) {
+                $query->where('mle_presentiel', $filters['formateur'])
+                      ->orWhere('mle_syn', $filters['formateur']);
+            });
+        }
+        if ($filters['niveau']) {
+            $avancementsQuery->whereHas('groupe.formation', function($query) use ($filters) {
+                $query->where('niveau', $filters['niveau']);
+            });
+        }
+        if ($filters['filiere']) {
+            $avancementsQuery->whereHas('groupe.formation', function($query) use ($filters) {
+                $query->where('code_filiere', $filters['filiere']);
+            });
+        }
+        if ($filters['annee']) {
+            $avancementsQuery->whereHas('groupe.formation', function($query) use ($filters) {
+                $query->where('annee', $filters['annee']);
+            });
+        }
+
+        $avancements = $avancementsQuery->with(['groupe.formation.filiere', 'module', 'formateurPresentiel', 'formateurSynchrone'])->get();
+
+        // Calculs des statistiques principales
+        $stats = $this->calculateStats($avancements);
         
+        // Analyse des heures par type
+        $heuresAnalysis = $this->calculateHeuresAnalysis($avancements);
+        
+        // Données détaillées par groupe et module
+        $detailedData = $this->getDetailedGroupeModuleData($avancements);
+        
+        // Top 10 modules avec meilleurs taux
+        $topModules = $this->getTopModules($avancements);
+        
+        // Données pour les graphiques
+        $chartData = $this->getChartData($avancements);
+        
+        // Taux de réalisation par formateur
+        $formateurStats = $this->getFormateurStats($avancements);
+        
+        // Options pour les filtres
+        $filterOptions = $this->getFilterOptions($etablissement);
+
         return view('administrationetablissement.dashboard', compact(
-            'user', 
-            'etablissement', 
-            'stats', 
-            'chartData', 
-            'heuresData',
-            'tableauDetaille',
+            'etablissement',
+            'stats',
+            'heuresAnalysis',
+            'detailedData',
+            'topModules',
+            'chartData',
+            'formateurStats',
             'filterOptions',
-            'filters',
-            'nonAssigned'
+            'filters'
         ));
     }
 
-    public function importForm()
+    private function calculateStats($avancements)
     {
-        $user = Auth::user();
-        $etablissement = $user->etablissement;
+        $totalModules = $avancements->unique('code_module')->count();
+        $totalGroupes = $avancements->unique('groupe')->count();
         
-        if (!$etablissement) {
-            return redirect()->route('administration.etablissement.dashboard')
-                ->with('error', 'Aucun établissement associé à votre compte.');
-        }
+        $tauxRealisationGlobal = $avancements->avg('taux_realisation_global') ?? 0;
+        $tauxRealisationPresentiel = $avancements->avg('taux_realisation_presentiel') ?? 0;
+        $tauxRealisationSynchrone = $avancements->avg('taux_realisation_syn') ?? 0;
         
-        return view('administrationetablissement.import', compact('user', 'etablissement'));
+        $heuresAffecteesTotal = $avancements->sum('mh_affectee_globale');
+        $heuresRealiseesTotal = $avancements->sum('mh_realisee_globale');
+        
+        $tauxAffectation = $heuresAffecteesTotal > 0 
+            ? ($heuresRealiseesTotal / $heuresAffecteesTotal) * 100 
+            : 0;
+        
+        $moyenneAbsence = $avancements->avg('moy_absence') ?? 0;
+        $totalCC = $avancements->sum('nb_cc');
+        $totalEFM = $avancements->where('validation_efm', 1)->count();
+
+        return [
+            'total_modules' => $totalModules,
+            'total_groupes' => $totalGroupes,
+            'taux_realisation_global' => round($tauxRealisationGlobal, 2),
+            'taux_realisation_presentiel' => round($tauxRealisationPresentiel, 2),
+            'taux_realisation_synchrone' => round($tauxRealisationSynchrone, 2),
+            'heures_affectees' => round($heuresAffecteesTotal, 2),
+            'heures_realisees' => round($heuresRealiseesTotal, 2),
+            'taux_affectation' => round($tauxAffectation, 2),
+            'moyenne_absence' => round($moyenneAbsence, 2),
+            'total_cc' => $totalCC,
+            'total_efm' => $totalEFM,
+        ];
     }
 
-    public function importExcel(Request $request)
+    private function calculateHeuresAnalysis($avancements)
     {
-        $request->validate([
-            'excel_file' => [
-                'required',
-                'file',
-                'mimes:xlsx,xls,csv',
-                'max:10240'
-            ]
-        ], [
-            'excel_file.required' => 'Veuillez sélectionner un fichier Excel.',
-            'excel_file.mimes' => 'Le fichier doit être de type Excel (.xlsx, .xls) ou CSV.',
-            'excel_file.max' => 'Le fichier ne doit pas dépasser 10MB.'
-        ]);
-
-        try {
-            $user = Auth::user();
-            $etablissement = $user->etablissement;
-            
-            if (!$etablissement) {
-                return redirect()->back()
-                    ->with('error', 'Aucun établissement associé à votre compte.');
-            }
-
-            $import = new DataImport();
-            Excel::import($import, $request->file('excel_file'));
-
-            $imported = $import->getImported();
-            $skipped = $import->getSkipped();
-            $errors = $import->getErrors();
-
-            $successMessages = [];
-            if ($imported > 0) {
-                $successMessages[] = "{$imported} enregistrement(s) importé(s) avec succès.";
-            }
-            if ($skipped > 0) {
-                $successMessages[] = "{$skipped} ligne(s) ignorée(s) (ne concernent pas votre établissement).";
-            }
-
-            if (count($errors) > 0) {
-                return redirect()->back()
-                    ->with('warning', implode(' ', $successMessages))
-                    ->withErrors(['import_errors' => $errors]);
-            } else {
-                return redirect()->route('administration.etablissement.dashboard')
-                    ->with('success', implode(' ', $successMessages));
-            }
-
-        } catch (\Exception $e) {
-            Log::error('Erreur lors de l\'importation Excel: ' . $e->getMessage());
-            
-            return redirect()->back()
-                ->with('error', 'Erreur lors de l\'importation: ' . $e->getMessage());
-        }
+        return [
+            'presentiel' => [
+                's1' => $avancements->sum('mhp_s1_drif'),
+                's2' => $avancements->sum('mhp_s2_drif'),
+                'total' => $avancements->sum('mhp_totale_drif'),
+                'affectee' => $avancements->sum('mh_affectee_presentiel'),
+                'realisee' => $avancements->sum('mh_realisee_presentiel'),
+            ],
+            'synchrone' => [
+                's1' => $avancements->sum('mhsyn_s1_drif'),
+                's2' => $avancements->sum('mhsyn_s2_drif'),
+                'total' => $avancements->sum('mhsyn_totale_drif'),
+                'affectee' => $avancements->sum('mh_affectee_sync'),
+                'realisee' => $avancements->sum('mh_realisee_sync'),
+            ],
+            'asynchrone' => [
+                's1' => $avancements->sum('mhasyn_s1_drif'),
+                's2' => $avancements->sum('mhasyn_s2_drif'),
+                'total' => $avancements->sum('mhasyn_totale_drif'),
+            ],
+            'global' => [
+                's1' => $avancements->sum('mh_totale_s1_drif'),
+                's2' => $avancements->sum('mh_totale_s2_drif'),
+                'total' => $avancements->sum('mh_totale_drif'),
+                'affectee' => $avancements->sum('mh_affectee_globale'),
+                'realisee' => $avancements->sum('mh_realisee_globale'),
+            ],
+        ];
     }
 
-    private function getStats($etablissement)
+    private function getDetailedGroupeModuleData($avancements)
     {
-        try {
-            $formations = $etablissement->formations()->count();
-            $groupes = $etablissement->groupes()->count();
-            $apprenants = $etablissement->groupes()->sum('effectif_groupe');
-            
-            $formateurs = \App\Models\Formateur::whereIn('mle', function($query) use ($etablissement) {
-                $query->select('mle_presentiel')
-                      ->from('avancements')
-                      ->whereIn('groupe', function($subQuery) use ($etablissement) {
-                          $subQuery->select('groupe')
-                                  ->from('groupes')
-                                  ->whereIn('id_formation', function($formQuery) use ($etablissement) {
-                                      $formQuery->select('id')
-                                              ->from('formations')
-                                              ->where('code_efp', $etablissement->code_efp);
-                                  });
-                      })
-                      ->whereNotNull('mle_presentiel');
-            })->orWhereIn('mle', function($query) use ($etablissement) {
-                $query->select('mle_syn')
-                      ->from('avancements')
-                      ->whereIn('groupe', function($subQuery) use ($etablissement) {
-                          $subQuery->select('groupe')
-                                  ->from('groupes')
-                                  ->whereIn('id_formation', function($formQuery) use ($etablissement) {
-                                      $formQuery->select('id')
-                                              ->from('formations')
-                                              ->where('code_efp', $etablissement->code_efp);
-                                  });
-                      })
-                      ->whereNotNull('mle_syn');
-            })->count();
-
+        return $avancements->map(function($avancement) {
             return [
-                'formations' => $formations,
-                'apprenants' => $apprenants,
-                'groupes' => $groupes,
-                'formateurs' => $formateurs
+                'groupe' => $avancement->groupe,
+                'groupe_info' => $avancement->groupe()->first(),
+                'module' => $avancement->code_module,
+                'module_nom' => $avancement->module->nom_module ?? 'N/A',
+                'formation' => $avancement->groupe->formation->filiere->nom_filiere ?? 'N/A',
+                'niveau' => $avancement->groupe->formation->niveau ?? 'N/A',
+                'formateur_presentiel' => $avancement->formateurPresentiel->nom_formateur ?? 'N/A',
+                'formateur_synchrone' => $avancement->formateurSynchrone->nom_formateur ?? 'N/A',
+                'heures_affectees' => round($avancement->mh_affectee_globale, 2),
+                'heures_realisees' => round($avancement->mh_realisee_globale, 2),
+                'taux_realisation' => round($avancement->taux_realisation_global, 2),
+                'taux_realisation_presentiel' => round($avancement->taux_realisation_presentiel, 2),
+                'taux_realisation_synchrone' => round($avancement->taux_realisation_syn, 2),
+                'moyenne_absence' => round($avancement->moy_absence, 2),
+                'nb_cc' => $avancement->nb_cc,
+                'efm_valide' => $avancement->validation_efm ? 'Oui' : 'Non',
+                'date_maj' => $avancement->date_maj ? $avancement->date_maj->format('d/m/Y') : 'N/A',
             ];
-            
-        } catch (\Exception $e) {
-            Log::error('Erreur lors du calcul des statistiques: ' . $e->getMessage());
-            return [
-                'formations' => 0,
-                'apprenants' => 0,
-                'groupes' => 0,
-                'formateurs' => 0
-            ];
-        }
+        })->sortByDesc('taux_realisation')->values();
     }
 
-    private function getChartData($etablissement, $filters)
+    private function getTopModules($avancements)
     {
-        try {
-            $query = DB::table('avancements')
-                ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
-                ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-                ->join('modules', 'avancements.code_module', '=', 'modules.code_module')
-                ->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
-                ->where('formations.code_efp', $etablissement->code_efp)
-                ->whereNull('avancements.deleted_at');
-
-            // Application des filtres
-            if (!empty($filters['formateur'])) {
-                $query->where(function($q) use ($filters) {
-                    $q->where('avancements.mle_presentiel', $filters['formateur'])
-                      ->orWhere('avancements.mle_syn', $filters['formateur']);
-                });
-            }
-            if (!empty($filters['module'])) {
-                $query->where('avancements.code_module', $filters['module']);
-            }
-            if (!empty($filters['groupe'])) {
-                $query->where('avancements.groupe', $filters['groupe']);
-            }
-            if (!empty($filters['secteur'])) {
-                $query->where('filieres.nom_secteur', $filters['secteur']);
-            }
-            if (!empty($filters['filiere'])) {
-                $query->where('formations.code_filiere', $filters['filiere']);
-            }
-            if (!empty($filters['niveau'])) {
-                $query->where('formations.niveau', $filters['niveau']);
-            }
-
-            // Taux global
-            $tauxGlobal = $query->selectRaw('
-                AVG(CASE 
-                    WHEN avancements.mh_totale_drif > 0 
-                    THEN (avancements.mh_realisee_globale / avancements.mh_totale_drif * 100) 
-                    ELSE 0 
-                END) as taux_moyen
-            ')->first();
-
-            // Top modules
-            $topModulesQuery = DB::table('avancements')
-                ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
-                ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-                ->join('modules', 'avancements.code_module', '=', 'modules.code_module')
-                ->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
-                ->where('formations.code_efp', $etablissement->code_efp)
-                ->whereNull('avancements.deleted_at');
-
-            // Application des mêmes filtres
-            if (!empty($filters['formateur'])) {
-                $topModulesQuery->where(function($q) use ($filters) {
-                    $q->where('avancements.mle_presentiel', $filters['formateur'])
-                      ->orWhere('avancements.mle_syn', $filters['formateur']);
-                });
-            }
-            if (!empty($filters['groupe'])) {
-                $topModulesQuery->where('avancements.groupe', $filters['groupe']);
-            }
-            if (!empty($filters['secteur'])) {
-                $topModulesQuery->where('filieres.nom_secteur', $filters['secteur']);
-            }
-            if (!empty($filters['filiere'])) {
-                $topModulesQuery->where('formations.code_filiere', $filters['filiere']);
-            }
-            if (!empty($filters['niveau'])) {
-                $topModulesQuery->where('formations.niveau', $filters['niveau']);
-            }
-
-            $topModules = $topModulesQuery
-                ->select('modules.nom_module', 'modules.code_module')
-                ->selectRaw('AVG(CASE 
-                    WHEN avancements.mh_totale_drif > 0 
-                    THEN (avancements.mh_realisee_globale / avancements.mh_totale_drif * 100) 
-                    ELSE 0 
-                END) as taux_moyen')
-                ->groupBy('modules.nom_module', 'modules.code_module')
-                ->having('taux_moyen', '>', 0)
-                ->orderByDesc('taux_moyen')
-                ->limit(10)
-                ->get();
-
-            return [
-                'taux_global' => round($tauxGlobal->taux_moyen ?? 0, 2),
-                'top_modules' => $topModules,
-            ];
-
-        } catch (\Exception $e) {
-            Log::error('Erreur getChartData: ' . $e->getMessage());
-            return [
-                'taux_global' => 0,
-                'top_modules' => collect([]),
-            ];
-        }
+        return $avancements->groupBy('code_module')
+            ->map(function($moduleAvancements, $codeModule) {
+                $module = $moduleAvancements->first()->module;
+                return [
+                    'code_module' => $codeModule,
+                    'nom_module' => $module->nom_module ?? 'N/A',
+                    'taux_moyen' => round($moduleAvancements->avg('taux_realisation_global'), 2),
+                    'heures_realisees' => round($moduleAvancements->sum('mh_realisee_globale'), 2),
+                    'heures_affectees' => round($moduleAvancements->sum('mh_affectee_globale'), 2),
+                    'nb_groupes' => $moduleAvancements->unique('groupe')->count(),
+                ];
+            })
+            ->sortByDesc('taux_moyen')
+            ->take(10)
+            ->values();
     }
 
-    private function getHeuresData($etablissement, $filters)
+    private function getChartData($avancements)
     {
-        try {
-            $query = DB::table('avancements')
-                ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
-                ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-                ->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
-                ->where('formations.code_efp', $etablissement->code_efp)
-                ->whereNull('avancements.deleted_at');
-
-            // Application des filtres
-            if (!empty($filters['formateur'])) {
-                $query->where(function($q) use ($filters) {
-                    $q->where('avancements.mle_presentiel', $filters['formateur'])
-                      ->orWhere('avancements.mle_syn', $filters['formateur']);
-                });
-            }
-            if (!empty($filters['module'])) {
-                $query->where('avancements.code_module', $filters['module']);
-            }
-            if (!empty($filters['groupe'])) {
-                $query->where('avancements.groupe', $filters['groupe']);
-            }
-            if (!empty($filters['secteur'])) {
-                $query->where('filieres.nom_secteur', $filters['secteur']);
-            }
-            if (!empty($filters['filiere'])) {
-                $query->where('formations.code_filiere', $filters['filiere']);
-            }
-            if (!empty($filters['niveau'])) {
-                $query->where('formations.niveau', $filters['niveau']);
-            }
-
-            $heures = $query->selectRaw('
-                COALESCE(SUM(mh_totale_drif), 0) as heures_requises,
-                COALESCE(SUM(mh_affectee_globale), 0) as heures_affectees,
-                COALESCE(SUM(mh_realisee_globale), 0) as heures_realisees
-            ')->first();
-
-            $heuresRequises = $heures->heures_requises ?? 0;
-            $heuresAffectees = $heures->heures_affectees ?? 0;
-            $heuresRealisees = $heures->heures_realisees ?? 0;
-
+        // Évolution mensuelle des heures réalisées
+        $evolutionMensuelle = $avancements->groupBy(function($avancement) {
+            return $avancement->date_maj ? $avancement->date_maj->format('Y-m') : 'N/A';
+        })->map(function($group) {
             return [
-                'heures_requises' => round($heuresRequises, 2),
-                'heures_affectees' => round($heuresAffectees, 2),
-                'heures_realisees' => round($heuresRealisees, 2),
-                'difference_affectees' => round($heuresRequises - $heuresAffectees, 2),
-                'difference_realisees' => round($heuresRequises - $heuresRealisees, 2),
-                'taux_affectation' => $heuresRequises > 0 ? round(($heuresAffectees / $heuresRequises) * 100, 2) : 0,
-                'taux_realisation' => $heuresRequises > 0 ? round(($heuresRealisees / $heuresRequises) * 100, 2) : 0,
+                'heures_realisees' => round($group->sum('mh_realisee_globale'), 2),
+                'heures_affectees' => round($group->sum('mh_affectee_globale'), 2),
             ];
+        });
 
-        } catch (\Exception $e) {
-            Log::error('Erreur getHeuresData: ' . $e->getMessage());
-            return [
-                'heures_requises' => 0,
-                'heures_affectees' => 0,
-                'heures_realisees' => 0,
-                'difference_affectees' => 0,
-                'difference_realisees' => 0,
-                'taux_affectation' => 0,
-                'taux_realisation' => 0,
-            ];
-        }
+        // Répartition par mode de formation
+        $repartitionMode = [
+            'Présentiel' => round($avancements->sum('mh_realisee_presentiel'), 2),
+            'Synchrone' => round($avancements->sum('mh_realisee_sync'), 2),
+        ];
+
+        // Taux de réalisation par filière
+        $tauxParFiliere = $avancements->groupBy(function($avancement) {
+            return $avancement->groupe->formation->filiere->nom_filiere ?? 'N/A';
+        })->map(function($group) {
+            return round($group->avg('taux_realisation_global'), 2);
+        });
+
+        return [
+            'evolution_mensuelle' => $evolutionMensuelle,
+            'repartition_mode' => $repartitionMode,
+            'taux_par_filiere' => $tauxParFiliere,
+        ];
     }
 
-    private function getTableauDetaille($etablissement, $filters)
+    private function getFormateurStats($avancements)
     {
-        try {
-            $query = DB::table('avancements')
-                ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
-                ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-                ->join('modules', 'avancements.code_module', '=', 'modules.code_module')
-                ->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
-                ->leftJoin('formateurs as f1', 'avancements.mle_presentiel', '=', 'f1.mle')
-                ->leftJoin('formateurs as f2', 'avancements.mle_syn', '=', 'f2.mle')
-                ->where('formations.code_efp', $etablissement->code_efp)
-                ->whereNull('avancements.deleted_at');
+        $formateursPresentiel = $avancements->where('mle_presentiel', '!=', null)
+            ->groupBy('mle_presentiel')
+            ->map(function($group) {
+                $formateur = $group->first()->formateurPresentiel;
+                return [
+                    'mle' => $group->first()->mle_presentiel,
+                    'nom' => $formateur->nom_formateur ?? 'N/A',
+                    'heures_realisees' => round($group->sum('mh_realisee_presentiel'), 2),
+                    'heures_affectees' => round($group->sum('mh_affectee_presentiel'), 2),
+                    'taux_realisation' => round($group->avg('taux_realisation_presentiel'), 2),
+                    'nb_modules' => $group->unique('code_module')->count(),
+                    'nb_groupes' => $group->unique('groupe')->count(),
+                ];
+            });
 
-            // Application des filtres
-            if (!empty($filters['formateur'])) {
-                $query->where(function($q) use ($filters) {
-                    $q->where('avancements.mle_presentiel', $filters['formateur'])
-                      ->orWhere('avancements.mle_syn', $filters['formateur']);
-                });
-            }
-            if (!empty($filters['module'])) {
-                $query->where('avancements.code_module', $filters['module']);
-            }
-            if (!empty($filters['groupe'])) {
-                $query->where('avancements.groupe', $filters['groupe']);
-            }
-            if (!empty($filters['secteur'])) {
-                $query->where('filieres.nom_secteur', $filters['secteur']);
-            }
-            if (!empty($filters['filiere'])) {
-                $query->where('formations.code_filiere', $filters['filiere']);
-            }
-            if (!empty($filters['niveau'])) {
-                $query->where('formations.niveau', $filters['niveau']);
-            }
+        $formateursSynchrone = $avancements->where('mle_syn', '!=', null)
+            ->groupBy('mle_syn')
+            ->map(function($group) {
+                $formateur = $group->first()->formateurSynchrone;
+                return [
+                    'mle' => $group->first()->mle_syn,
+                    'nom' => $formateur->nom_formateur ?? 'N/A',
+                    'heures_realisees' => round($group->sum('mh_realisee_sync'), 2),
+                    'heures_affectees' => round($group->sum('mh_affectee_sync'), 2),
+                    'taux_realisation' => round($group->avg('taux_realisation_syn'), 2),
+                    'nb_modules' => $group->unique('code_module')->count(),
+                    'nb_groupes' => $group->unique('groupe')->count(),
+                ];
+            });
 
-            $donnees = $query->select(
-                'avancements.groupe',
-                'modules.nom_module',
-                'modules.code_module',
-                'filieres.nom_filiere',
-                'filieres.nom_secteur',
-                'formations.niveau',
-                'f1.nom_formateur as formateur_presentiel',
-                'f2.nom_formateur as formateur_synchrone',
-                'avancements.mh_totale_drif',
-                'avancements.mh_affectee_globale',
-                'avancements.mh_realisee_globale'
-            )
-            ->selectRaw('CASE 
-                WHEN avancements.mh_totale_drif > 0 
-                THEN (avancements.mh_realisee_globale / avancements.mh_totale_drif * 100) 
-                ELSE 0 
-            END as taux_realisation_global')
-            ->orderBy('filieres.nom_secteur')
-            ->orderBy('avancements.groupe')
-            ->orderBy('modules.nom_module')
-            ->get();
-
-            return $donnees;
-
-        } catch (\Exception $e) {
-            Log::error('Erreur getTableauDetaille: ' . $e->getMessage());
-            return collect([]);
-        }
+        return [
+            'presentiel' => $formateursPresentiel->sortByDesc('taux_realisation')->values(),
+            'synchrone' => $formateursSynchrone->sortByDesc('taux_realisation')->values(),
+        ];
     }
 
     private function getFilterOptions($etablissement)
     {
-        try {
-            $formateurs = DB::table('formateurs')
-                ->whereIn('mle', function($query) use ($etablissement) {
-                    $query->select('mle_presentiel')
-                          ->from('avancements')
-                          ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
-                          ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-                          ->where('formations.code_efp', $etablissement->code_efp)
-                          ->whereNotNull('mle_presentiel')
-                          ->whereNull('avancements.deleted_at');
+        $formations = Formation::where('code_efp', $etablissement->code_efp)->get();
+        
+        $groupes = Groupe::whereIn('id_formation', $formations->pluck('id'))->get();
+        
+        $modules = Module::whereIn('code_module', 
+            Avancement::whereIn('groupe', $groupes->pluck('groupe'))->pluck('code_module')
+        )->get();
+        
+        $formateurs = Formateur::whereIn('mle', 
+            Avancement::whereIn('groupe', $groupes->pluck('groupe'))
+                ->where(function($query) {
+                    $query->whereNotNull('mle_presentiel')
+                          ->orWhereNotNull('mle_syn');
                 })
-                ->orWhereIn('mle', function($query) use ($etablissement) {
-                    $query->select('mle_syn')
-                          ->from('avancements')
-                          ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
-                          ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-                          ->where('formations.code_efp', $etablissement->code_efp)
-                          ->whereNotNull('mle_syn')
-                          ->whereNull('avancements.deleted_at');
+                ->get()
+                ->flatMap(function($avancement) {
+                    return [$avancement->mle_presentiel, $avancement->mle_syn];
                 })
-                ->distinct()
-                ->orderBy('nom_formateur')
-                ->get();
-
-            return [
-                'formateurs' => $formateurs,
-            ];
-
-        } catch (\Exception $e) {
-            Log::error('Erreur getFilterOptions: ' . $e->getMessage());
-            return [
-                'formateurs' => collect([]),
-            ];
-        }
-    }
-
-    private function getNonAssignedEntities($etablissement, $filters)
-    {
-        try {
-            $query = DB::table('avancements')
-                ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
-                ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-                ->join('modules', 'avancements.code_module', '=', 'modules.code_module')
-                ->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
-                ->where('formations.code_efp', $etablissement->code_efp)
-                ->whereNull('avancements.deleted_at');
-
-            // Application des filtres (sauf formateur car conflictuel pour non-affectés)
-            if (!empty($filters['module'])) {
-                $query->where('avancements.code_module', $filters['module']);
-            }
-            if (!empty($filters['groupe'])) {
-                $query->where('avancements.groupe', $filters['groupe']);
-            }
-            if (!empty($filters['secteur'])) {
-                $query->where('filieres.nom_secteur', $filters['secteur']);
-            }
-            if (!empty($filters['filiere'])) {
-                $query->where('formations.code_filiere', $filters['filiere']);
-            }
-            if (!empty($filters['niveau'])) {
-                $query->where('formations.niveau', $filters['niveau']);
-            }
-
-            $non_assigned_query = clone $query;
-            $non_assigned_query->whereNull('avancements.mle_presentiel')
-                               ->whereNull('avancements.mle_syn');
-
-            $non_assigned_modules = $non_assigned_query->select('modules.code_module', 'modules.nom_module')
-                ->distinct()
-                ->orderBy('modules.nom_module')
-                ->get();
-
-            $non_assigned_groups = $non_assigned_query->select('avancements.groupe')
-                ->distinct()
-                ->orderBy('avancements.groupe')
-                ->get();
-
-            // Pour les formateurs non affectés
-            $assigned_mles_query = DB::table('avancements')
-                ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
-                ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-                ->where('formations.code_efp', $etablissement->code_efp)
-                ->whereNull('avancements.deleted_at');
-
-            // Application des filtres (sauf formateur)
-            if (!empty($filters['module'])) {
-                $assigned_mles_query->where('avancements.code_module', $filters['module']);
-            }
-            if (!empty($filters['groupe'])) {
-                $assigned_mles_query->where('avancements.groupe', $filters['groupe']);
-            }
-            if (!empty($filters['secteur'])) {
-                $assigned_mles_query->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
-                    ->where('filieres.nom_secteur', $filters['secteur']);
-            }
-            if (!empty($filters['filiere'])) {
-                $assigned_mles_query->where('formations.code_filiere', $filters['filiere']);
-            }
-            if (!empty($filters['niveau'])) {
-                $assigned_mles_query->where('formations.niveau', $filters['niveau']);
-            }
-
-            $assigned_mles = $assigned_mles_query->whereNotNull('avancements.mle_presentiel')
-                ->pluck('avancements.mle_presentiel')
-                ->merge(
-                    $assigned_mles_query->whereNotNull('avancements.mle_syn')
-                        ->pluck('avancements.mle_syn')
-                )
+                ->filter()
                 ->unique()
-                ->filter();
+        )->get();
 
-            $non_assigned_formateurs = \App\Models\Formateur::whereNotIn('mle', $assigned_mles)
-                ->orderBy('nom_formateur')
-                ->get();
+        $niveaux = $formations->pluck('niveau')->unique();
+        $filieres = $formations->pluck('code_filiere', 'filiere.nom_filiere')->unique();
+        $annees = $formations->pluck('annee')->unique()->sort()->values();
 
-            return [
-                'modules' => $non_assigned_modules,
-                'groupes' => $non_assigned_groups,
-                'formateurs' => $non_assigned_formateurs
-            ];
-
-        } catch (\Exception $e) {
-            Log::error('Erreur getNonAssignedEntities: ' . $e->getMessage());
-            return [
-                'modules' => collect([]),
-                'groupes' => collect([]),
-                'formateurs' => collect([])
-            ];
-        }
+        return [
+            'groupes' => $groupes,
+            'modules' => $modules,
+            'formateurs' => $formateurs,
+            'niveaux' => $niveaux,
+            'filieres' => $filieres,
+            'annees' => $annees,
+        ];
     }
 
     public function getFilteredOptions(Request $request)
@@ -549,208 +333,97 @@ class DashboardEtablissementController extends Controller
         $user = Auth::user();
         $etablissement = $user->etablissement;
 
-        if (!$etablissement) {
-            return response()->json(['error' => 'Établissement non trouvé'], 404);
-        }
+        $filters = [
+            'groupe' => $request->input('groupe'),
+            'module' => $request->input('module'),
+            'formateur' => $request->input('formateur'),
+            'niveau' => $request->input('niveau'),
+            'filiere' => $request->input('filiere'),
+            'annee' => $request->input('annee'),
+        ];
 
-        $formateur = $request->input('formateur');
-        $module = $request->input('module');
-        $groupe = $request->input('groupe');
-        $secteur = $request->input('secteur');
-        $filiere = $request->input('filiere');
+        $filterOptions = $this->getFilterOptions($etablissement);
 
-        try {
-            $result = [];
-
-            // Modules
-            if ($request->has('get_modules')) {
-                $query = DB::table('modules')
-                    ->join('avancements', 'modules.code_module', '=', 'avancements.code_module')
-                    ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
-                    ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-                    ->where('formations.code_efp', $etablissement->code_efp)
-                    ->whereNull('avancements.deleted_at');
-
-                if ($formateur) {
-                    $query->where(function($q) use ($formateur) {
-                        $q->where('avancements.mle_presentiel', $formateur)
-                          ->orWhere('avancements.mle_syn', $formateur);
-                    });
-                }
-                if ($groupe) {
-                    $query->where('avancements.groupe', $groupe);
-                }
-                if ($secteur) {
-                    $query->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
-                          ->where('filieres.nom_secteur', $secteur);
-                }
-                if ($filiere) {
-                    $query->where('formations.code_filiere', $filiere);
-                }
-
-                $result['modules'] = $query
-                    ->select('modules.code_module', 'modules.nom_module')
-                    ->distinct()
-                    ->orderBy('modules.nom_module')
-                    ->get();
-            }
-
-            // Groupes
-            if ($request->has('get_groupes')) {
-                $query = DB::table('groupes')
-                    ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-                    ->where('formations.code_efp', $etablissement->code_efp);
-
-                if ($formateur || $module) {
-                    $query->join('avancements', 'groupes.groupe', '=', 'avancements.groupe')
-                          ->whereNull('avancements.deleted_at');
-
-                    if ($formateur) {
-                        $query->where(function($q) use ($formateur) {
-                            $q->where('avancements.mle_presentiel', $formateur)
-                              ->orWhere('avancements.mle_syn', $formateur);
-                        });
-                    }
-                    if ($module) {
-                        $query->where('avancements.code_module', $module);
-                    }
-                }
-
-                if ($secteur || $filiere) {
-                    if (!$query->getQuery()->joins || !collect($query->getQuery()->joins)->contains(fn($j) => strpos($j->table, 'filieres') !== false)) {
-                        $query->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere');
-                    }
-                    if ($secteur) {
-                        $query->where('filieres.nom_secteur', $secteur);
-                    }
-                }
-                if ($filiere) {
-                    $query->where('formations.code_filiere', $filiere);
-                }
-
-                $result['groupes'] = $query
-                    ->select('groupes.groupe')
-                    ->distinct()
-                    ->orderBy('groupes.groupe')
-                    ->get();
-            }
-
-            // Secteurs
-            if ($request->has('get_secteurs')) {
-                $query = DB::table('secteurs')
-                    ->join('filieres', 'secteurs.nom_secteur', '=', 'filieres.nom_secteur')
-                    ->join('formations', 'filieres.code_filiere', '=', 'formations.code_filiere')
-                    ->where('formations.code_efp', $etablissement->code_efp);
-
-                if ($formateur || $module || $groupe) {
-                    $query->join('groupes', 'formations.id', '=', 'groupes.id_formation')
-                          ->join('avancements', 'groupes.groupe', '=', 'avancements.groupe')
-                          ->whereNull('avancements.deleted_at');
-
-                    if ($formateur) {
-                        $query->where(function($q) use ($formateur) {
-                            $q->where('avancements.mle_presentiel', $formateur)
-                              ->orWhere('avancements.mle_syn', $formateur);
-                        });
-                    }
-                    if ($module) {
-                        $query->where('avancements.code_module', $module);
-                    }
-                    if ($groupe) {
-                        $query->where('avancements.groupe', $groupe);
-                    }
-                }
-
-                $result['secteurs'] = $query
-                    ->select('secteurs.nom_secteur')
-                    ->distinct()
-                    ->orderBy('secteurs.nom_secteur')
-                    ->get();
-            }
-
-            // Filières
-            if ($request->has('get_filieres')) {
-                $query = DB::table('filieres')
-                    ->join('formations', 'filieres.code_filiere', '=', 'formations.code_filiere')
-                    ->where('formations.code_efp', $etablissement->code_efp);
-
-                if ($secteur) {
-                    $query->where('filieres.nom_secteur', $secteur);
-                }
-
-                if ($formateur || $module || $groupe) {
-                    $query->join('groupes', 'formations.id', '=', 'groupes.id_formation')
-                          ->join('avancements', 'groupes.groupe', '=', 'avancements.groupe')
-                          ->whereNull('avancements.deleted_at');
-
-                    if ($formateur) {
-                        $query->where(function($q) use ($formateur) {
-                            $q->where('avancements.mle_presentiel', $formateur)
-                              ->orWhere('avancements.mle_syn', $formateur);
-                        });
-                    }
-                    if ($module) {
-                        $query->where('avancements.code_module', $module);
-                    }
-                    if ($groupe) {
-                        $query->where('avancements.groupe', $groupe);
-                    }
-                }
-
-                $result['filieres'] = $query
-                    ->select('filieres.code_filiere', 'filieres.nom_filiere')
-                    ->distinct()
-                    ->orderBy('filieres.nom_filiere')
-                    ->get();
-            }
-
-            // Niveaux
-            if ($request->has('get_niveaux')) {
-                $query = DB::table('niveaux')
-                    ->join('formations', 'niveaux.niveau', '=', 'formations.niveau')
-                    ->where('formations.code_efp', $etablissement->code_efp);
-
-                if ($secteur || $filiere) {
-                    $query->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere');
-                    if ($secteur) {
-                        $query->where('filieres.nom_secteur', $secteur);
-                    }
-                }
-                if ($filiere) {
-                    $query->where('formations.code_filiere', $filiere);
-                }
-
-                if ($formateur || $module || $groupe) {
-                    $query->join('groupes', 'formations.id', '=', 'groupes.id_formation')
-                          ->join('avancements', 'groupes.groupe', '=', 'avancements.groupe')
-                          ->whereNull('avancements.deleted_at');
-
-                    if ($formateur) {
-                        $query->where(function($q) use ($formateur) {
-                            $q->where('avancements.mle_presentiel', $formateur)
-                              ->orWhere('avancements.mle_syn', $formateur);
-                        });
-                    }
-                    if ($module) {
-                        $query->where('avancements.code_module', $module);
-                    }
-                    if ($groupe) {
-                        $query->where('avancements.groupe', $groupe);
-                    }
-                }
-
-                $result['niveaux'] = $query
-                    ->select('niveaux.niveau')
-                    ->distinct()
-                    ->orderBy('niveaux.niveau')
-                    ->get();
-            }
-
-            return response()->json($result);
-
-        } catch (\Exception $e) {
-            Log::error('Erreur getFilteredOptions: ' . $e->getMessage());
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
+        return response()->json($filterOptions);
     }
+
+    public function importForm()
+        {
+            $user = Auth::user();
+            $etablissement = $user->etablissement;
+            
+            if (!$etablissement) {
+                return redirect()->route('administration.etablissement.dashboard')
+                    ->with('error', 'Aucun établissement associé à votre compte.');
+            }
+            
+            return view('administrationetablissement.import', compact('user', 'etablissement'));
+    }
+
+    public function importExcel(Request $request)
+{
+    // Augmenter les limites de mémoire et de temps d'exécution
+    ini_set('memory_limit', '512M');
+    set_time_limit(300);
+    
+    $request->validate([
+        'excel_file' => [
+            'required',
+            'file',
+            'mimes:xlsx,xls,csv',
+            'max:10240'
+        ]
+    ], [
+        'excel_file.required' => 'Veuillez sélectionner un fichier Excel.',
+        'excel_file.mimes' => 'Le fichier doit être de type Excel (.xlsx, .xls) ou CSV.',
+        'excel_file.max' => 'Le fichier ne doit pas dépasser 10MB.'
+    ]);
+
+    try {
+        $user = Auth::user();
+        $etablissement = $user->etablissement;
+        
+        if (!$etablissement) {
+            return redirect()->back()
+                ->with('error', 'Aucun établissement associé à votre compte.');
+        }
+
+        // Utiliser une transaction pour la sécurité
+        DB::beginTransaction();
+        
+        $import = new DataImport();
+        Excel::import($import, $request->file('excel_file'));
+
+        $imported = $import->getImported();
+        $skipped = $import->getSkipped();
+        $errors = $import->getErrors();
+
+        DB::commit();
+
+        $successMessages = [];
+        if ($imported > 0) {
+            $successMessages[] = "{$imported} enregistrement(s) importé(s) avec succès.";
+        }
+        if ($skipped > 0) {
+            $successMessages[] = "{$skipped} ligne(s) ignorée(s) (ne concernent pas votre établissement).";
+        }
+
+        if (count($errors) > 0) {
+            return redirect()->back()
+                ->with('warning', implode(' ', $successMessages))
+                ->withErrors(['import_errors' => $errors]);
+        } else {
+            return redirect()->route('administration.etablissement.dashboard')
+                ->with('success', implode(' ', $successMessages));
+        }
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('Erreur lors de l\'importation Excel: ' . $e->getMessage());
+        Log::error('Stack trace: ' . $e->getTraceAsString());
+        
+        return redirect()->back()
+            ->with('error', 'Erreur lors de l\'importation: ' . $e->getMessage());
+    }
+}
 }

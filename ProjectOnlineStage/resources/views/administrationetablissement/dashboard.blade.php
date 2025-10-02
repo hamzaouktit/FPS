@@ -172,6 +172,112 @@
     </div>
 </div>
 
+<!-- Analyse des Heures de Formation -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light border-0">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock text-info me-2"></i>
+                    Analyse des Heures de Formation
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-4">
+                    <div class="col-md-3">
+                        <div class="stat-card primary card border-0 bg-light h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <h6 class="text-muted mb-0">Heures Requises</h6>
+                                        <h3 class="mb-0 mt-2">{{ number_format($heuresData['heures_requises'], 0) }}</h3>
+                                    </div>
+                                    <div class="bg-primary bg-opacity-10 p-2 rounded">
+                                        <i class="fas fa-tasks text-primary fs-4"></i>
+                                    </div>
+                                </div>
+                                <small class="text-muted">Heures DRIF totales</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card success card border-0 bg-light h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <h6 class="text-muted mb-0">Heures Affectées</h6>
+                                        <h3 class="mb-0 mt-2">{{ number_format($heuresData['heures_affectees'], 0) }}</h3>
+                                    </div>
+                                    <div class="bg-success bg-opacity-10 p-2 rounded">
+                                        <i class="fas fa-user-check text-success fs-4"></i>
+                                    </div>
+                                </div>
+                                <small class="text-{{ $heuresData['difference_affectees'] < 0 ? 'success' : 'danger' }}">
+                                    {{ $heuresData['difference_affectees'] >= 0 ? '-' : '+' }}{{ number_format(abs($heuresData['difference_affectees']), 0) }} h
+                                    ({{ $heuresData['taux_affectation'] }}%)
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card warning card border-0 bg-light h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <h6 class="text-muted mb-0">Heures Réalisées</h6>
+                                        <h3 class="mb-0 mt-2">{{ number_format($heuresData['heures_realisees'], 0) }}</h3>
+                                    </div>
+                                    <div class="bg-warning bg-opacity-10 p-2 rounded">
+                                        <i class="fas fa-check-circle text-warning fs-4"></i>
+                                    </div>
+                                </div>
+                                <small class="text-{{ $heuresData['difference_realisees'] < 0 ? 'success' : 'danger' }}">
+                                    {{ $heuresData['difference_realisees'] >= 0 ? '-' : '+' }}{{ number_format(abs($heuresData['difference_realisees']), 0) }} h
+                                    ({{ $heuresData['taux_realisation'] }}%)
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card danger card border-0 bg-light h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <h6 class="text-muted mb-0">Différence</h6>
+                                        <h3 class="mb-0 mt-2 text-{{ $heuresData['difference_realisees'] > 0 ? 'danger' : 'success' }}">
+                                            {{ number_format(abs($heuresData['difference_realisees']), 0) }}
+                                        </h3>
+                                    </div>
+                                    <div class="bg-danger bg-opacity-10 p-2 rounded">
+                                        <i class="fas fa-exclamation-triangle text-danger fs-4"></i>
+                                    </div>
+                                </div>
+                                <small class="text-muted">Heures restantes</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Barre de progression -->
+                <div class="mt-4">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Progression globale</span>
+                        <span class="fw-bold">{{ $heuresData['taux_realisation'] }}%</span>
+                    </div>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ min(100, $heuresData['taux_realisation']) }}%"
+                             aria-valuenow="{{ $heuresData['taux_realisation'] }}" 
+                             aria-valuemin="0" aria-valuemax="100">
+                            {{ $heuresData['taux_realisation'] }}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Statistiques principales (KPIs) -->
 <div class="row mb-4">
     <div class="col-xl-3 col-md-6 mb-3">

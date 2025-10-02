@@ -81,6 +81,9 @@ class DashboardEtablissementController extends Controller
         // Analyse des heures par type
         $heuresAnalysis = $this->calculateHeuresAnalysis($avancements);
         
+        // Données pour l'analyse des heures (comme dans le modèle)
+        $heuresData = $this->calculateHeuresData($avancements);
+        
         // Données détaillées par groupe et module
         $detailedData = $this->getDetailedGroupeModuleData($avancements);
         
@@ -100,6 +103,7 @@ class DashboardEtablissementController extends Controller
             'etablissement',
             'stats',
             'heuresAnalysis',
+            'heuresData',
             'detailedData',
             'topModules',
             'chartData',
@@ -118,11 +122,12 @@ class DashboardEtablissementController extends Controller
         $tauxRealisationPresentiel = $avancements->avg('taux_realisation_presentiel') ?? 0;
         $tauxRealisationSynchrone = $avancements->avg('taux_realisation_syn') ?? 0;
         
+        $heuresRequisesTotal = $avancements->sum('mh_totale_drif');
         $heuresAffecteesTotal = $avancements->sum('mh_affectee_globale');
         $heuresRealiseesTotal = $avancements->sum('mh_realisee_globale');
         
-        $tauxAffectation = $heuresAffecteesTotal > 0 
-            ? ($heuresRealiseesTotal / $heuresAffecteesTotal) * 100 
+        $tauxAffectation = $heuresRequisesTotal > 0 
+            ? ($heuresAffecteesTotal / $heuresRequisesTotal) * 100 
             : 0;
         
         $moyenneAbsence = $avancements->avg('moy_absence') ?? 0;
@@ -141,6 +146,29 @@ class DashboardEtablissementController extends Controller
             'moyenne_absence' => round($moyenneAbsence, 2),
             'total_cc' => $totalCC,
             'total_efm' => $totalEFM,
+        ];
+    }
+
+    private function calculateHeuresData($avancements)
+    {
+        $heuresRequises = $avancements->sum('mh_totale_drif');
+        $heuresAffectees = $avancements->sum('mh_affectee_globale');
+        $heuresRealisees = $avancements->sum('mh_realisee_globale');
+
+        $differenceAffectees = $heuresRequises - $heuresAffectees;
+        $differenceRealisees = $heuresAffectees - $heuresRealisees;
+        
+        $tauxAffectation = $heuresRequises > 0 ? ($heuresAffectees / $heuresRequises) * 100 : 0;
+        $tauxRealisation = $heuresAffectees > 0 ? ($heuresRealisees / $heuresAffectees) * 100 : 0;
+
+        return [
+            'heures_requises' => $heuresRequises,
+            'heures_affectees' => $heuresAffectees,
+            'heures_realisees' => $heuresRealisees,
+            'difference_affectees' => $differenceAffectees,
+            'difference_realisees' => $differenceRealisees,
+            'taux_affectation' => round($tauxAffectation, 2),
+            'taux_realisation' => round($tauxRealisation, 2),
         ];
     }
 

@@ -27,6 +27,7 @@ Route::middleware(['auth'])->group(function () {
     // Routes pour l'administration du complexe
     Route::prefix('administrationcomplexe')->name('administration.complexe.')->group(function () {
         Route::get('/dashboard', [DashboardComplexeController::class, 'index'])->name('dashboard');
+        Route::get('/filter-options', [DashboardComplexeController::class, 'getFilteredOptions'])->name('filter.options');
     });
     
     // Routes pour l'administration de l'établissement
@@ -38,4 +39,4 @@ Route::middleware(['auth'])->group(function () {
         ->name('filter.options');
     });
     
-}); 
+});

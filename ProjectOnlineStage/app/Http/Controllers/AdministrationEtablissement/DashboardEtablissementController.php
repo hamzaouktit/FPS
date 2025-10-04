@@ -99,6 +99,56 @@ class DashboardEtablissementController extends Controller
         // Options pour les filtres
         $filterOptions = $this->getFilterOptions($etablissement);
 
+        // Nouveaux tableaux ajoutés
+        // Modules non affectés : ceux où mle_presentiel et mle_syn sont null
+        $avancementsNonAffectes = $avancements->filter(function ($avancement) {
+            return is_null($avancement->mle_presentiel) && is_null($avancement->mle_syn);
+        });
+
+        // Par module
+        $nonAffectesParModule = $avancementsNonAffectes->groupBy('code_module')->map(function ($group) {
+            return [
+                'code_module' => $group->first()->code_module,
+                'nom_module' => $group->first()->module->nom_module ?? 'N/A',
+                'groupes' => $group->pluck('groupe')->unique()->implode(', '),
+                'masse_horaire' => $group->sum('mh_totale_drif'),
+                'formateur' => 'Non affecté',
+            ];
+        })->values();
+
+        $totalNonAffectesModule = $avancementsNonAffectes->sum('mh_totale_drif');
+
+        // Par filière
+        $nonAffectesParFiliere = $avancementsNonAffectes->groupBy(function ($avancement) {
+            return $avancement->groupe->formation->filiere->nom_filiere ?? 'N/A';
+        })->map(function ($group) {
+            return [
+                'filiere' => $group->first()->groupe->formation->filiere->nom_filiere ?? 'N/A',
+                'modules' => $group->pluck('code_module')->unique()->implode(', '),
+                'masse_horaire' => $group->sum('mh_totale_drif'),
+            ];
+        })->values();
+
+        $totalNonAffectesFiliere = $avancementsNonAffectes->sum('mh_totale_drif'); // Même total
+
+        // Liste des formateurs avec heures requises, affectées, manquantes
+        $formateursData = $filterOptions['formateurs']->map(function ($formateur) use ($avancements) {
+            $avForForm = $avancements->filter(function ($av) use ($formateur) {
+                return $av->mle_presentiel == $formateur->mle || $av->mle_syn == $formateur->mle;
+            });
+            $heuresRequises = $avForForm->sum('mh_totale_drif');
+            $heuresAffectees = $avForForm->sum('mh_affectee_globale');
+            $heuresManquantes = $heuresRequises - $heuresAffectees;
+            return [
+                'nom_formateur' => $formateur->nom_formateur,
+                'heures_requises' => $heuresRequises,
+                'heures_affectees' => $heuresAffectees,
+                'heures_manquantes' => $heuresManquantes,
+            ];
+        })->filter(function ($data) {
+            return $data['heures_requises'] > 0; // Filtrer les formateurs sans assignations si nécessaire
+        })->values();
+
         return view('administrationetablissement.dashboard', compact(
             'etablissement',
             'stats',
@@ -109,7 +159,12 @@ class DashboardEtablissementController extends Controller
             'chartData',
             'formateurStats',
             'filterOptions',
-            'filters'
+            'filters',
+            'nonAffectesParModule',
+            'totalNonAffectesModule',
+            'nonAffectesParFiliere',
+            'totalNonAffectesFiliere',
+            'formateursData'
         ));
     }
 

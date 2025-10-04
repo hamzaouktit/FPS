@@ -631,6 +631,156 @@
     </div>
 </div>
 
+<!-- Nouveaux tableaux ajoutés avant les données détaillées -->
+
+<!-- Modules non affectés par module -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                    Modules Non Affectés - Par Module
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Module</th>
+                                <th>Groupes</th>
+                                <th class="text-end">Masse Horaire</th>
+                                <th>Formateur</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($nonAffectesParModule as $item)
+                            <tr>
+                                <td>{{ $item['nom_module'] }} ({{ $item['code_module'] }})</td>
+                                <td>{{ $item['groupes'] }}</td>
+                                <td class="text-end">{{ number_format($item['masse_horaire'], 0) }}h</td>
+                                <td>{{ $item['formateur'] }}</td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                                    Aucun module non affecté
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="2">Total</th>
+                                <th class="text-end">{{ number_format($totalNonAffectesModule, 0) }}h</th>
+                                <th></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modules non affectés par filière -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                    Modules Non Affectés - Par Filière
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Filière</th>
+                                <th>Modules Non Affectés</th>
+                                <th class="text-end">Masse Horaire</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($nonAffectesParFiliere as $item)
+                            <tr>
+                                <td>{{ $item['filiere'] }}</td>
+                                <td>{{ $item['modules'] }}</td>
+                                <td class="text-end">{{ number_format($item['masse_horaire'], 0) }}h</td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-4">
+                                    <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                                    Aucun module non affecté
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="2">Total</th>
+                                <th class="text-end">{{ number_format($totalNonAffectesFiliere, 0) }}h</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des formateurs avec heures -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fas fa-users text-primary me-2"></i>
+                    Liste des Formateurs - Heures Requises / Affectées / Manquantes
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Formateur</th>
+                                <th class="text-end">Heures Requises</th>
+                                <th class="text-end">Heures Affectées</th>
+                                <th class="text-end">Heures Manquantes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($formateursData as $item)
+                            <tr>
+                                <td>{{ $item['nom_formateur'] }}</td>
+                                <td class="text-end">{{ number_format($item['heures_requises'], 0) }}h</td>
+                                <td class="text-end">{{ number_format($item['heures_affectees'], 0) }}h</td>
+                                <td class="text-end text-{{ $item['heures_manquantes'] > 0 ? 'danger' : 'success' }}">
+                                    {{ number_format($item['heures_manquantes'], 0) }}h
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                                    Aucun formateur disponible
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Données détaillées par groupe et module -->
 <div class="row mb-4">
     <div class="col-12">

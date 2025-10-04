@@ -12,7 +12,7 @@
 @endsection
 
 @section('content')
-<!-- Header avec infos établissement -->
+<!-- Header -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center">
@@ -59,7 +59,7 @@
     </div>
 </div>
 
-<!-- Messages d'alerte -->
+<!-- Messages -->
 @if(session('success'))
 <div class="alert alert-success alert-dismissible fade show" role="alert">
     <i class="fas fa-check-circle me-2"></i>
@@ -76,6 +76,64 @@
 </div>
 @endif
 
+<!-- Statistiques Générales -->
+<div class="row mb-4">
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-graduation-cap fa-2x text-primary mb-2"></i>
+                <h3 class="mb-0">{{ $stats['total_formations'] }}</h3>
+                <p class="text-muted mb-0 small">Formations</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-chalkboard-teacher fa-2x text-success mb-2"></i>
+                <h3 class="mb-0">{{ $stats['total_formateurs'] }}</h3>
+                <p class="text-muted mb-0 small">Formateurs</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-stream fa-2x text-info mb-2"></i>
+                <h3 class="mb-0">{{ $stats['total_filieres'] }}</h3>
+                <p class="text-muted mb-0 small">Filières</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-users fa-2x text-warning mb-2"></i>
+                <h3 class="mb-0">{{ $stats['total_groupes'] }}</h3>
+                <p class="text-muted mb-0 small">Groupes</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-book fa-2x text-danger mb-2"></i>
+                <h3 class="mb-0">{{ $stats['total_modules'] }}</h3>
+                <p class="text-muted mb-0 small">Modules</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-industry fa-2x text-secondary mb-2"></i>
+                <h3 class="mb-0">{{ $stats['total_secteurs'] }}</h3>
+                <p class="text-muted mb-0 small">Secteurs</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Filtres d'analyse -->
 <div class="row mb-4">
     <div class="col-12">
@@ -91,7 +149,7 @@
                     <div class="row g-3">
                         <div class="col-md-2">
                             <label class="form-label fw-bold">Année</label>
-                            <select name="annee" class="form-select">
+                            <select name="annee" class="form-select" onchange="this.form.submit()">
                                 <option value="">Toutes</option>
                                 @foreach($filterOptions['annees'] as $annee)
                                     <option value="{{ $annee }}" {{ $filters['annee'] == $annee ? 'selected' : '' }}>
@@ -102,7 +160,7 @@
                         </div>
                         <div class="col-md-2">
                             <label class="form-label fw-bold">Filière</label>
-                            <select name="filiere" class="form-select">
+                            <select name="filiere" class="form-select" onchange="this.form.submit()">
                                 <option value="">Toutes</option>
                                 @foreach($filterOptions['filieres'] as $nomFiliere => $codeFiliere)
                                     <option value="{{ $codeFiliere }}" {{ $filters['filiere'] == $codeFiliere ? 'selected' : '' }}>
@@ -113,7 +171,7 @@
                         </div>
                         <div class="col-md-2">
                             <label class="form-label fw-bold">Niveau</label>
-                            <select name="niveau" class="form-select">
+                            <select name="niveau" class="form-select" onchange="this.form.submit()">
                                 <option value="">Tous</option>
                                 @foreach($filterOptions['niveaux'] as $niveau)
                                     <option value="{{ $niveau }}" {{ $filters['niveau'] == $niveau ? 'selected' : '' }}>
@@ -124,7 +182,7 @@
                         </div>
                         <div class="col-md-2">
                             <label class="form-label fw-bold">Groupe</label>
-                            <select name="groupe" class="form-select">
+                            <select name="groupe" class="form-select" onchange="this.form.submit()">
                                 <option value="">Tous</option>
                                 @foreach($filterOptions['groupes'] as $groupe)
                                     <option value="{{ $groupe->groupe }}" {{ $filters['groupe'] == $groupe->groupe ? 'selected' : '' }}>
@@ -135,22 +193,22 @@
                         </div>
                         <div class="col-md-2">
                             <label class="form-label fw-bold">Module</label>
-                            <select name="module" class="form-select">
+                            <select name="module" class="form-select" onchange="this.form.submit()">
                                 <option value="">Tous</option>
                                 @foreach($filterOptions['modules'] as $module)
                                     <option value="{{ $module->code_module }}" {{ $filters['module'] == $module->code_module ? 'selected' : '' }}>
-                                        {{ $module->nom_module }}
+                                        {{ Str::limit($module->nom_module, 20) }}
                                     </option>
                                 @endforeach
                             </select>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label fw-bold">Formateur</label>
-                            <select name="formateur" class="form-select">
+                            <select name="formateur" class="form-select" onchange="this.form.submit()">
                                 <option value="">Tous</option>
                                 @foreach($filterOptions['formateurs'] as $formateur)
                                     <option value="{{ $formateur->mle }}" {{ $filters['formateur'] == $formateur->mle ? 'selected' : '' }}>
-                                        {{ $formateur->nom_formateur }}
+                                        {{ Str::limit($formateur->nom_formateur, 20) }}
                                     </option>
                                 @endforeach
                             </select>
@@ -158,9 +216,6 @@
                     </div>
                     <div class="row mt-3">
                         <div class="col-12">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-search me-1"></i> Filtrer
-                            </button>
                             <a href="{{ route('administration.etablissement.dashboard') }}" class="btn btn-outline-secondary">
                                 <i class="fas fa-redo me-1"></i> Réinitialiser
                             </a>
@@ -258,7 +313,6 @@
                     </div>
                 </div>
                 
-                <!-- Barre de progression -->
                 <div class="mt-4">
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">Progression globale</span>
@@ -266,9 +320,7 @@
                     </div>
                     <div class="progress" style="height: 25px;">
                         <div class="progress-bar bg-success" role="progressbar" 
-                             style="width: {{ min(100, $heuresData['taux_realisation']) }}%"
-                             aria-valuenow="{{ $heuresData['taux_realisation'] }}" 
-                             aria-valuemin="0" aria-valuemax="100">
+                             style="width: {{ min(100, $heuresData['taux_realisation']) }}%">
                             {{ $heuresData['taux_realisation'] }}%
                         </div>
                     </div>
@@ -278,91 +330,41 @@
     </div>
 </div>
 
-<!-- Statistiques principales (KPIs) -->
+<!-- Graphiques des Taux -->
 <div class="row mb-4">
-    <div class="col-xl-3 col-md-6 mb-3">
-        <div class="card border-0 shadow-sm border-start border-primary border-4">
+    <div class="col-md-4 mb-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-chart-line text-success me-2"></i>Taux de Réalisation</h6>
+            </div>
             <div class="card-body">
-                <div class="d-flex align-items-center justify-content-between">
-                    <div>
-                        <div class="text-xs fw-bold text-primary text-uppercase mb-1">
-                            Taux de Réalisation Global
-                        </div>
-                        <div class="h4 mb-0 fw-bold text-gray-800">
-                            {{ $stats['taux_realisation_global'] }}%
-                        </div>
-                    </div>
-                    <div>
-                        <i class="fas fa-chart-pie fa-2x text-primary opacity-25"></i>
-                    </div>
-                </div>
+                <canvas id="tauxRealisationChart" height="200"></canvas>
             </div>
         </div>
     </div>
-
-    <div class="col-xl-3 col-md-6 mb-3">
-        <div class="card border-0 shadow-sm border-start border-success border-4">
+    <div class="col-md-4 mb-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-chart-line text-primary me-2"></i>Taux d'Affectation</h6>
+            </div>
             <div class="card-body">
-                <div class="d-flex align-items-center justify-content-between">
-                    <div>
-                        <div class="text-xs fw-bold text-success text-uppercase mb-1">
-                            Heures Réalisées
-                        </div>
-                        <div class="h4 mb-0 fw-bold text-gray-800">
-                            {{ number_format($stats['heures_realisees'], 0) }}h
-                        </div>
-                        <small class="text-muted">/ {{ number_format($stats['heures_affectees'], 0) }}h affectées</small>
-                    </div>
-                    <div>
-                        <i class="fas fa-clock fa-2x text-success opacity-25"></i>
-                    </div>
-                </div>
+                <canvas id="tauxAffectationChart" height="200"></canvas>
             </div>
         </div>
     </div>
-
-    <div class="col-xl-3 col-md-6 mb-3">
-        <div class="card border-0 shadow-sm border-start border-info border-4">
-            <div class="card-body">
-                <div class="d-flex align-items-center justify-content-between">
-                    <div>
-                        <div class="text-xs fw-bold text-info text-uppercase mb-1">
-                            Groupes / Modules
-                        </div>
-                        <div class="h4 mb-0 fw-bold text-gray-800">
-                            {{ $stats['total_groupes'] }} / {{ $stats['total_modules'] }}
-                        </div>
-                    </div>
-                    <div>
-                        <i class="fas fa-users fa-2x text-info opacity-25"></i>
-                    </div>
-                </div>
+    <div class="col-md-4 mb-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-chart-line text-warning me-2"></i>Moyenne d'Absence</h6>
             </div>
-        </div>
-    </div>
-
-    <div class="col-xl-3 col-md-6 mb-3">
-        <div class="card border-0 shadow-sm border-start border-warning border-4">
             <div class="card-body">
-                <div class="d-flex align-items-center justify-content-between">
-                    <div>
-                        <div class="text-xs fw-bold text-warning text-uppercase mb-1">
-                            Moyenne Absence
-                        </div>
-                        <div class="h4 mb-0 fw-bold text-gray-800">
-                            {{ $stats['moyenne_absence'] }}%
-                        </div>
-                    </div>
-                    <div>
-                        <i class="fas fa-user-times fa-2x text-warning opacity-25"></i>
-                    </div>
-                </div>
+                <canvas id="moyenneAbsenceChart" height="200"></canvas>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Graphiques des heures de formation -->
+<!-- Graphiques des heures -->
 <div class="row mb-4">
     <div class="col-xl-8 col-lg-7 mb-3">
         <div class="card border-0 shadow-sm">
@@ -373,7 +375,7 @@
                 </h5>
             </div>
             <div class="card-body">
-                <div class="chart-container" style="position: relative; height: 400px; width: 100%;">
+                <div class="chart-container" style="position: relative; height: 400px;">
                     <canvas id="heuresChart"></canvas>
                 </div>
             </div>
@@ -389,7 +391,7 @@
                 </h5>
             </div>
             <div class="card-body">
-                <div class="chart-container" style="position: relative; height: 400px; width: 100%;">
+                <div class="chart-container" style="position: relative; height: 400px;">
                     <canvas id="modeChart"></canvas>
                 </div>
             </div>
@@ -414,10 +416,7 @@
                         <p class="text-muted mb-2">Présentiel</p>
                         <div class="progress" style="height: 25px;">
                             <div class="progress-bar bg-primary" role="progressbar" 
-                                 style="width: {{ $stats['taux_realisation_presentiel'] }}%"
-                                 aria-valuenow="{{ $stats['taux_realisation_presentiel'] }}" 
-                                 aria-valuemin="0" 
-                                 aria-valuemax="100">
+                                 style="width: {{ $stats['taux_realisation_presentiel'] }}%">
                                 {{ $stats['taux_realisation_presentiel'] }}%
                             </div>
                         </div>
@@ -427,10 +426,7 @@
                         <p class="text-muted mb-2">Synchrone</p>
                         <div class="progress" style="height: 25px;">
                             <div class="progress-bar bg-success" role="progressbar" 
-                                 style="width: {{ $stats['taux_realisation_synchrone'] }}%"
-                                 aria-valuenow="{{ $stats['taux_realisation_synchrone'] }}" 
-                                 aria-valuemin="0" 
-                                 aria-valuemax="100">
+                                 style="width: {{ $stats['taux_realisation_synchrone'] }}%">
                                 {{ $stats['taux_realisation_synchrone'] }}%
                             </div>
                         </div>
@@ -440,10 +436,7 @@
                         <p class="text-muted mb-2">Global</p>
                         <div class="progress" style="height: 25px;">
                             <div class="progress-bar bg-info" role="progressbar" 
-                                 style="width: {{ $stats['taux_realisation_global'] }}%"
-                                 aria-valuenow="{{ $stats['taux_realisation_global'] }}" 
-                                 aria-valuemin="0" 
-                                 aria-valuemax="100">
+                                 style="width: {{ $stats['taux_realisation_global'] }}%">
                                 {{ $stats['taux_realisation_global'] }}%
                             </div>
                         </div>
@@ -519,7 +512,7 @@
     </div>
 </div>
 
-<!-- Statistiques par formateur -->
+<!-- Top Formateurs -->
 <div class="row mb-4">
     <div class="col-lg-6 mb-3">
         <div class="card border-0 shadow-sm">
@@ -623,15 +616,13 @@
                 </h5>
             </div>
             <div class="card-body">
-                <div class="chart-container" style="position: relative; height: 400px; width: 100%;">
+                <div class="chart-container" style="position: relative; height: 400px;">
                     <canvas id="filiereChart"></canvas>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-<!-- Nouveaux tableaux ajoutés avant les données détaillées -->
 
 <!-- Modules non affectés par module -->
 <div class="row mb-4">
@@ -657,7 +648,7 @@
                         <tbody>
                             @forelse($nonAffectesParModule as $item)
                             <tr>
-                                <td>{{ $item['nom_module'] }} ({{ $item['code_module'] }})</td>
+                                <td>{{ $item['nom_module'] }} <br><small class="text-muted">({{ $item['code_module'] }})</small></td>
                                 <td>{{ $item['groupes'] }}</td>
                                 <td class="text-end">{{ number_format($item['masse_horaire'], 0) }}h</td>
                                 <td>{{ $item['formateur'] }}</td>
@@ -665,14 +656,14 @@
                             @empty
                             <tr>
                                 <td colspan="4" class="text-center text-muted py-4">
-                                    <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
-                                    Aucun module non affecté
+                                    <i class="fas fa-check-circle fa-3x mb-3 d-block text-success"></i>
+                                    Tous les modules sont affectés
                                 </td>
                             </tr>
                             @endforelse
                         </tbody>
                         <tfoot>
-                            <tr>
+                            <tr class="table-secondary fw-bold">
                                 <th colspan="2">Total</th>
                                 <th class="text-end">{{ number_format($totalNonAffectesModule, 0) }}h</th>
                                 <th></th>
@@ -708,21 +699,24 @@
                         <tbody>
                             @forelse($nonAffectesParFiliere as $item)
                             <tr>
-                                <td>{{ $item['filiere'] }}</td>
+                                <td>
+                                    <strong>{{ $item['nom_filiere'] }}</strong><br>
+                                    <small class="text-muted">{{ $item['code_filiere'] }}</small>
+                                </td>
                                 <td>{{ $item['modules'] }}</td>
                                 <td class="text-end">{{ number_format($item['masse_horaire'], 0) }}h</td>
                             </tr>
                             @empty
                             <tr>
                                 <td colspan="3" class="text-center text-muted py-4">
-                                    <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
-                                    Aucun module non affecté
+                                    <i class="fas fa-check-circle fa-3x mb-3 d-block text-success"></i>
+                                    Tous les modules sont affectés
                                 </td>
                             </tr>
                             @endforelse
                         </tbody>
                         <tfoot>
-                            <tr>
+                            <tr class="table-secondary fw-bold">
                                 <th colspan="2">Total</th>
                                 <th class="text-end">{{ number_format($totalNonAffectesFiliere, 0) }}h</th>
                             </tr>
@@ -734,7 +728,7 @@
     </div>
 </div>
 
-<!-- Liste des formateurs avec heures -->
+<!-- Liste des formateurs -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
@@ -774,6 +768,16 @@
                             </tr>
                             @endforelse
                         </tbody>
+                        <tfoot>
+                            <tr class="table-secondary fw-bold">
+                                <th>TOTAL</th>
+                                <th class="text-end">{{ number_format($totalFormateurs['heures_requises'], 0) }}h</th>
+                                <th class="text-end">{{ number_format($totalFormateurs['heures_affectees'], 0) }}h</th>
+                                <th class="text-end text-{{ $totalFormateurs['heures_manquantes'] > 0 ? 'danger' : 'success' }}">
+                                    {{ number_format($totalFormateurs['heures_manquantes'], 0) }}h
+                                </th>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
@@ -781,7 +785,7 @@
     </div>
 </div>
 
-<!-- Données détaillées par groupe et module -->
+<!-- Données détaillées -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
@@ -803,6 +807,7 @@
                                 <th>Module</th>
                                 <th>Formation</th>
                                 <th>Niveau</th>
+                                <th>Année</th>
                                 <th>Formateur Présentiel</th>
                                 <th>Formateur Synchrone</th>
                                 <th class="text-end">H. Affectées</th>
@@ -824,10 +829,11 @@
                                     <code>{{ $data['module'] }}</code><br>
                                     <small class="text-muted">{{ Str::limit($data['module_nom'], 30) }}</small>
                                 </td>
-                                <td>{{ $data['formation'] }}</td>
+                                <td><small>{{ $data['formation'] }}</small></td>
                                 <td><span class="badge bg-info">{{ $data['niveau'] }}</span></td>
-                                <td>{{ $data['formateur_presentiel'] }}</td>
-                                <td>{{ $data['formateur_synchrone'] }}</td>
+                                <td><small>{{ $data['annee'] }}</small></td>
+                                <td><small>{{ Str::limit($data['formateur_presentiel'], 20) }}</small></td>
+                                <td><small>{{ Str::limit($data['formateur_synchrone'], 20) }}</small></td>
                                 <td class="text-end">{{ $data['heures_affectees'] }}h</td>
                                 <td class="text-end">{{ $data['heures_realisees'] }}h</td>
                                 <td class="text-center">
@@ -850,7 +856,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="15" class="text-center text-muted py-4">
+                                <td colspan="16" class="text-center text-muted py-4">
                                     <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
                                     Aucune donnée disponible
                                 </td>
@@ -906,11 +912,100 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Configuration commune pour tous les graphiques
     Chart.defaults.font.family = "'Segoe UI', 'Roboto', 'Arial', sans-serif";
     Chart.defaults.font.size = 12;
 
-    // Graphique des heures de formation (Bar Chart)
+    // Taux de Réalisation
+    const tauxRealisationCtx = document.getElementById('tauxRealisationChart');
+    if (tauxRealisationCtx) {
+        new Chart(tauxRealisationCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Réalisé', 'Non réalisé'],
+                datasets: [{
+                    data: [{{ $tauxChartData['taux_realisation'] }}, {{ 100 - $tauxChartData['taux_realisation'] }}],
+                    backgroundColor: ['rgba(75, 192, 192, 0.8)', 'rgba(200, 200, 200, 0.3)'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed.toFixed(2) + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Taux d'Affectation
+    const tauxAffectationCtx = document.getElementById('tauxAffectationChart');
+    if (tauxAffectationCtx) {
+        new Chart(tauxAffectationCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Affecté', 'Non affecté'],
+                datasets: [{
+                    data: [{{ $tauxChartData['taux_affectation'] }}, {{ 100 - $tauxChartData['taux_affectation'] }}],
+                    backgroundColor: ['rgba(54, 162, 235, 0.8)', 'rgba(200, 200, 200, 0.3)'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed.toFixed(2) + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Moyenne d'Absence
+    const moyenneAbsenceCtx = document.getElementById('moyenneAbsenceChart');
+    if (moyenneAbsenceCtx) {
+        new Chart(moyenneAbsenceCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Absent', 'Présent'],
+                datasets: [{
+                    data: [{{ $tauxChartData['moyenne_absence'] }}, {{ 100 - $tauxChartData['moyenne_absence'] }}],
+                    backgroundColor: ['rgba(255, 206, 86, 0.8)', 'rgba(75, 192, 192, 0.3)'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed.toFixed(2) + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Graphique des heures
     const heuresCtx = document.getElementById('heuresChart');
     if (heuresCtx) {
         new Chart(heuresCtx, {
@@ -920,33 +1015,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [
                     {
                         label: 'Présentiel',
-                        data: [
-                            {{ $heuresAnalysis['presentiel']['s1'] }},
-                            {{ $heuresAnalysis['presentiel']['s2'] }},
-                            {{ $heuresAnalysis['presentiel']['total'] }}
-                        ],
+                        data: [{{ $heuresAnalysis['presentiel']['s1'] }}, {{ $heuresAnalysis['presentiel']['s2'] }}, {{ $heuresAnalysis['presentiel']['total'] }}],
                         backgroundColor: 'rgba(54, 162, 235, 0.7)',
                         borderColor: 'rgba(54, 162, 235, 1)',
                         borderWidth: 2
                     },
                     {
                         label: 'Synchrone',
-                        data: [
-                            {{ $heuresAnalysis['synchrone']['s1'] }},
-                            {{ $heuresAnalysis['synchrone']['s2'] }},
-                            {{ $heuresAnalysis['synchrone']['total'] }}
-                        ],
+                        data: [{{ $heuresAnalysis['synchrone']['s1'] }}, {{ $heuresAnalysis['synchrone']['s2'] }}, {{ $heuresAnalysis['synchrone']['total'] }}],
                         backgroundColor: 'rgba(75, 192, 192, 0.7)',
                         borderColor: 'rgba(75, 192, 192, 1)',
                         borderWidth: 2
                     },
                     {
                         label: 'Asynchrone',
-                        data: [
-                            {{ $heuresAnalysis['asynchrone']['s1'] }},
-                            {{ $heuresAnalysis['asynchrone']['s2'] }},
-                            {{ $heuresAnalysis['asynchrone']['total'] }}
-                        ],
+                        data: [{{ $heuresAnalysis['asynchrone']['s1'] }}, {{ $heuresAnalysis['asynchrone']['s2'] }}, {{ $heuresAnalysis['asynchrone']['total'] }}],
                         backgroundColor: 'rgba(255, 206, 86, 0.7)',
                         borderColor: 'rgba(255, 206, 86, 1)',
                         borderWidth: 2
@@ -957,22 +1040,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: {
-                            padding: 15,
-                            usePointStyle: true
-                        }
-                    },
-                    title: {
-                        display: true,
-                        text: 'Répartition des Heures par Semestre',
-                        font: {
-                            size: 16,
-                            weight: 'bold'
-                        },
-                        padding: 20
-                    },
+                    legend: { position: 'top', labels: { padding: 15, usePointStyle: true } },
+                    title: { display: true, text: 'Répartition des Heures par Semestre', font: { size: 16, weight: 'bold' }, padding: 20 },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
@@ -982,36 +1051,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 },
                 scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return value + 'h';
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Heures',
-                            font: {
-                                weight: 'bold'
-                            }
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Périodes',
-                            font: {
-                                weight: 'bold'
-                            }
-                        }
-                    }
+                    y: { beginAtZero: true, ticks: { callback: function(value) { return value + 'h'; } }, title: { display: true, text: 'Heures', font: { weight: 'bold' } } },
+                    x: { title: { display: true, text: 'Périodes', font: { weight: 'bold' } } }
                 }
             }
         });
     }
 
-    // Graphique en camembert pour la répartition par mode
+    // Graphique mode
     const modeCtx = document.getElementById('modeChart');
     if (modeCtx) {
         new Chart(modeCtx, {
@@ -1019,18 +1066,9 @@ document.addEventListener('DOMContentLoaded', function() {
             data: {
                 labels: ['Présentiel', 'Synchrone'],
                 datasets: [{
-                    data: [
-                        {{ $chartData['repartition_mode']['Présentiel'] }},
-                        {{ $chartData['repartition_mode']['Synchrone'] }}
-                    ],
-                    backgroundColor: [
-                        'rgba(54, 162, 235, 0.8)',
-                        'rgba(75, 192, 192, 0.8)'
-                    ],
-                    borderColor: [
-                        'rgba(54, 162, 235, 1)',
-                        'rgba(75, 192, 192, 1)'
-                    ],
+                    data: [{{ $chartData['repartition_mode']['Présentiel'] }}, {{ $chartData['repartition_mode']['Synchrone'] }}],
+                    backgroundColor: ['rgba(54, 162, 235, 0.8)', 'rgba(75, 192, 192, 0.8)'],
+                    borderColor: ['rgba(54, 162, 235, 1)', 'rgba(75, 192, 192, 1)'],
                     borderWidth: 3
                 }]
             },
@@ -1038,25 +1076,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            padding: 15,
-                            usePointStyle: true,
-                            font: {
-                                size: 13
-                            }
-                        }
-                    },
-                    title: {
-                        display: true,
-                        text: 'Heures Réalisées par Mode',
-                        font: {
-                            size: 16,
-                            weight: 'bold'
-                        },
-                        padding: 20
-                    },
+                    legend: { position: 'bottom', labels: { padding: 15, usePointStyle: true, font: { size: 13 } } },
+                    title: { display: true, text: 'Heures Réalisées par Mode', font: { size: 16, weight: 'bold' }, padding: 20 },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
@@ -1071,7 +1092,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Graphique taux de réalisation par filière (Horizontal Bar)
+    // Graphique filière
     const filiereCtx = document.getElementById('filiereChart');
     if (filiereCtx) {
         new Chart(filiereCtx, {
@@ -1101,9 +1122,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        display: false
-                    },
+                    legend: { display: false },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
@@ -1113,69 +1132,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 },
                 scales: {
-                    x: {
-                        beginAtZero: true,
-                        max: 100,
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Taux de Réalisation (%)',
-                            font: {
-                                weight: 'bold'
-                            }
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Filières',
-                            font: {
-                                weight: 'bold'
-                            }
-                        }
-                    }
+                    x: { beginAtZero: true, max: 100, ticks: { callback: function(value) { return value + '%'; } }, title: { display: true, text: 'Taux de Réalisation (%)', font: { weight: 'bold' } } },
+                    y: { title: { display: true, text: 'Filières', font: { weight: 'bold' } } }
                 }
             }
         });
     }
 
-    // Fonction pour exporter le tableau en Excel
+    // Export Excel
     window.exportTableToExcel = function(tableID, filename = '') {
         const table = document.getElementById(tableID);
-        if (!table) {
-            alert('Tableau introuvable!');
-            return;
-        }
-
-        // Créer un clone du tableau pour l'export
+        if (!table) { alert('Tableau introuvable!'); return; }
         const tableClone = table.cloneNode(true);
-        
-        // Nettoyer le HTML (enlever les icônes, badges, etc.)
         const badges = tableClone.querySelectorAll('.badge, .fa, .fas, .far');
-        badges.forEach(badge => {
-            if (badge.textContent.trim()) {
-                badge.outerHTML = badge.textContent;
-            } else {
-                badge.remove();
-            }
-        });
-
+        badges.forEach(badge => { if (badge.textContent.trim()) { badge.outerHTML = badge.textContent; } else { badge.remove(); } });
         const tableHTML = tableClone.outerHTML;
         const dataType = 'application/vnd.ms-excel';
         filename = filename ? filename + '_' + new Date().toISOString().slice(0,10) + '.xls' : 'export_table.xls';
-        
-        // Pour IE
         if (navigator.msSaveOrOpenBlob) {
-            const blob = new Blob(['\ufeff', tableHTML], {
-                type: dataType
-            });
+            const blob = new Blob(['\ufeff', tableHTML], { type: dataType });
             navigator.msSaveOrOpenBlob(blob, filename);
         } else {
-            // Pour les autres navigateurs
             const downloadLink = document.createElement("a");
             downloadLink.href = 'data:' + dataType + ';charset=utf-8,' + encodeURIComponent(tableHTML);
             downloadLink.download = filename;
@@ -1188,100 +1165,27 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-/* Styles personnalisés pour le dashboard */
-.chart-container {
-    position: relative;
-    width: 100%;
-}
-
-.card {
-    transition: none; /* Removed hover transform to prevent chart resizing */
-}
-
-.table-hover tbody tr:hover {
-    background-color: rgba(0, 123, 255, 0.05);
-}
-
-.bg-gradient-success {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-}
-
-.bg-gradient-info {
-    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
-}
-
-.bg-gradient-warning {
-    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
-}
-
-.bg-gradient-secondary {
-    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-}
-
-.text-xs {
-    font-size: 0.7rem;
-}
-
-.opacity-25 {
-    opacity: 0.25;
-}
-
-/* Animation pour les badges */
-.badge {
-    transition: all 0.2s ease;
-}
-
-.badge:hover {
-    transform: scale(1.1);
-}
-
-/* Amélioration de la lisibilité des tableaux */
-.table thead th {
-    font-weight: 600;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.table tbody td {
-    vertical-align: middle;
-}
-
-/* Style pour les progress bars */
-.progress {
-    border-radius: 0.5rem;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.progress-bar {
-    transition: width 0.6s ease;
-}
-
-/* Responsive adjustments */
+.chart-container { position: relative; width: 100%; }
+.table-hover tbody tr:hover { background-color: rgba(0, 123, 255, 0.05); }
+.bg-gradient-success { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
+.bg-gradient-info { background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); }
+.bg-gradient-warning { background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); }
+.bg-gradient-secondary { background: linear-gradient(135deg, #6c757d 0%, #495057 100%); }
+.text-xs { font-size: 0.7rem; }
+.badge { transition: all 0.2s ease; }
+.badge:hover { transform: scale(1.1); }
+.table thead th { font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.table tbody td { vertical-align: middle; }
+.progress { border-radius: 0.5rem; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1); }
+.progress-bar { transition: width 0.6s ease; }
 @media (max-width: 768px) {
-    .h2 {
-        font-size: 1.5rem;
-    }
-    
-    .table {
-        font-size: 0.85rem;
-    }
-    
-    .chart-container {
-        height: 300px !important;
-    }
+    .h2 { font-size: 1.5rem; }
+    .table { font-size: 0.85rem; }
+    .chart-container { height: 300px !important; }
 }
-
-/* Print styles */
 @media print {
-    .btn, .card-header, nav {
-        display: none !important;
-    }
-    
-    .card {
-        border: 1px solid #dee2e6 !important;
-        page-break-inside: avoid;
-    }
+    .btn, .card-header, nav { display: none !important; }
+    .card { border: 1px solid #dee2e6 !important; page-break-inside: avoid; }
 }
 </style>
 @endpush

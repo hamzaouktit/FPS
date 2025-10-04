@@ -8,9 +8,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\{Etablissement, Formateur, Formation, Module, Groupe, Filiere, Secteur, Avancement};
 
-class DashboardComplexeController extends Controller
+class EtablissementController extends Controller
 {
-    public function index(Request $request)
+    public function show(Request $request, $code_efp)
     {
         $user = Auth::user();
         
@@ -25,9 +25,13 @@ class DashboardComplexeController extends Controller
                 ->with('error', 'Aucun complexe associé à votre compte.');
         }
 
+        // Récupérer l'établissement
+        $etablissement = Etablissement::where('code_efp', $code_efp)
+            ->where('complexe_id', $complexe->id)
+            ->firstOrFail();
+
         // Récupérer les filtres
         $filters = [
-            'etablissement' => $request->input('etablissement'),
             'formateur' => $request->input('formateur'),
             'module' => $request->input('module'),
             'groupe' => $request->input('groupe'),
@@ -36,36 +40,33 @@ class DashboardComplexeController extends Controller
         ];
 
         // Construire la requête de base
-        $query = $this->buildDetailedQuery($complexe->id, $filters);
+        $query = $this->buildDetailedQuery($code_efp, $filters);
         
         // Récupérer les données avec pagination
         $detailedData = $query->paginate(20)->appends($request->except('page'));
 
         // Calculer les statistiques
-        $statistics = $this->calculateStatistics($complexe->id, $filters);
+        $statistics = $this->calculateStatistics($code_efp, $filters);
 
         // Récupérer les données pour les graphiques
-        $chartData = $this->getChartData($complexe->id, $filters);
+        $chartData = $this->getChartData($code_efp, $filters);
 
         // Récupérer les options de filtrage
-        $filterOptions = $this->getFilterOptions($complexe->id);
+        $filterOptions = $this->getFilterOptions($code_efp);
 
-        // Récupérer les statistiques par établissement
-        $etablissementsStats = $this->getEtablissementsStats($complexe->id);
-
-        return view('administrationcomplexe.dashboard', compact(
+        return view('administrationcomplexe.etablissements.show', compact(
             'user', 
             'complexe', 
+            'etablissement',
             'detailedData', 
             'statistics', 
             'chartData', 
             'filterOptions',
-            'filters',
-            'etablissementsStats'
+            'filters'
         ));
     }
 
-    private function buildDetailedQuery($complexeId, $filters)
+    private function buildDetailedQuery($code_efp, $filters)
     {
         $query = Avancement::query()
             ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
@@ -76,7 +77,7 @@ class DashboardComplexeController extends Controller
             ->join('modules', 'avancements.code_module', '=', 'modules.code_module')
             ->leftJoin('formateurs as f_presentiel', 'avancements.mle_presentiel', '=', 'f_presentiel.mle')
             ->leftJoin('formateurs as f_syn', 'avancements.mle_syn', '=', 'f_syn.mle')
-            ->where('etablissements.complexe_id', $complexeId)
+            ->where('etablissements.code_efp', $code_efp)
             ->select(
                 'avancements.*',
                 'etablissements.code_efp',
@@ -103,9 +104,6 @@ class DashboardComplexeController extends Controller
             );
 
         // Appliquer les filtres
-        if (!empty($filters['etablissement'])) {
-            $query->where('etablissements.code_efp', $filters['etablissement']);
-        }
         if (!empty($filters['secteur'])) {
             $query->where('secteurs.nom_secteur', $filters['secteur']);
         }
@@ -128,7 +126,7 @@ class DashboardComplexeController extends Controller
         return $query->orderBy('avancements.date_maj', 'desc');
     }
 
-    private function calculateStatistics($complexeId, $filters)
+    private function calculateStatistics($code_efp, $filters)
     {
         $query = Avancement::query()
             ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
@@ -136,12 +134,9 @@ class DashboardComplexeController extends Controller
             ->join('etablissements', 'formations.code_efp', '=', 'etablissements.code_efp')
             ->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
             ->join('secteurs', 'filieres.nom_secteur', '=', 'secteurs.nom_secteur')
-            ->where('etablissements.complexe_id', $complexeId);
+            ->where('etablissements.code_efp', $code_efp);
 
-        // Appliquer les mêmes filtres
-        if (!empty($filters['etablissement'])) {
-            $query->where('etablissements.code_efp', $filters['etablissement']);
-        }
+        // Appliquer les filtres
         if (!empty($filters['secteur'])) {
             $query->where('secteurs.nom_secteur', $filters['secteur']);
         }
@@ -207,7 +202,7 @@ class DashboardComplexeController extends Controller
         ];
     }
 
-    private function getChartData($complexeId, $filters)
+    private function getChartData($code_efp, $filters)
     {
         $query = Avancement::query()
             ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
@@ -215,12 +210,9 @@ class DashboardComplexeController extends Controller
             ->join('etablissements', 'formations.code_efp', '=', 'etablissements.code_efp')
             ->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
             ->join('secteurs', 'filieres.nom_secteur', '=', 'secteurs.nom_secteur')
-            ->where('etablissements.complexe_id', $complexeId);
+            ->where('etablissements.code_efp', $code_efp);
 
         // Appliquer les filtres
-        if (!empty($filters['etablissement'])) {
-            $query->where('etablissements.code_efp', $filters['etablissement']);
-        }
         if (!empty($filters['secteur'])) {
             $query->where('secteurs.nom_secteur', $filters['secteur']);
         }
@@ -272,23 +264,18 @@ class DashboardComplexeController extends Controller
         ];
     }
 
-    private function getFilterOptions($complexeId)
+    private function getFilterOptions($code_efp)
     {
-        $etablissements = Etablissement::where('complexe_id', $complexeId)
-            ->select('code_efp', 'nom_efp')
-            ->orderBy('nom_efp')
-            ->get();
-
-        $secteurs = Secteur::whereHas('filieres.formations.etablissement', function($q) use ($complexeId) {
-            $q->where('complexe_id', $complexeId);
+        $secteurs = Secteur::whereHas('filieres.formations.etablissement', function($q) use ($code_efp) {
+            $q->where('code_efp', $code_efp);
         })
         ->select('nom_secteur')
         ->distinct()
         ->orderBy('nom_secteur')
         ->get();
 
-        $filieres = Filiere::whereHas('formations.etablissement', function($q) use ($complexeId) {
-            $q->where('complexe_id', $complexeId);
+        $filieres = Filiere::whereHas('formations.etablissement', function($q) use ($code_efp) {
+            $q->where('code_efp', $code_efp);
         })
         ->select('code_filiere', 'nom_filiere')
         ->orderBy('nom_filiere')
@@ -298,8 +285,7 @@ class DashboardComplexeController extends Controller
         $formateursMle = DB::table('avancements')
             ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
             ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-            ->join('etablissements', 'formations.code_efp', '=', 'etablissements.code_efp')
-            ->where('etablissements.complexe_id', $complexeId)
+            ->where('formations.code_efp', $code_efp)
             ->where(function($q) {
                 $q->whereNotNull('avancements.mle_presentiel')
                   ->orWhereNotNull('avancements.mle_syn');
@@ -326,71 +312,26 @@ class DashboardComplexeController extends Controller
             ->orderBy('nom_formateur')
             ->get();
 
-        $modules = Module::whereHas('avancements.groupe.formation.etablissement', function($q) use ($complexeId) {
-            $q->where('complexe_id', $complexeId);
+        $modules = Module::whereHas('avancements.groupe.formation.etablissement', function($q) use ($code_efp) {
+            $q->where('code_efp', $code_efp);
         })
         ->select('code_module', 'nom_module')
         ->orderBy('nom_module')
         ->get();
 
-        $groupes = Groupe::whereHas('formation.etablissement', function($q) use ($complexeId) {
-            $q->where('complexe_id', $complexeId);
+        $groupes = Groupe::whereHas('formation.etablissement', function($q) use ($code_efp) {
+            $q->where('code_efp', $code_efp);
         })
         ->select('groupe')
         ->orderBy('groupe')
         ->get();
 
         return [
-            'etablissements' => $etablissements,
             'secteurs' => $secteurs,
             'filieres' => $filieres,
             'formateurs' => $formateurs,
             'modules' => $modules,
             'groupes' => $groupes,
         ];
-    }
-
-    private function getEtablissementsStats($complexeId)
-    {
-        $etablissements = Etablissement::where('complexe_id', $complexeId)->get();
-        
-        $stats = [];
-        foreach ($etablissements as $etablissement) {
-            $avancements = Avancement::query()
-                ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
-                ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-                ->where('formations.code_efp', $etablissement->code_efp)
-                ->get();
-
-            $heuresRequises = $avancements->sum('mh_totale_drif') ?: 0;
-            $heuresRealisees = $avancements->sum('mh_realisee_globale') ?: 0;
-            $tauxRealisation = $heuresRequises > 0 ? ($heuresRealisees / $heuresRequises) * 100 : 0;
-
-            $nbFormations = $avancements->pluck('id_formation')->unique()->count();
-            $nbGroupes = $avancements->pluck('groupe')->unique()->count();
-            
-            $formateursPresentiel = $avancements->pluck('mle_presentiel')->filter()->unique();
-            $formateursSyn = $avancements->pluck('mle_syn')->filter()->unique();
-            $nbFormateurs = $formateursPresentiel->merge($formateursSyn)->unique()->count();
-
-            $groupesUniques = $avancements->groupBy('groupe')->map(function($items) {
-                return $items->first()->effectif_groupe ?? 0;
-            });
-            $nbApprenants = $groupesUniques->sum();
-
-            $stats[] = [
-                'code_efp' => $etablissement->code_efp,
-                'nom_efp' => $etablissement->nom_efp,
-                'nb_formations' => $nbFormations,
-                'nb_groupes' => $nbGroupes,
-                'nb_formateurs' => $nbFormateurs,
-                'nb_apprenants' => $nbApprenants,
-                'heures_requises' => round($heuresRequises, 2),
-                'heures_realisees' => round($heuresRealisees, 2),
-                'taux_realisation' => round($tauxRealisation, 2),
-            ];
-        }
-
-        return collect($stats);
     }
 }

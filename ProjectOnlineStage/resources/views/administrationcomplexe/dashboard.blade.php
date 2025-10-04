@@ -44,6 +44,62 @@
         position: relative;
         height: 300px;
     }
+    .etablissement-card {
+        transition: all 0.3s ease;
+        border-left: 4px solid transparent;
+    }
+    .etablissement-card:hover {
+        border-left-color: #1E5F99;
+        transform: translateX(5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .badge-taux {
+        font-size: 0.85rem;
+        padding: 5px 10px;
+    }
+    .progress-bar-animated {
+        animation: progress-bar-stripes 1s linear infinite;
+    }
+    @keyframes progress-bar-stripes {
+        0% { background-position: 1rem 0; }
+        100% { background-position: 0 0; }
+    }
+    
+    /* Styles de pagination personnalisés */
+    .pagination {
+        margin: 0;
+    }
+    .pagination .page-link {
+        color: #1E5F99;
+        border: 1px solid #dee2e6;
+        padding: 0.5rem 0.75rem;
+        margin: 0 2px;
+        border-radius: 0.375rem;
+        transition: all 0.3s ease;
+    }
+    .pagination .page-link:hover {
+        background-color: #1E5F99;
+        color: white;
+        border-color: #1E5F99;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(30,95,153,0.2);
+    }
+    .pagination .page-item.active .page-link {
+        background: linear-gradient(135deg, #1E5F99 0%, #1a4a75 100%);
+        border-color: #1E5F99;
+        color: white;
+        font-weight: 600;
+    }
+    .pagination .page-item.disabled .page-link {
+        color: #6c757d;
+        background-color: #f8f9fa;
+        border-color: #dee2e6;
+    }
+    .pagination-info {
+        color: #6c757d;
+        font-size: 0.875rem;
+        padding: 0.5rem 0;
+    }
 </style>
 @endpush
 
@@ -265,6 +321,21 @@
             </div>
         </div>
     </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-0 shadow-sm stat-card h-100">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-shrink-0 me-3">
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-3">
+                        <i class="fas fa-school fs-4"></i>
+                    </div>
+                </div>
+                <div>
+                    <div class="fs-5 fw-bold">{{ $etablissementsStats->count() }}</div>
+                    <div class="text-muted small">Établissements</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Analyse des Heures -->
@@ -304,6 +375,108 @@
                             </h3>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des Établissements -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-building text-primary me-2"></i>Établissements du Complexe</h5>
+                <span class="badge bg-primary">{{ $etablissementsStats->count() }} établissement(s)</span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    @forelse($etablissementsStats as $etab)
+                    <div class="col-md-6 mb-3">
+                        <div class="card etablissement-card border h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <h5 class="mb-1">{{ $etab['nom_efp'] }}</h5>
+                                        <p class="text-muted small mb-0">
+                                            <i class="fas fa-barcode me-1"></i>{{ $etab['code_efp'] }}
+                                        </p>
+                                    </div>
+                                    <span class="badge badge-taux 
+                                        @if($etab['taux_realisation'] >= 80) bg-success 
+                                        @elseif($etab['taux_realisation'] >= 50) bg-warning 
+                                        @else bg-danger 
+                                        @endif">
+                                        {{ $etab['taux_realisation'] }}%
+                                    </span>
+                                </div>
+                                
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <div class="text-center p-2 bg-light rounded">
+                                            <div class="fw-bold text-primary">{{ $etab['nb_formations'] }}</div>
+                                            <small class="text-muted">Formations</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="text-center p-2 bg-light rounded">
+                                            <div class="fw-bold text-success">{{ $etab['nb_apprenants'] }}</div>
+                                            <small class="text-muted">Apprenants</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="text-center p-2 bg-light rounded">
+                                            <div class="fw-bold text-warning">{{ $etab['nb_formateurs'] }}</div>
+                                            <small class="text-muted">Formateurs</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="text-center p-2 bg-light rounded">
+                                            <div class="fw-bold text-info">{{ $etab['nb_groupes'] }}</div>
+                                            <small class="text-muted">Groupes</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between small mb-1">
+                                        <span>Heures requises:</span>
+                                        <strong>{{ number_format($etab['heures_requises'], 2) }}</strong>
+                                    </div>
+                                    <div class="d-flex justify-content-between small mb-2">
+                                        <span>Heures réalisées:</span>
+                                        <strong class="text-success">{{ number_format($etab['heures_realisees'], 2) }}</strong>
+                                    </div>
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar 
+                                            @if($etab['taux_realisation'] >= 80) bg-success 
+                                            @elseif($etab['taux_realisation'] >= 50) bg-warning 
+                                            @else bg-danger 
+                                            @endif" 
+                                            role="progressbar" 
+                                            style="width: {{ min($etab['taux_realisation'], 100) }}%;" 
+                                            aria-valuenow="{{ $etab['taux_realisation'] }}" 
+                                            aria-valuemin="0" 
+                                            aria-valuemax="100">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <a href="{{ route('administration.complexe.etablissements.show', $etab['code_efp']) }}" 
+                                   class="btn btn-primary w-100">
+                                    <i class="fas fa-eye me-2"></i>Voir le détail
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    @empty
+                    <div class="col-12">
+                        <div class="alert alert-info text-center mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Aucun établissement trouvé dans ce complexe
+                        </div>
+                    </div>
+                    @endforelse
                 </div>
             </div>
         </div>
@@ -380,7 +553,7 @@
     </div>
 </div>
 
-<!-- Tableau Détaillé -->
+<!-- Tableau Détaillé avec Pagination Corrigée -->
 <div class="row">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
@@ -393,123 +566,88 @@
                     <table class="table table-sm table-hover mb-0">
                         <thead>
                             <tr>
-                                <th>Date MAJ</th>
                                 <th>Année</th>
-                                <th>Code EFP</th>
                                 <th>EFP</th>
-                                <th>Niveau</th>
                                 <th>Secteur</th>
-                                <th>Code Filière</th>
                                 <th>Filière</th>
-                                <th>Type Formation</th>
-                                <th>Créneau</th>
                                 <th>Groupe</th>
                                 <th>Effectif</th>
-                                <th>Sous Groupe</th>
-                                <th>Statut SG</th>
-                                <th>Fusion</th>
-                                <th>Code Fusion</th>
-                                <th>Année Form</th>
-                                <th>Mode</th>
-                                <th>Code Module</th>
                                 <th>Module</th>
-                                <th>Régional</th>
-                                <th>Mle Présentiel</th>
-                                <th>Formateur Présentiel</th>
-                                <th>Mle Syn</th>
-                                <th>Formateur Syn</th>
-                                <th>MHP S1</th>
-                                <th>MHSYN S1</th>
-                                <th>MHASYN S1</th>
-                                <th>MH Total S1</th>
-                                <th>MHP S2</th>
-                                <th>MHSYN S2</th>
-                                <th>MHASYN S2</th>
-                                <th>MH Total S2</th>
-                                <th>MHP Total</th>
-                                <th>MHSYN Total</th>
-                                <th>MHASYN Total</th>
+                                <th>Formateur</th>
+                                <th>Mode</th>
                                 <th>MH Total</th>
-                                <th>MH Aff. Prés</th>
-                                <th>MH Aff. Sync</th>
-                                <th>MH Aff. Global</th>
-                                <th>MH Réal. Prés</th>
-                                <th>MH Réal. Sync</th>
-                                <th>MH Réal. Global</th>
-                                <th>Taux Réal. Prés</th>
-                                <th>Taux Réal. Syn</th>
-                                <th>Taux Réal. Global</th>
-                                <th>Moy Absence</th>
-                                <th>NB CC</th>
-                                <th>Séance EFM</th>
-                                <th>Valid. EFM</th>
-                                <th>Classe Teams</th>
-                                <th>Module PIE</th>
-                                <th>EFP PIE</th>
+                                <th>MH Aff.</th>
+                                <th>MH Réal.</th>
+                                <th>Taux Réal.</th>
+                                <th>Validation EFM</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($detailedData as $row)
                             <tr>
-                                <td>{{ $row->date_maj ? \Carbon\Carbon::parse($row->date_maj)->format('d/m/Y') : '-' }}</td>
-                                <td>{{ $row->annee }}</td>
-                                <td>{{ $row->code_efp }}</td>
-                                <td>{{ $row->efp }}</td>
-                                <td>{{ $row->niveau }}</td>
+                                <td><span class="badge bg-secondary">{{ $row->annee }}</span></td>
+                                <td>
+                                    <strong>{{ $row->efp }}</strong>
+                                    <br><small class="text-muted">{{ $row->code_efp }}</small>
+                                </td>
                                 <td>{{ $row->secteur }}</td>
-                                <td>{{ $row->code_filiere }}</td>
-                                <td>{{ $row->filiere }}</td>
-                                <td>{{ $row->type_formation }}</td>
-                                <td>{{ $row->creneau }}</td>
-                                <td>{{ $row->groupe }}</td>
-                                <td>{{ $row->effectif_groupe }}</td>
-                                <td>{{ $row->sous_groupe }}</td>
-                                <td>{{ $row->statut_sous_groupe }}</td>
-                                <td>{{ $row->fusion_groupe }}</td>
-                                <td>{{ $row->code_fusion }}</td>
-                                <td>{{ $row->annee_formation }}</td>
-                                <td>{{ $row->mode }}</td>
-                                <td>{{ $row->code_module }}</td>
-                                <td>{{ $row->module }}</td>
-                                <td>{{ $row->regional }}</td>
-                                <td>{{ $row->mle_presentiel }}</td>
-                                <td>{{ $row->formateur_presentiel }}</td>
-                                <td>{{ $row->mle_syn }}</td>
-                                <td>{{ $row->formateur_syn }}</td>
-                                <td>{{ $row->mhp_s1_drif }}</td>
-                                <td>{{ $row->mhsyn_s1_drif }}</td>
-                                <td>{{ $row->mhasyn_s1_drif }}</td>
-                                <td>{{ $row->mh_totale_s1_drif }}</td>
-                                <td>{{ $row->mhp_s2_drif }}</td>
-                                <td>{{ $row->mhsyn_s2_drif }}</td>
-                                <td>{{ $row->mhasyn_s2_drif }}</td>
-                                <td>{{ $row->mh_totale_s2_drif }}</td>
-                                <td>{{ $row->mhp_totale_drif }}</td>
-                                <td>{{ $row->mhsyn_totale_drif }}</td>
-                                <td>{{ $row->mhasyn_totale_drif }}</td>
-                                <td>{{ $row->mh_totale_drif }}</td>
-                                <td>{{ $row->mh_affectee_presentiel }}</td>
-                                <td>{{ $row->mh_affectee_sync }}</td>
-                                <td>{{ $row->mh_affectee_globale }}</td>
-                                <td>{{ $row->mh_realisee_presentiel }}</td>
-                                <td>{{ $row->mh_realisee_sync }}</td>
-                                <td>{{ $row->mh_realisee_globale }}</td>
-                                <td>{{ $row->taux_realisation_presentiel }}%</td>
-                                <td>{{ $row->taux_realisation_syn }}%</td>
-                                <td>{{ $row->taux_realisation_global }}%</td>
-                                <td>{{ $row->moy_absence }}</td>
-                                <td>{{ $row->nb_cc }}</td>
-                                <td>{{ $row->seance_efm }}</td>
-                                <td>{{ $row->validation_efm }}</td>
-                                <td>{{ $row->classe_teams }}</td>
-                                <td>{{ $row->module_pie }}</td>
-                                <td>{{ $row->efp_pie }}</td>
+                                <td>
+                                    {{ $row->filiere }}
+                                    <br><small class="text-muted">{{ $row->code_filiere }}</small>
+                                </td>
+                                <td><span class="badge bg-info">{{ $row->groupe }}</span></td>
+                                <td><strong>{{ $row->effectif_groupe }}</strong></td>
+                                <td>
+                                    {{ $row->module }}
+                                    <br><small class="text-muted">{{ $row->code_module }}</small>
+                                </td>
+                                <td>
+                                    @if($row->formateur_presentiel)
+                                        <i class="fas fa-chalkboard-teacher text-primary me-1"></i>{{ $row->formateur_presentiel }}
+                                    @endif
+                                    @if($row->formateur_syn)
+                                        <br><i class="fas fa-video text-info me-1"></i>{{ $row->formateur_syn }}
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($row->mode == 'Présentiel')
+                                        <span class="badge bg-primary">{{ $row->mode }}</span>
+                                    @elseif($row->mode == 'Synchrone')
+                                        <span class="badge bg-info">{{ $row->mode }}</span>
+                                    @else
+                                        <span class="badge bg-secondary">{{ $row->mode }}</span>
+                                    @endif
+                                </td>
+                                <td><strong>{{ number_format($row->mh_totale_drif, 2) }}h</strong></td>
+                                <td class="text-warning"><strong>{{ number_format($row->mh_affectee_globale, 2) }}h</strong></td>
+                                <td class="text-success"><strong>{{ number_format($row->mh_realisee_globale, 2) }}h</strong></td>
+                                <td>
+                                    @php
+                                        $taux = $row->taux_realisation_global;
+                                    @endphp
+                                    <span class="badge 
+                                        @if($taux >= 80) bg-success 
+                                        @elseif($taux >= 50) bg-warning 
+                                        @else bg-danger 
+                                        @endif">
+                                        {{ $taux }}%
+                                    </span>
+                                </td>
+                                <td>
+                                    @if($row->validation_efm == 'Oui' || $row->validation_efm == 'OUI')
+                                        <span class="badge bg-success"><i class="fas fa-check me-1"></i>Validé</span>
+                                    @elseif($row->validation_efm == 'Non' || $row->validation_efm == 'NON')
+                                        <span class="badge bg-danger"><i class="fas fa-times me-1"></i>Non validé</span>
+                                    @else
+                                        <span class="badge bg-secondary">-</span>
+                                    @endif
+                                </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="53" class="text-center py-4">
-                                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                                    <p class="text-muted">Aucune donnée disponible</p>
+                                <td colspan="14" class="text-center py-4">
+                                    <i class="fas fa-inbox fa-3x text-muted mb-3 d-block"></i>
+                                    <p class="text-muted mb-0">Aucune donnée disponible</p>
                                 </td>
                             </tr>
                             @endforelse
@@ -519,18 +657,26 @@
             </div>
             @if($detailedData->hasPages())
             <div class="card-footer bg-light">
-                {{ $detailedData->links() }}
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div class="pagination-info mb-2 mb-md-0">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Affichage de {{ $detailedData->firstItem() }} à {{ $detailedData->lastItem() }} sur {{ $detailedData->total() }} résultats
+                    </div>
+                    <nav aria-label="Pagination">
+                        {{ $detailedData->appends(request()->query())->links('pagination::bootstrap-5') }}
+                    </nav>
+                </div>
             </div>
             @endif
         </div>
     </div>
 </div>
 @endsection
+
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Données des graphiques
     const chartData = @json($chartData);
     const statistics = @json($statistics);
     
@@ -543,7 +689,13 @@ document.addEventListener('DOMContentLoaded', function() {
         maintainAspectRatio: false,
         plugins: {
             legend: {
-                position: 'bottom'
+                position: 'bottom',
+                labels: {
+                    padding: 15,
+                    font: {
+                        size: 12
+                    }
+                }
             }
         }
     };
@@ -561,7 +713,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         100 - (parseFloat(statistics.taux_realisation) || 0)
                     ],
                     backgroundColor: ['#28a745', '#e9ecef'],
-                    borderWidth: 0
+                    borderWidth: 0,
+                    hoverOffset: 4
                 }]
             },
             options: {
@@ -570,7 +723,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     ...commonOptions.plugins,
                     title: {
                         display: true,
-                        text: (parseFloat(statistics.taux_realisation) || 0).toFixed(2) + '% Réalisé'
+                        text: (parseFloat(statistics.taux_realisation) || 0).toFixed(2) + '% Réalisé',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        },
+                        padding: {
+                            top: 10,
+                            bottom: 20
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed.toFixed(2) + '%';
+                            }
+                        }
                     }
                 }
             }
@@ -590,7 +758,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         100 - (parseFloat(statistics.taux_affectation) || 0)
                     ],
                     backgroundColor: ['#ffc107', '#e9ecef'],
-                    borderWidth: 0
+                    borderWidth: 0,
+                    hoverOffset: 4
                 }]
             },
             options: {
@@ -599,7 +768,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     ...commonOptions.plugins,
                     title: {
                         display: true,
-                        text: (parseFloat(statistics.taux_affectation) || 0).toFixed(2) + '% Affecté'
+                        text: (parseFloat(statistics.taux_affectation) || 0).toFixed(2) + '% Affecté',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        },
+                        padding: {
+                            top: 10,
+                            bottom: 20
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed.toFixed(2) + '%';
+                            }
+                        }
                     }
                 }
             }
@@ -623,14 +807,30 @@ document.addEventListener('DOMContentLoaded', function() {
                         parseFloat(chartData.heures_par_semestre.s2.synchrone) || 0,
                         parseFloat(chartData.heures_par_semestre.s2.asynchrone) || 0
                     ],
-                    backgroundColor: ['#007bff', '#17a2b8', '#6c757d', '#007bff', '#17a2b8', '#6c757d']
+                    backgroundColor: ['#007bff', '#17a2b8', '#6c757d', '#007bff', '#17a2b8', '#6c757d'],
+                    borderRadius: 5
                 }]
             },
             options: {
                 ...commonOptions,
                 scales: {
                     y: {
-                        beginAtZero: true
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return value.toFixed(0) + 'h';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    ...commonOptions.plugins,
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + 'h';
+                            }
+                        }
                     }
                 }
             }
@@ -657,10 +857,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     data: [presentiel, synchrone],
                     backgroundColor: ['#007bff', '#17a2b8'],
-                    borderWidth: 0
+                    borderWidth: 0,
+                    hoverOffset: 4
                 }]
             },
-            options: commonOptions
+            options: {
+                ...commonOptions,
+                plugins: {
+                    ...commonOptions.plugins,
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed.toFixed(2) + 'h';
+                            }
+                        }
+                    }
+                }
+            }
         });
     }
 
@@ -682,7 +895,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: 'Taux de Réalisation (%)',
                     data: [tauxPresentiel, tauxSynchrone],
-                    backgroundColor: ['#28a745', '#17a2b8']
+                    backgroundColor: ['#28a745', '#17a2b8'],
+                    borderRadius: 5
                 }]
             },
             options: {
@@ -690,7 +904,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        max: 100
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    ...commonOptions.plugins,
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%';
+                            }
+                        }
                     }
                 }
             }

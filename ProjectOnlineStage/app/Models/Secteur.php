@@ -30,4 +30,11 @@ class Secteur extends Model
     {
         return $this->hasManyThrough(Formation::class, Filiere::class, 'nom_secteur', 'code_filiere', 'nom_secteur', 'code_filiere');
     }
+        // Relation to get sectors associated with a specific establishment
+    public function scopeForEtablissement($query, $code_efp)
+    {
+        return $query->whereHas('formations', function ($query) use ($code_efp) {
+            $query->where('code_efp', $code_efp);
+        });
+    }
 }

@@ -20,7 +20,7 @@
             </ol>
         </nav>
         <h1 class="h3 mb-0">
-            <i class="fas fa-plus-circle text-primary me-2"></i>Créer une nouvelle filière
+            <i class="fas fa-plus-circle text-primary me-2"></i>Créer une nouvelle filière pour {{ $etablissement->nom_efp }}
         </h1>
     </div>
 
@@ -145,7 +145,7 @@
                         <i class="fas fa-check-circle me-1"></i>Secteur
                     </h6>
                     <ul class="small mb-0">
-                        <li>Choisissez le secteur approprié</li>
+                        <li>Choisissez un secteur associé à {{ $etablissement->nom_efp }}</li>
                         <li>Une filière appartient à un seul secteur</li>
                         <li>Le secteur doit exister au préalable</li>
                     </ul>
@@ -165,7 +165,7 @@
                     @if($secteurs->count() == 0)
                         <div class="alert alert-warning mt-3 mb-0">
                             <i class="fas fa-exclamation-triangle me-2"></i>
-                            Aucun secteur disponible. 
+                            Aucun secteur disponible pour {{ $etablissement->nom_efp }}. 
                             <a href="{{ route('administration.etablissement.secteurs.create') }}" class="alert-link">
                                 Créer un secteur
                             </a>

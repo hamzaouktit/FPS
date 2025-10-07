@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Secteur;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class SecteurController extends Controller
 {
@@ -14,7 +15,17 @@ class SecteurController extends Controller
      */
     public function index()
     {
-        $secteurs = Secteur::withCount('filieres')->orderBy('nom_secteur')->paginate(15);
+        $etablissement = Auth::user()->etablissement;
+        if (!$etablissement) {
+            return redirect()->route('administration.etablissement.dashboard')
+                ->with('error', 'Aucun établissement associé à votre compte.');
+        }
+
+        $secteurs = Secteur::forEtablissement($etablissement->code_efp)
+            ->withCount('filieres')
+            ->orderBy('nom_secteur')
+            ->paginate(15);
+
         return view('administrationetablissement.secteurs.index', compact('secteurs'));
     }
 
@@ -23,7 +34,13 @@ class SecteurController extends Controller
      */
     public function create()
     {
-        return view('administrationetablissement.secteurs.create');
+        $etablissement = Auth::user()->etablissement;
+        if (!$etablissement) {
+            return redirect()->route('administration.etablissement.dashboard')
+                ->with('error', 'Aucun établissement associé à votre compte.');
+        }
+
+        return view('administrationetablissement.secteurs.create', compact('etablissement'));
     }
 
     /**
@@ -31,6 +48,12 @@ class SecteurController extends Controller
      */
     public function store(Request $request)
     {
+        $etablissement = Auth::user()->etablissement;
+        if (!$etablissement) {
+            return redirect()->route('administration.etablissement.dashboard')
+                ->with('error', 'Aucun établissement associé à votre compte.');
+        }
+
         $request->validate([
             'nom_secteur' => 'required|string|max:255|unique:secteurs,nom_secteur'
         ], [
@@ -40,9 +63,13 @@ class SecteurController extends Controller
         ]);
 
         try {
-            Secteur::create([
+            $secteur = Secteur::create([
                 'nom_secteur' => $request->nom_secteur
             ]);
+
+            // Optionally, associate the sector with the establishment by creating a filiere or formation
+            // For simplicity, we assume the sector is linked later via filieres/formations
+            // If you want to enforce immediate association, you could create a filiere here
 
             return redirect()
                 ->route('administration.etablissement.secteurs.index')
@@ -59,27 +86,42 @@ class SecteurController extends Controller
      */
     public function show(string $nom_secteur)
     {
-        $secteur = Secteur::where('nom_secteur', $nom_secteur)
+        $etablissement = Auth::user()->etablissement;
+        if (!$etablissement) {
+            return redirect()->route('administration.etablissement.dashboard')
+                ->with('error', 'Aucun établissement associé à votre compte.');
+        }
+
+        $secteur = Secteur::forEtablissement($etablissement->code_efp)
+            ->where('nom_secteur', $nom_secteur)
             ->withCount('filieres')
             ->firstOrFail();
 
-        // Récupérer les filières associées au secteur
+        // Récupérer les filières associées au secteur et à l'établissement
         $filieres = $secteur->filieres()
+            ->whereHas('formations', function ($query) use ($etablissement) {
+                $query->where('code_efp', $etablissement->code_efp);
+            })
             ->withCount('formations')
             ->orderBy('nom_filiere')
             ->paginate(10);
 
         // Statistiques du secteur
         $stats = [
-            'total_filieres' => $secteur->filieres()->count(),
+            'total_filieres' => $secteur->filieres()
+                ->whereHas('formations', function ($query) use ($etablissement) {
+                    $query->where('code_efp', $etablissement->code_efp);
+                })->count(),
             'total_formations' => DB::table('formations')
                 ->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
                 ->where('filieres.nom_secteur', $nom_secteur)
+                ->where('formations.code_efp', $etablissement->code_efp)
                 ->count(),
             'total_groupes' => DB::table('groupes')
                 ->join('formations', 'groupes.id_formation', '=', 'formations.id')
                 ->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
                 ->where('filieres.nom_secteur', $nom_secteur)
+                ->where('formations.code_efp', $etablissement->code_efp)
                 ->count()
         ];
 
@@ -91,7 +133,16 @@ class SecteurController extends Controller
      */
     public function edit(string $nom_secteur)
     {
-        $secteur = Secteur::where('nom_secteur', $nom_secteur)->firstOrFail();
+        $etablissement = Auth::user()->etablissement;
+        if (!$etablissement) {
+            return redirect()->route('administration.etablissement.dashboard')
+                ->with('error', 'Aucun établissement associé à votre compte.');
+        }
+
+        $secteur = Secteur::forEtablissement($etablissement->code_efp)
+            ->where('nom_secteur', $nom_secteur)
+            ->firstOrFail();
+
         return view('administrationetablissement.secteurs.edit', compact('secteur'));
     }
 
@@ -100,7 +151,15 @@ class SecteurController extends Controller
      */
     public function update(Request $request, string $nom_secteur)
     {
-        $secteur = Secteur::where('nom_secteur', $nom_secteur)->firstOrFail();
+        $etablissement = Auth::user()->etablissement;
+        if (!$etablissement) {
+            return redirect()->route('administration.etablissement.dashboard')
+                ->with('error', 'Aucun établissement associé à votre compte.');
+        }
+
+        $secteur = Secteur::forEtablissement($etablissement->code_efp)
+            ->where('nom_secteur', $nom_secteur)
+            ->firstOrFail();
 
         $request->validate([
             'nom_secteur' => 'required|string|max:255|unique:secteurs,nom_secteur,' . $nom_secteur . ',nom_secteur'
@@ -143,15 +202,32 @@ class SecteurController extends Controller
      */
     public function destroy(string $nom_secteur)
     {
+        $etablissement = Auth::user()->etablissement;
+        if (!$etablissement) {
+            return redirect()->route('administration.etablissement.dashboard')
+                ->with('error', 'Aucun établissement associé à votre compte.');
+        }
+
         try {
-            $secteur = Secteur::where('nom_secteur', $nom_secteur)->firstOrFail();
-            
-            // Vérifier s'il y a des filières associées
-            if ($secteur->filieres()->count() > 0) {
-                return back()->with('error', 'Impossible de supprimer ce secteur car il contient des filières.');
+            $secteur = Secteur::forEtablissement($etablissement->code_efp)
+                ->where('nom_secteur', $nom_secteur)
+                ->firstOrFail();
+
+            // Vérifier s'il y a des filières associées dans cet établissement
+            $filieresCount = $secteur->filieres()
+                ->whereHas('formations', function ($query) use ($etablissement) {
+                    $query->where('code_efp', $etablissement->code_efp);
+                })->count();
+
+            if ($filieresCount > 0) {
+                return back()->with('error', 'Impossible de supprimer ce secteur car il contient des filières dans votre établissement.');
             }
 
-            $secteur->delete();
+            // Note: We don't delete the sector globally unless it's not used by other establishments
+            $globalFiliereCount = $secteur->filieres()->count();
+            if ($globalFiliereCount === 0) {
+                $secteur->delete();
+            }
 
             return redirect()
                 ->route('administration.etablissement.secteurs.index')

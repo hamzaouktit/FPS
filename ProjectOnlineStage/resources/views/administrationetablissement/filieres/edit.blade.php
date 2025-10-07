@@ -25,7 +25,7 @@
             </ol>
         </nav>
         <h1 class="h3 mb-0">
-            <i class="fas fa-edit text-warning me-2"></i>Modifier la filière
+            <i class="fas fa-edit text-warning me-2"></i>Modifier la filière pour {{ $etablissement->nom_efp }}
         </h1>
     </div>
 
@@ -128,7 +128,7 @@
                             <i class="fas fa-exclamation-triangle me-2"></i>Attention
                         </h5>
                         <p class="mb-0">
-                            Cette filière contient <strong>{{ $filiere->formations()->count() }} formation(s)</strong>. 
+                            Cette filière contient <strong>{{ $filiere->formations()->where('code_efp', $etablissement->code_efp)->count() }} formation(s)</strong> dans {{ $etablissement->nom_efp }}. 
                             La modification du code mettra automatiquement à jour toutes les références dans les formations associées.
                         </p>
                     </div>
@@ -169,7 +169,7 @@
                     </h6>
                     <ul class="small mb-0">
                         <li>Possible à tout moment</li>
-                        <li>Peut impacter les statistiques</li>
+                        <li>Choisissez un secteur associé à {{ $etablissement->nom_efp }}</li>
                         <li>Aucun impact sur les formations</li>
                     </ul>
                 </div>
@@ -183,7 +183,7 @@
                     </h6>
                     <div class="d-flex justify-content-between mb-2">
                         <span>Formations :</span>
-                        <strong class="text-primary">{{ $filiere->formations()->count() }}</strong>
+                        <strong class="text-primary">{{ $filiere->formations()->where('code_efp', $etablissement->code_efp)->count() }}</strong>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span>Groupes :</span>
@@ -191,6 +191,7 @@
                             {{ DB::table('groupes')
                                 ->join('formations', 'groupes.id_formation', '=', 'formations.id')
                                 ->where('formations.code_filiere', $filiere->code_filiere)
+                                ->where('formations.code_efp', $etablissement->code_efp)
                                 ->count() }}
                         </strong>
                     </div>

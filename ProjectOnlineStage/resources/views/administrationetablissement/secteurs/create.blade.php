@@ -17,7 +17,7 @@
                 <li class="breadcrumb-item active">Créer</li>
             </ol>
         </nav>
-        <h1 class="h3 mb-0">Créer un nouveau secteur</h1>
+        <h1 class="h3 mb-0">Créer un nouveau secteur pour {{ $etablissement->nom_efp }}</h1>
     </div>
 
     <!-- Messages d'erreur -->
@@ -52,7 +52,7 @@
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                             <small class="form-text text-muted">
-                                Entrez le nom du secteur de formation
+                                Entrez le nom du secteur de formation pour {{ $etablissement->nom_efp }}
                             </small>
                         </div>
 
@@ -78,6 +78,7 @@
                         <li>Un secteur regroupe plusieurs filières de formation</li>
                         <li>Le nom du secteur doit être unique</li>
                         <li>Vous pourrez associer des filières à ce secteur après sa création</li>
+                        <li>Ce secteur sera disponible pour association avec des filières de {{ $etablissement->nom_efp }}</li>
                     </ul>
                 </div>
             </div>

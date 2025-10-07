@@ -37,4 +37,11 @@ class Filiere extends Model
     {
         return $this->hasManyThrough(Groupe::class, Formation::class, 'code_filiere', 'id_formation', 'code_filiere', 'id');
     }
+        // Scope to filter filières associated with a specific establishment
+    public function scopeForEtablissement($query, $code_efp)
+    {
+        return $query->whereHas('formations', function ($query) use ($code_efp) {
+            $query->where('code_efp', $code_efp);
+        });
+    }
 }

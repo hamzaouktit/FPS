@@ -174,8 +174,16 @@ class DashboardComplexeController extends Controller
 
         // Compter les entités uniques
         $nbFormations = $avancements->pluck('id_formation')->unique()->count();
-        $nbFilieres = $avancements->pluck('code_filiere')->unique()->count();
-        $nbSecteurs = $avancements->pluck('secteur')->unique()->count();
+        
+        // Compter les filières et secteurs via les formations du complexe (pas les avancements)
+        $formationsIds = $avancements->pluck('id_formation')->unique()->filter();
+        $filieres = Formation::whereIn('id', $formationsIds)->pluck('code_filiere')->unique();
+        $nbFilieres = $filieres->count();
+        
+        // Compter les secteurs via les filières (comme dans DashboardEtablissementController)
+        $secteurs = Filiere::whereIn('code_filiere', $filieres)->pluck('nom_secteur')->unique();
+        $nbSecteurs = $secteurs->count();
+        
         $nbGroupes = $avancements->pluck('groupe')->unique()->count();
         $nbModules = $avancements->pluck('code_module')->unique()->count();
         

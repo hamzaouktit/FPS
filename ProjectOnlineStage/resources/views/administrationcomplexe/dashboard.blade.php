@@ -44,6 +44,10 @@
         position: relative;
         height: 300px;
     }
+    .chart-container-large {
+        position: relative;
+        height: 400px;
+    }
     .etablissement-card {
         transition: all 0.3s ease;
         border-left: 4px solid transparent;
@@ -518,7 +522,7 @@
                 <h6 class="mb-0"><i class="fas fa-chart-pie text-success me-2"></i>Répartition des Heures par Semestre</h6>
             </div>
             <div class="card-body">
-                <div class="chart-container">
+                <div class="chart-container-large">
                     <canvas id="heuresSemestreChart"></canvas>
                 </div>
             </div>
@@ -790,7 +794,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Graphique Heures par Semestre
+    // Graphique Heures par Semestre - Style comme l'image de référence
     const ctx3 = document.getElementById('heuresSemestreChart');
     if (ctx3 && chartData.heures_par_semestre) {
         new Chart(ctx3, {
@@ -807,33 +811,91 @@ document.addEventListener('DOMContentLoaded', function() {
                         parseFloat(chartData.heures_par_semestre.s2.synchrone) || 0,
                         parseFloat(chartData.heures_par_semestre.s2.asynchrone) || 0
                     ],
-                    backgroundColor: ['#007bff', '#17a2b8', '#6c757d', '#007bff', '#17a2b8', '#6c757d'],
-                    borderRadius: 5
+                    backgroundColor: ['#4472C4', '#ED7D31', '#A5A5A5', '#5B9BD5', '#70AD47', '#FFC000'],
+                    borderWidth: 0
                 }]
             },
             options: {
-                ...commonOptions,
+                responsive: true,
+                maintainAspectRatio: false,
                 scales: {
                     y: {
                         beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)',
+                            drawBorder: true
+                        },
                         ticks: {
+                            font: {
+                                size: 11
+                            },
                             callback: function(value) {
-                                return value.toFixed(0) + 'h';
+                                return value + 'h';
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            font: {
+                                size: 10
                             }
                         }
                     }
                 },
                 plugins: {
-                    ...commonOptions.plugins,
+                    legend: {
+                        display: false
+                    },
                     tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 10,
                         callbacks: {
                             label: function(context) {
                                 return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + 'h';
                             }
                         }
+                    },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        font: {
+                            size: 11,
+                            weight: 'bold'
+                        },
+                        formatter: function(value) {
+                            return value.toFixed(2);
+                        }
                     }
                 }
-            }
+            },
+            plugins: [{
+                afterDatasetsDraw: function(chart) {
+                    const ctx = chart.ctx;
+                    chart.data.datasets.forEach(function(dataset, i) {
+                        const meta = chart.getDatasetMeta(i);
+                        if (!meta.hidden) {
+                            meta.data.forEach(function(element, index) {
+                                ctx.fillStyle = '#000';
+                                const fontSize = 11;
+                                const fontStyle = 'bold';
+                                const fontFamily = 'Arial';
+                                ctx.font = fontStyle + ' ' + fontSize + 'px ' + fontFamily;
+                                
+                                const dataString = dataset.data[index].toFixed(2);
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'bottom';
+                                
+                                const padding = 5;
+                                const position = element.tooltipPosition();
+                                ctx.fillText(dataString, position.x, position.y - padding);
+                            });
+                        }
+                    });
+                }
+            }]
         });
     }
 

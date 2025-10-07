@@ -82,7 +82,7 @@
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body text-center">
                 <i class="fas fa-graduation-cap fa-2x text-primary mb-2"></i>
-                <h3 class="mb-0">{{ $stats['total_formations'] }}</h3>
+                <h3 class="mb-0">{{ $statistics['nb_formations'] }}</h3>
                 <p class="text-muted mb-0 small">Formations</p>
             </div>
         </div>
@@ -91,7 +91,7 @@
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body text-center">
                 <i class="fas fa-chalkboard-teacher fa-2x text-success mb-2"></i>
-                <h3 class="mb-0">{{ $stats['total_formateurs'] }}</h3>
+                <h3 class="mb-0">{{ $statistics['nb_formateurs'] }}</h3>
                 <p class="text-muted mb-0 small">Formateurs</p>
             </div>
         </div>
@@ -100,7 +100,7 @@
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body text-center">
                 <i class="fas fa-stream fa-2x text-info mb-2"></i>
-                <h3 class="mb-0">{{ $stats['total_filieres'] }}</h3>
+                <h3 class="mb-0">{{ $statistics['nb_filieres'] }}</h3>
                 <p class="text-muted mb-0 small">Filières</p>
             </div>
         </div>
@@ -109,7 +109,7 @@
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body text-center">
                 <i class="fas fa-users fa-2x text-warning mb-2"></i>
-                <h3 class="mb-0">{{ $stats['total_groupes'] }}</h3>
+                <h3 class="mb-0">{{ $statistics['nb_groupes'] }}</h3>
                 <p class="text-muted mb-0 small">Groupes</p>
             </div>
         </div>
@@ -118,7 +118,7 @@
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body text-center">
                 <i class="fas fa-book fa-2x text-danger mb-2"></i>
-                <h3 class="mb-0">{{ $stats['total_modules'] }}</h3>
+                <h3 class="mb-0">{{ $statistics['nb_modules'] }}</h3>
                 <p class="text-muted mb-0 small">Modules</p>
             </div>
         </div>
@@ -127,7 +127,7 @@
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body text-center">
                 <i class="fas fa-industry fa-2x text-secondary mb-2"></i>
-                <h3 class="mb-0">{{ $stats['total_secteurs'] }}</h3>
+                <h3 class="mb-0">{{ $statistics['nb_secteurs'] }}</h3>
                 <p class="text-muted mb-0 small">Secteurs</p>
             </div>
         </div>
@@ -162,7 +162,7 @@
                             <label class="form-label fw-bold">Filière</label>
                             <select name="filiere" class="form-select" onchange="this.form.submit()">
                                 <option value="">Toutes</option>
-                                @foreach($filterOptions['filieres'] as $nomFiliere => $codeFiliere)
+                                @foreach($filterOptions['filieres'] as $codeFiliere => $nomFiliere)
                                     <option value="{{ $codeFiliere }}" {{ $filters['filiere'] == $codeFiliere ? 'selected' : '' }}>
                                         {{ $nomFiliere }}
                                     </option>
@@ -245,7 +245,7 @@
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <div>
                                         <h6 class="text-muted mb-0">Heures Requises</h6>
-                                        <h3 class="mb-0 mt-2">{{ number_format($heuresData['heures_requises'], 0) }}</h3>
+                                        <h3 class="mb-0 mt-2">{{ number_format($statistics['heures_requises'], 2) }}</h3>
                                     </div>
                                     <div class="bg-primary bg-opacity-10 p-2 rounded">
                                         <i class="fas fa-tasks text-primary fs-4"></i>
@@ -261,16 +261,13 @@
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <div>
                                         <h6 class="text-muted mb-0">Heures Affectées</h6>
-                                        <h3 class="mb-0 mt-2">{{ number_format($heuresData['heures_affectees'], 0) }}</h3>
+                                        <h3 class="mb-0 mt-2">{{ number_format($statistics['heures_affectees'], 2) }}</h3>
                                     </div>
                                     <div class="bg-success bg-opacity-10 p-2 rounded">
                                         <i class="fas fa-user-check text-success fs-4"></i>
                                     </div>
                                 </div>
-                                <small class="text-{{ $heuresData['difference_affectees'] < 0 ? 'success' : 'danger' }}">
-                                    {{ $heuresData['difference_affectees'] >= 0 ? '-' : '+' }}{{ number_format(abs($heuresData['difference_affectees']), 0) }} h
-                                    ({{ $heuresData['taux_affectation'] }}%)
-                                </small>
+                                <small class="text-muted">{{ $statistics['taux_affectation'] }}%</small>
                             </div>
                         </div>
                     </div>
@@ -280,16 +277,13 @@
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <div>
                                         <h6 class="text-muted mb-0">Heures Réalisées</h6>
-                                        <h3 class="mb-0 mt-2">{{ number_format($heuresData['heures_realisees'], 0) }}</h3>
+                                        <h3 class="mb-0 mt-2">{{ number_format($statistics['heures_realisees'], 2) }}</h3>
                                     </div>
                                     <div class="bg-warning bg-opacity-10 p-2 rounded">
                                         <i class="fas fa-check-circle text-warning fs-4"></i>
                                     </div>
                                 </div>
-                                <small class="text-{{ $heuresData['difference_realisees'] < 0 ? 'success' : 'danger' }}">
-                                    {{ $heuresData['difference_realisees'] >= 0 ? '-' : '+' }}{{ number_format(abs($heuresData['difference_realisees']), 0) }} h
-                                    ({{ $heuresData['taux_realisation'] }}%)
-                                </small>
+                                <small class="text-muted">{{ $statistics['taux_realisation'] }}%</small>
                             </div>
                         </div>
                     </div>
@@ -299,8 +293,8 @@
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <div>
                                         <h6 class="text-muted mb-0">Différence</h6>
-                                        <h3 class="mb-0 mt-2 text-{{ $heuresData['difference_realisees'] > 0 ? 'danger' : 'success' }}">
-                                            {{ number_format(abs($heuresData['difference_realisees']), 0) }}
+                                        <h3 class="mb-0 mt-2 text-{{ $statistics['difference'] > 0 ? 'danger' : 'success' }}">
+                                            {{ number_format($statistics['difference'], 2) }}
                                         </h3>
                                     </div>
                                     <div class="bg-danger bg-opacity-10 p-2 rounded">
@@ -316,12 +310,12 @@
                 <div class="mt-4">
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">Progression globale</span>
-                        <span class="fw-bold">{{ $heuresData['taux_realisation'] }}%</span>
+                        <span class="fw-bold">{{ $statistics['taux_realisation'] }}%</span>
                     </div>
                     <div class="progress" style="height: 25px;">
                         <div class="progress-bar bg-success" role="progressbar" 
-                             style="width: {{ min(100, $heuresData['taux_realisation']) }}%">
-                            {{ $heuresData['taux_realisation'] }}%
+                             style="width: {{ min(100, $statistics['taux_realisation']) }}%">
+                            {{ $statistics['taux_realisation'] }}%
                         </div>
                     </div>
                 </div>
@@ -412,32 +406,32 @@
             <div class="card-body">
                 <div class="row text-center">
                     <div class="col-md-4 mb-3">
-                        <h4 class="text-primary">{{ $stats['taux_realisation_presentiel'] }}%</h4>
+                        <h4 class="text-primary">{{ $statistics['taux_realisation_presentiel'] }}%</h4>
                         <p class="text-muted mb-2">Présentiel</p>
                         <div class="progress" style="height: 25px;">
                             <div class="progress-bar bg-primary" role="progressbar" 
-                                 style="width: {{ $stats['taux_realisation_presentiel'] }}%">
-                                {{ $stats['taux_realisation_presentiel'] }}%
+                                 style="width: {{ $statistics['taux_realisation_presentiel'] }}%">
+                                {{ $statistics['taux_realisation_presentiel'] }}%
                             </div>
                         </div>
                     </div>
                     <div class="col-md-4 mb-3">
-                        <h4 class="text-success">{{ $stats['taux_realisation_synchrone'] }}%</h4>
+                        <h4 class="text-success">{{ $statistics['taux_realisation_synchrone'] }}%</h4>
                         <p class="text-muted mb-2">Synchrone</p>
                         <div class="progress" style="height: 25px;">
                             <div class="progress-bar bg-success" role="progressbar" 
-                                 style="width: {{ $stats['taux_realisation_synchrone'] }}%">
-                                {{ $stats['taux_realisation_synchrone'] }}%
+                                 style="width: {{ $statistics['taux_realisation_synchrone'] }}%">
+                                {{ $statistics['taux_realisation_synchrone'] }}%
                             </div>
                         </div>
                     </div>
                     <div class="col-md-4 mb-3">
-                        <h4 class="text-info">{{ $stats['taux_realisation_global'] }}%</h4>
+                        <h4 class="text-info">{{ $statistics['taux_realisation'] }}%</h4>
                         <p class="text-muted mb-2">Global</p>
                         <div class="progress" style="height: 25px;">
                             <div class="progress-bar bg-info" role="progressbar" 
-                                 style="width: {{ $stats['taux_realisation_global'] }}%">
-                                {{ $stats['taux_realisation_global'] }}%
+                                 style="width: {{ $statistics['taux_realisation'] }}%">
+                                {{ $statistics['taux_realisation'] }}%
                             </div>
                         </div>
                     </div>
@@ -650,7 +644,7 @@
                             <tr>
                                 <td>{{ $item['nom_module'] }} <br><small class="text-muted">({{ $item['code_module'] }})</small></td>
                                 <td>{{ $item['groupes'] }}</td>
-                                <td class="text-end">{{ number_format($item['masse_horaire'], 0) }}h</td>
+                                <td class="text-end">{{ number_format($item['masse_horaire'], 2) }}h</td>
                                 <td>{{ $item['formateur'] }}</td>
                             </tr>
                             @empty
@@ -665,7 +659,7 @@
                         <tfoot>
                             <tr class="table-secondary fw-bold">
                                 <th colspan="2">Total</th>
-                                <th class="text-end">{{ number_format($totalNonAffectesModule, 0) }}h</th>
+                                <th class="text-end">{{ number_format($totalNonAffectesModule, 2) }}h</th>
                                 <th></th>
                             </tr>
                         </tfoot>
@@ -704,7 +698,7 @@
                                     <small class="text-muted">{{ $item['code_filiere'] }}</small>
                                 </td>
                                 <td>{{ $item['modules'] }}</td>
-                                <td class="text-end">{{ number_format($item['masse_horaire'], 0) }}h</td>
+                                <td class="text-end">{{ number_format($item['masse_horaire'], 2) }}h</td>
                             </tr>
                             @empty
                             <tr>
@@ -718,7 +712,7 @@
                         <tfoot>
                             <tr class="table-secondary fw-bold">
                                 <th colspan="2">Total</th>
-                                <th class="text-end">{{ number_format($totalNonAffectesFiliere, 0) }}h</th>
+                                <th class="text-end">{{ number_format($totalNonAffectesFiliere, 2) }}h</th>
                             </tr>
                         </tfoot>
                     </table>
@@ -753,10 +747,10 @@
                             @forelse($formateursData as $item)
                             <tr>
                                 <td>{{ $item['nom_formateur'] }}</td>
-                                <td class="text-end">{{ number_format($item['heures_requises'], 0) }}h</td>
-                                <td class="text-end">{{ number_format($item['heures_affectees'], 0) }}h</td>
+                                <td class="text-end">{{ number_format($item['heures_requises'], 2) }}h</td>
+                                <td class="text-end">{{ number_format($item['heures_affectees'], 2) }}h</td>
                                 <td class="text-end text-{{ $item['heures_manquantes'] > 0 ? 'danger' : 'success' }}">
-                                    {{ number_format($item['heures_manquantes'], 0) }}h
+                                    {{ number_format($item['heures_manquantes'], 2) }}h
                                 </td>
                             </tr>
                             @empty
@@ -771,10 +765,10 @@
                         <tfoot>
                             <tr class="table-secondary fw-bold">
                                 <th>TOTAL</th>
-                                <th class="text-end">{{ number_format($totalFormateurs['heures_requises'], 0) }}h</th>
-                                <th class="text-end">{{ number_format($totalFormateurs['heures_affectees'], 0) }}h</th>
+                                <th class="text-end">{{ number_format($totalFormateurs['heures_requises'], 2) }}h</th>
+                                <th class="text-end">{{ number_format($totalFormateurs['heures_affectees'], 2) }}h</th>
                                 <th class="text-end text-{{ $totalFormateurs['heures_manquantes'] > 0 ? 'danger' : 'success' }}">
-                                    {{ number_format($totalFormateurs['heures_manquantes'], 0) }}h
+                                    {{ number_format($totalFormateurs['heures_manquantes'], 2) }}h
                                 </th>
                             </tr>
                         </tfoot>
@@ -876,7 +870,7 @@
         <div class="card bg-gradient-success text-white border-0 shadow-sm">
             <div class="card-body">
                 <div class="text-white-50 small text-uppercase mb-1">Taux d'Affectation</div>
-                <div class="h3 mb-0 fw-bold">{{ $stats['taux_affectation'] }}%</div>
+                <div class="h3 mb-0 fw-bold">{{ $statistics['taux_affectation'] }}%</div>
             </div>
         </div>
     </div>
@@ -884,7 +878,7 @@
         <div class="card bg-gradient-info text-white border-0 shadow-sm">
             <div class="card-body">
                 <div class="text-white-50 small text-uppercase mb-1">Total Contrôles Continus</div>
-                <div class="h3 mb-0 fw-bold">{{ $stats['total_cc'] }}</div>
+                <div class="h3 mb-0 fw-bold">{{ $statistics['total_cc'] }}</div>
             </div>
         </div>
     </div>
@@ -892,7 +886,7 @@
         <div class="card bg-gradient-warning text-white border-0 shadow-sm">
             <div class="card-body">
                 <div class="text-white-50 small text-uppercase mb-1">EFM Validés</div>
-                <div class="h3 mb-0 fw-bold">{{ $stats['total_efm'] }}</div>
+                <div class="h3 mb-0 fw-bold">{{ $statistics['total_efm'] }}</div>
             </div>
         </div>
     </div>
@@ -900,7 +894,7 @@
         <div class="card bg-gradient-secondary text-white border-0 shadow-sm">
             <div class="card-body">
                 <div class="text-white-50 small text-uppercase mb-1">Moyenne Absence</div>
-                <div class="h3 mb-0 fw-bold">{{ $stats['moyenne_absence'] }}%</div>
+                <div class="h3 mb-0 fw-bold">{{ $statistics['moyenne_absence'] }}%</div>
             </div>
         </div>
     </div>
@@ -1103,13 +1097,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     label: 'Taux de Réalisation (%)',
                     data: {!! json_encode($chartData['taux_par_filiere']->values()) !!},
                     backgroundColor: function(context) {
-                        const value = context.parsed.x;
+                        const value = context.parsed.y;
                         if (value >= 80) return 'rgba(75, 192, 192, 0.7)';
                         if (value >= 50) return 'rgba(255, 206, 86, 0.7)';
                         return 'rgba(255, 99, 132, 0.7)';
                     },
                     borderColor: function(context) {
-                        const value = context.parsed.x;
+                        const value = context.parsed.y;
                         if (value >= 80) return 'rgba(75, 192, 192, 1)';
                         if (value >= 50) return 'rgba(255, 206, 86, 1)';
                         return 'rgba(255, 99, 132, 1)';

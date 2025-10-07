@@ -77,28 +77,28 @@ class DashboardEtablissementController extends Controller
 
         $avancements = $avancementsQuery->with(['groupe.formation.filiere', 'module', 'formateurPresentiel', 'formateurSynchrone'])->get();
 
-        // Statistiques principales - CORRIGÉ pour utiliser l'établissement connecté
-        $stats = $this->calculateStats($avancements, $etablissement, $filters);
-        
-        // Analyse des heures par type
+        // Statistiques principales - Aligné sur complexe : sommes pondérées
+        $statistics = $this->calculateStatistics($avancements, $etablissement, $filters);
+
+        // Analyse des heures par type (similaire, sommes)
         $heuresAnalysis = $this->calculateHeuresAnalysis($avancements);
         
-        // Données pour l'analyse des heures
+        // Données pour l'analyse des heures (similaire, mais taux pondérés)
         $heuresData = $this->calculateHeuresData($avancements);
         
-        // Graphiques de taux
+        // Graphiques de taux (pondérés)
         $tauxChartData = $this->getTauxChartData($avancements);
         
         // Données détaillées par groupe et module
         $detailedData = $this->getDetailedGroupeModuleData($avancements);
         
-        // Top 10 modules avec meilleurs taux
+        // Top 10 modules avec meilleurs taux (pondérés)
         $topModules = $this->getTopModules($avancements);
         
         // Données pour les graphiques
         $chartData = $this->getChartData($avancements);
         
-        // Taux de réalisation par formateur
+        // Taux de réalisation par formateur (pondérés)
         $formateurStats = $this->getFormateurStats($avancements);
         
         // Options pour les filtres
@@ -172,7 +172,7 @@ class DashboardEtablissementController extends Controller
 
         return view('administrationetablissement.dashboard', compact(
             'etablissement',
-            'stats',
+            'statistics',
             'heuresAnalysis',
             'heuresData',
             'tauxChartData',
@@ -191,7 +191,7 @@ class DashboardEtablissementController extends Controller
         ));
     }
 
-    private function calculateStats($avancements, $etablissement, $filters = [])
+    private function calculateStatistics($avancements, $etablissement, $filters = [])
     {
         // Récupérer TOUTES les données de l'établissement (pas seulement les avancements filtrés)
         $baseQuery = Formation::where('code_efp', $etablissement->code_efp);
@@ -253,37 +253,40 @@ class DashboardEtablissementController extends Controller
         $secteurs = Filiere::whereIn('code_filiere', $filieres)->pluck('nom_secteur')->unique();
         $totalSecteurs = $secteurs->count();
         
-        // Taux de réalisation (basé sur les avancements filtrés)
-        $tauxRealisationGlobal = $avancements->avg('taux_realisation_global') ?? 0;
-        $tauxRealisationPresentiel = $avancements->avg('taux_realisation_presentiel') ?? 0;
-        $tauxRealisationSynchrone = $avancements->avg('taux_realisation_syn') ?? 0;
+        // Heures (basé sur les avancements filtrés) - Aligné sur complexe : sommes pondérées
+        $heuresRequisesTotal = $avancements->sum('mh_totale_drif') ?: 0;
+        $heuresAffecteesTotal = $avancements->sum('mh_affectee_globale') ?: 0;
+        $heuresRealiseesTotal = $avancements->sum('mh_realisee_globale') ?: 0;
         
-        // Heures (basé sur les avancements filtrés)
-        $heuresRequisesTotal = $avancements->sum('mh_totale_drif');
-        $heuresAffecteesTotal = $avancements->sum('mh_affectee_globale');
-        $heuresRealiseesTotal = $avancements->sum('mh_realisee_globale');
+        $tauxRealisationGlobal = $heuresRequisesTotal > 0 ? ($heuresRealiseesTotal / $heuresRequisesTotal) * 100 : 0;
+        $tauxAffectation = $heuresRequisesTotal > 0 ? ($heuresAffecteesTotal / $heuresRequisesTotal) * 100 : 0;
         
-        $tauxAffectation = $heuresRequisesTotal > 0 
-            ? ($heuresAffecteesTotal / $heuresRequisesTotal) * 100 
-            : 0;
+        // Taux par mode - Pondérés comme dans complexe
+        $heuresRequisesPresentiel = $avancements->sum('mhp_totale_drif') ?: 0;
+        $heuresRequisesSynchrone = $avancements->sum('mhsyn_totale_drif') ?: 0;
+        
+        $tauxRealisationPresentiel = $heuresRequisesPresentiel > 0 ? ($avancements->sum('mh_realisee_presentiel') / $heuresRequisesPresentiel) * 100 : 0;
+        $tauxRealisationSynchrone = $heuresRequisesSynchrone > 0 ? ($avancements->sum('mh_realisee_sync') / $heuresRequisesSynchrone) * 100 : 0;
         
         $moyenneAbsence = $avancements->avg('moy_absence') ?? 0;
         $totalCC = $avancements->sum('nb_cc');
         $totalEFM = $avancements->where('validation_efm', 1)->count();
 
         return [
-            'total_formations' => $totalFormations,
-            'total_formateurs' => $totalFormateurs,
-            'total_filieres' => $totalFilieres,
-            'total_groupes' => $totalGroupes,
-            'total_modules' => $totalModules,
-            'total_secteurs' => $totalSecteurs,
-            'taux_realisation_global' => round($tauxRealisationGlobal, 2),
-            'taux_realisation_presentiel' => round($tauxRealisationPresentiel, 2),
-            'taux_realisation_synchrone' => round($tauxRealisationSynchrone, 2),
+            'nb_formations' => $totalFormations,
+            'nb_filieres' => $totalFilieres,
+            'nb_secteurs' => $totalSecteurs,
+            'nb_formateurs' => $totalFormateurs,
+            'nb_groupes' => $totalGroupes,
+            'nb_modules' => $totalModules,
+            'heures_requises' => round($heuresRequisesTotal, 2),
             'heures_affectees' => round($heuresAffecteesTotal, 2),
             'heures_realisees' => round($heuresRealiseesTotal, 2),
+            'difference' => round($heuresRequisesTotal - $heuresRealiseesTotal, 2),
+            'taux_realisation' => round($tauxRealisationGlobal, 2),
             'taux_affectation' => round($tauxAffectation, 2),
+            'taux_realisation_presentiel' => round($tauxRealisationPresentiel, 2),
+            'taux_realisation_synchrone' => round($tauxRealisationSynchrone, 2),
             'moyenne_absence' => round($moyenneAbsence, 2),
             'total_cc' => $totalCC,
             'total_efm' => $totalEFM,
@@ -292,22 +295,20 @@ class DashboardEtablissementController extends Controller
 
     private function calculateHeuresData($avancements)
     {
-        $heuresRequises = $avancements->sum('mh_totale_drif');
-        $heuresAffectees = $avancements->sum('mh_affectee_globale');
-        $heuresRealisees = $avancements->sum('mh_realisee_globale');
+        $heuresRequises = $avancements->sum('mh_totale_drif') ?: 0;
+        $heuresAffectees = $avancements->sum('mh_affectee_globale') ?: 0;
+        $heuresRealisees = $avancements->sum('mh_realisee_globale') ?: 0;
 
-        $differenceAffectees = $heuresRequises - $heuresAffectees;
-        $differenceRealisees = $heuresAffectees - $heuresRealisees;
+        $difference = $heuresRequises - $heuresRealisees;
         
         $tauxAffectation = $heuresRequises > 0 ? ($heuresAffectees / $heuresRequises) * 100 : 0;
-        $tauxRealisation = $heuresAffectees > 0 ? ($heuresRealisees / $heuresAffectees) * 100 : 0;
+        $tauxRealisation = $heuresRequises > 0 ? ($heuresRealisees / $heuresRequises) * 100 : 0;
 
         return [
-            'heures_requises' => $heuresRequises,
-            'heures_affectees' => $heuresAffectees,
-            'heures_realisees' => $heuresRealisees,
-            'difference_affectees' => $differenceAffectees,
-            'difference_realisees' => $differenceRealisees,
+            'heures_requises' => round($heuresRequises, 2),
+            'heures_affectees' => round($heuresAffectees, 2),
+            'heures_realisees' => round($heuresRealisees, 2),
+            'difference' => round($difference, 2),
             'taux_affectation' => round($tauxAffectation, 2),
             'taux_realisation' => round($tauxRealisation, 2),
         ];
@@ -317,41 +318,41 @@ class DashboardEtablissementController extends Controller
     {
         return [
             'presentiel' => [
-                's1' => $avancements->sum('mhp_s1_drif'),
-                's2' => $avancements->sum('mhp_s2_drif'),
-                'total' => $avancements->sum('mhp_totale_drif'),
-                'affectee' => $avancements->sum('mh_affectee_presentiel'),
-                'realisee' => $avancements->sum('mh_realisee_presentiel'),
+                's1' => round($avancements->sum('mhp_s1_drif'), 2),
+                's2' => round($avancements->sum('mhp_s2_drif'), 2),
+                'total' => round($avancements->sum('mhp_totale_drif'), 2),
+                'affectee' => round($avancements->sum('mh_affectee_presentiel'), 2),
+                'realisee' => round($avancements->sum('mh_realisee_presentiel'), 2),
             ],
             'synchrone' => [
-                's1' => $avancements->sum('mhsyn_s1_drif'),
-                's2' => $avancements->sum('mhsyn_s2_drif'),
-                'total' => $avancements->sum('mhsyn_totale_drif'),
-                'affectee' => $avancements->sum('mh_affectee_sync'),
-                'realisee' => $avancements->sum('mh_realisee_sync'),
+                's1' => round($avancements->sum('mhsyn_s1_drif'), 2),
+                's2' => round($avancements->sum('mhsyn_s2_drif'), 2),
+                'total' => round($avancements->sum('mhsyn_totale_drif'), 2),
+                'affectee' => round($avancements->sum('mh_affectee_sync'), 2),
+                'realisee' => round($avancements->sum('mh_realisee_sync'), 2),
             ],
             'asynchrone' => [
-                's1' => $avancements->sum('mhasyn_s1_drif'),
-                's2' => $avancements->sum('mhasyn_s2_drif'),
-                'total' => $avancements->sum('mhasyn_totale_drif'),
+                's1' => round($avancements->sum('mhasyn_s1_drif'), 2),
+                's2' => round($avancements->sum('mhasyn_s2_drif'), 2),
+                'total' => round($avancements->sum('mhasyn_totale_drif'), 2),
             ],
             'global' => [
-                's1' => $avancements->sum('mh_totale_s1_drif'),
-                's2' => $avancements->sum('mh_totale_s2_drif'),
-                'total' => $avancements->sum('mh_totale_drif'),
-                'affectee' => $avancements->sum('mh_affectee_globale'),
-                'realisee' => $avancements->sum('mh_realisee_globale'),
+                's1' => round($avancements->sum('mh_totale_s1_drif'), 2),
+                's2' => round($avancements->sum('mh_totale_s2_drif'), 2),
+                'total' => round($avancements->sum('mh_totale_drif'), 2),
+                'affectee' => round($avancements->sum('mh_affectee_globale'), 2),
+                'realisee' => round($avancements->sum('mh_realisee_globale'), 2),
             ],
         ];
     }
 
     private function getTauxChartData($avancements)
     {
-        $heuresRequises = $avancements->sum('mh_totale_drif');
-        $heuresAffectees = $avancements->sum('mh_affectee_globale');
-        $heuresRealisees = $avancements->sum('mh_realisee_globale');
+        $heuresRequises = $avancements->sum('mh_totale_drif') ?: 0;
+        $heuresAffectees = $avancements->sum('mh_affectee_globale') ?: 0;
+        $heuresRealisees = $avancements->sum('mh_realisee_globale') ?: 0;
         
-        $tauxRealisation = $heuresAffectees > 0 ? ($heuresRealisees / $heuresAffectees) * 100 : 0;
+        $tauxRealisation = $heuresRequises > 0 ? ($heuresRealisees / $heuresRequises) * 100 : 0;
         $tauxAffectation = $heuresRequises > 0 ? ($heuresAffectees / $heuresRequises) * 100 : 0;
         $moyenneAbsence = $avancements->avg('moy_absence') ?? 0;
         
@@ -395,11 +396,14 @@ class DashboardEtablissementController extends Controller
         return $avancements->groupBy('code_module')
             ->map(function($moduleAvancements, $codeModule) {
                 $module = $moduleAvancements->first()->module;
+                $heuresRequises = $moduleAvancements->sum('mh_totale_drif') ?: 0;
+                $heuresRealisees = $moduleAvancements->sum('mh_realisee_globale') ?: 0;
+                $tauxMoyen = $heuresRequises > 0 ? ($heuresRealisees / $heuresRequises) * 100 : 0;
                 return [
                     'code_module' => $codeModule,
                     'nom_module' => $module->nom_module ?? 'N/A',
-                    'taux_moyen' => round($moduleAvancements->avg('taux_realisation_global'), 2),
-                    'heures_realisees' => round($moduleAvancements->sum('mh_realisee_globale'), 2),
+                    'taux_moyen' => round($tauxMoyen, 2),
+                    'heures_realisees' => round($heuresRealisees, 2),
                     'heures_affectees' => round($moduleAvancements->sum('mh_affectee_globale'), 2),
                     'nb_groupes' => $moduleAvancements->unique('groupe')->count(),
                 ];
@@ -427,14 +431,14 @@ class DashboardEtablissementController extends Controller
             'Synchrone' => round($avancements->sum('mh_realisee_sync'), 2),
         ];
 
-        // Taux de réalisation par filière
+        // Taux de réalisation par filière (pondéré)
         $tauxParFiliere = $avancements->groupBy(function($avancement) {
             $groupeObj = $avancement->groupe()->first();
             return $groupeObj && $groupeObj->formation && $groupeObj->formation->filiere ? $groupeObj->formation->filiere->nom_filiere : 'N/A';
         })->map(function($group, $filiere) {
-            $heuresAffectees = $group->sum('mh_affectee_globale');
-            $heuresRealisees = $group->sum('mh_realisee_globale');
-            $taux = $heuresAffectees > 0 ? ($heuresRealisees / $heuresAffectees) * 100 : 0;
+            $heuresRequises = $group->sum('mh_totale_drif') ?: 0;
+            $heuresRealisees = $group->sum('mh_realisee_globale') ?: 0;
+            $taux = $heuresRequises > 0 ? ($heuresRealisees / $heuresRequises) * 100 : 0;
             return round($taux, 2);
         });
 
@@ -451,12 +455,15 @@ class DashboardEtablissementController extends Controller
             ->groupBy('mle_presentiel')
             ->map(function($group) {
                 $formateur = $group->first()->formateurPresentiel;
+                $heuresRequises = $group->sum('mhp_totale_drif') ?: 0;
+                $heuresRealisees = $group->sum('mh_realisee_presentiel') ?: 0;
+                $tauxRealisation = $heuresRequises > 0 ? ($heuresRealisees / $heuresRequises) * 100 : 0;
                 return [
                     'mle' => $group->first()->mle_presentiel,
                     'nom' => $formateur->nom_formateur ?? 'N/A',
-                    'heures_realisees' => round($group->sum('mh_realisee_presentiel'), 2),
+                    'heures_realisees' => round($heuresRealisees, 2),
                     'heures_affectees' => round($group->sum('mh_affectee_presentiel'), 2),
-                    'taux_realisation' => round($group->avg('taux_realisation_presentiel'), 2),
+                    'taux_realisation' => round($tauxRealisation, 2),
                     'nb_modules' => $group->unique('code_module')->count(),
                     'nb_groupes' => $group->unique('groupe')->count(),
                 ];
@@ -466,12 +473,15 @@ class DashboardEtablissementController extends Controller
             ->groupBy('mle_syn')
             ->map(function($group) {
                 $formateur = $group->first()->formateurSynchrone;
+                $heuresRequises = $group->sum('mhsyn_totale_drif') ?: 0;
+                $heuresRealisees = $group->sum('mh_realisee_sync') ?: 0;
+                $tauxRealisation = $heuresRequises > 0 ? ($heuresRealisees / $heuresRequises) * 100 : 0;
                 return [
                     'mle' => $group->first()->mle_syn,
                     'nom' => $formateur->nom_formateur ?? 'N/A',
-                    'heures_realisees' => round($group->sum('mh_realisee_sync'), 2),
+                    'heures_realisees' => round($heuresRealisees, 2),
                     'heures_affectees' => round($group->sum('mh_affectee_sync'), 2),
-                    'taux_realisation' => round($group->avg('taux_realisation_syn'), 2),
+                    'taux_realisation' => round($tauxRealisation, 2),
                     'nb_modules' => $group->unique('code_module')->count(),
                     'nb_groupes' => $group->unique('groupe')->count(),
                 ];
@@ -508,7 +518,7 @@ class DashboardEtablissementController extends Controller
         )->get();
 
         $niveaux = $formations->pluck('niveau')->unique();
-        $filieres = $formations->pluck('code_filiere', 'filiere.nom_filiere')->unique();
+        $filieres = Filiere::whereIn('code_filiere', $formations->pluck('code_filiere'))->get()->pluck('nom_filiere', 'code_filiere');
         $annees = $formations->pluck('annee')->unique()->sort()->values();
 
         return [

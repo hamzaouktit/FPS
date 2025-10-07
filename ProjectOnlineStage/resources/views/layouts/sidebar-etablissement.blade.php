@@ -29,12 +29,38 @@
         </div>
         
         <div class="sidebar-nav-item">
+            <a href="{{ route('administration.etablissement.secteurs.index') }}" 
+               class="sidebar-nav-link {{ request()->routeIs('administration.etablissement.secteurs.*') ? 'active' : '' }}">
+                <div class="nav-icon-wrapper">
+                    <i class="fas fa-industry sidebar-nav-icon"></i>
+                </div>
+                <span>Secteurs</span>
+                <div class="nav-arrow">
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </a>
+        </div>
+        
+        <div class="sidebar-nav-item">
+            <a href="{{ route('administration.etablissement.filieres.index') }}" 
+               class="sidebar-nav-link {{ request()->routeIs('administration.etablissement.filieres.*') ? 'active' : '' }}">
+                <div class="nav-icon-wrapper">
+                    <i class="fas fa-project-diagram sidebar-nav-icon"></i>
+                </div>
+                <span>Filières</span>
+                <div class="nav-arrow">
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </a>
+        </div>
+        
+        <div class="sidebar-nav-item">
             <a href="#" 
                class="sidebar-nav-link">
                 <div class="nav-icon-wrapper">
-                    <i class="fas fa-building sidebar-nav-icon"></i>
+                    <i class="fas fa-layer-group sidebar-nav-icon"></i>
                 </div>
-                <span>Espaces Pédagogiques</span>
+                <span>Niveaux</span>
                 <div class="nav-arrow">
                     <i class="fas fa-chevron-right"></i>
                 </div>
@@ -48,19 +74,6 @@
                     <i class="fas fa-graduation-cap sidebar-nav-icon"></i>
                 </div>
                 <span>Formations</span>
-                <div class="nav-arrow">
-                    <i class="fas fa-chevron-right"></i>
-                </div>
-            </a>
-        </div>
-        
-        <div class="sidebar-nav-item">
-            <a href="#" 
-               class="sidebar-nav-link">
-                <div class="nav-icon-wrapper">
-                    <i class="fas fa-calendar-alt sidebar-nav-icon"></i>
-                </div>
-                <span>Années de Formation</span>
                 <div class="nav-arrow">
                     <i class="fas fa-chevron-right"></i>
                 </div>
@@ -110,9 +123,22 @@
             <a href="#" 
                class="sidebar-nav-link">
                 <div class="nav-icon-wrapper">
-                    <i class="fas fa-tools sidebar-nav-icon"></i>
+                    <i class="fas fa-tasks sidebar-nav-icon"></i>
                 </div>
-                <span>Métiers</span>
+                <span>Affectations</span>
+                <div class="nav-arrow">
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </a>
+        </div>
+        
+        <div class="sidebar-nav-item">
+            <a href="#" 
+               class="sidebar-nav-link">
+                <div class="nav-icon-wrapper">
+                    <i class="fas fa-chart-line sidebar-nav-icon"></i>
+                </div>
+                <span>Avancements</span>
                 <div class="nav-arrow">
                     <i class="fas fa-chevron-right"></i>
                 </div>

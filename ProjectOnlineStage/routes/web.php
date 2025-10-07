@@ -6,6 +6,8 @@ use App\Http\Controllers\AdministrationComplexe\DashboardComplexeController;
 use App\Http\Controllers\AdministrationComplexe\EtablissementController;
 use App\Http\Controllers\AdministrationEtablissement\DashboardEtablissementController;
 use App\Http\Controllers\AdministrationComplexe\DirecteurController;
+use App\Http\Controllers\AdministrationEtablissement\SecteurController;
+use App\Http\Controllers\AdministrationEtablissement\FiliereController;
 
 /*
 |--------------------------------------------------------------------------
@@ -78,7 +80,15 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/filter-options', [DashboardEtablissementController::class, 'getFilteredOptions'])->name('filter.options');
         
         // Import Excel
-        Route::get('/import', [DashboardEtablissementController::class, 'importForm'])->name('import');        
+        Route::get('/import', [DashboardEtablissementController::class, 'importForm'])->name('import');
         Route::post('/import', [DashboardEtablissementController::class, 'importExcel'])->name('import.process');
+        
+        // CRUD des secteurs
+        Route::resource('secteurs', SecteurController::class)
+            ->parameters(['secteurs' => 'nom_secteur']);
+        
+        // CRUD des filières
+        Route::resource('filieres', FiliereController::class)
+            ->parameters(['filieres' => 'code_filiere']);
     });
 });

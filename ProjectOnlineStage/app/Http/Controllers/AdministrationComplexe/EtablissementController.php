@@ -6,10 +6,117 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Models\{Etablissement, Formateur, Formation, Module, Groupe, Filiere, Secteur, Avancement};
+use App\Models\{Etablissement, Formateur, Formation, Module, Groupe, Filiere, Secteur, Avancement, User};
 
 class EtablissementController extends Controller
 {
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request)
+    {
+        $user = Auth::user();
+        
+        if ($user->role !== 'directeur_complexe') {
+            return redirect()->route('welcome')
+                ->with('error', 'Accès refusé. Vous n\'êtes pas directeur de complexe.');
+        }
+        
+        $complexe = $user->complexe;
+        if (!$complexe) {
+            return redirect()->route('welcome')
+                ->with('error', 'Aucun complexe associé à votre compte.');
+        }
+
+        // Récupérer les établissements avec leurs statistiques
+        $etablissements = Etablissement::where('complexe_id', $complexe->id)
+            ->with(['user', 'formations'])
+            ->withCount('formations')
+            ->paginate(10);
+
+        // Calculer les statistiques pour chaque établissement
+        foreach ($etablissements as $etablissement) {
+            $stats = $this->getEtablissementStats($etablissement->code_efp);
+            $etablissement->stats = $stats;
+        }
+
+        return view('administrationcomplexe.etablissements.index', compact(
+            'user',
+            'complexe',
+            'etablissements'
+        ));
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        $user = Auth::user();
+        
+        if ($user->role !== 'directeur_complexe') {
+            return redirect()->route('welcome')
+                ->with('error', 'Accès refusé. Vous n\'êtes pas directeur de complexe.');
+        }
+        
+        $complexe = $user->complexe;
+        if (!$complexe) {
+            return redirect()->route('welcome')
+                ->with('error', 'Aucun complexe associé à votre compte.');
+        }
+
+        // Récupérer les utilisateurs sans établissement et avec le rôle directeur_etablissement
+        $directeurs = User::where('role', 'directeur_etablissement')
+            ->whereDoesntHave('etablissement')
+            ->get();
+
+        return view('administrationcomplexe.etablissements.create', compact(
+            'user',
+            'complexe',
+            'directeurs'
+        ));
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        $user = Auth::user();
+        
+        if ($user->role !== 'directeur_complexe') {
+            return redirect()->route('welcome')
+                ->with('error', 'Accès refusé. Vous n\'êtes pas directeur de complexe.');
+        }
+        
+        $complexe = $user->complexe;
+        if (!$complexe) {
+            return redirect()->route('welcome')
+                ->with('error', 'Aucun complexe associé à votre compte.');
+        }
+
+        $validated = $request->validate([
+            'code_efp' => 'required|string|max:50|unique:etablissements,code_efp',
+            'nom_efp' => 'required|string|max:255',
+            'user_id' => 'nullable|exists:users,id',
+        ], [
+            'code_efp.required' => 'Le code EFP est obligatoire.',
+            'code_efp.unique' => 'Ce code EFP existe déjà.',
+            'nom_efp.required' => 'Le nom de l\'établissement est obligatoire.',
+            'user_id.exists' => 'Le directeur sélectionné n\'existe pas.',
+        ]);
+
+        $validated['complexe_id'] = $complexe->id;
+
+        Etablissement::create($validated);
+
+        return redirect()->route('administration.complexe.etablissements.index')
+            ->with('success', 'Établissement créé avec succès.');
+    }
+
+    /**
+     * Display the specified resource.
+     */
     public function show(Request $request, $code_efp)
     {
         $user = Auth::user();
@@ -64,6 +171,142 @@ class EtablissementController extends Controller
             'filterOptions',
             'filters'
         ));
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit($code_efp)
+    {
+        $user = Auth::user();
+        
+        if ($user->role !== 'directeur_complexe') {
+            return redirect()->route('welcome')
+                ->with('error', 'Accès refusé. Vous n\'êtes pas directeur de complexe.');
+        }
+        
+        $complexe = $user->complexe;
+        if (!$complexe) {
+            return redirect()->route('welcome')
+                ->with('error', 'Aucun complexe associé à votre compte.');
+        }
+
+        $etablissement = Etablissement::where('code_efp', $code_efp)
+            ->where('complexe_id', $complexe->id)
+            ->firstOrFail();
+
+        // Récupérer les directeurs disponibles (sans établissement) + le directeur actuel
+        $directeurs = User::where('role', 'directeur_etablissement')
+            ->where(function($query) use ($etablissement) {
+                $query->whereDoesntHave('etablissement')
+                      ->orWhere('id', $etablissement->user_id);
+            })
+            ->get();
+
+        return view('administrationcomplexe.etablissements.edit', compact(
+            'user',
+            'complexe',
+            'etablissement',
+            'directeurs'
+        ));
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, $code_efp)
+    {
+        $user = Auth::user();
+        
+        if ($user->role !== 'directeur_complexe') {
+            return redirect()->route('welcome')
+                ->with('error', 'Accès refusé. Vous n\'êtes pas directeur de complexe.');
+        }
+        
+        $complexe = $user->complexe;
+        if (!$complexe) {
+            return redirect()->route('welcome')
+                ->with('error', 'Aucun complexe associé à votre compte.');
+        }
+
+        $etablissement = Etablissement::where('code_efp', $code_efp)
+            ->where('complexe_id', $complexe->id)
+            ->firstOrFail();
+
+        $validated = $request->validate([
+            'nom_efp' => 'required|string|max:255',
+            'user_id' => 'nullable|exists:users,id',
+        ], [
+            'nom_efp.required' => 'Le nom de l\'établissement est obligatoire.',
+            'user_id.exists' => 'Le directeur sélectionné n\'existe pas.',
+        ]);
+
+        $etablissement->update($validated);
+
+        return redirect()->route('administration.complexe.etablissements.index')
+            ->with('success', 'Établissement modifié avec succès.');
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy($code_efp)
+    {
+        $user = Auth::user();
+        
+        if ($user->role !== 'directeur_complexe') {
+            return redirect()->route('welcome')
+                ->with('error', 'Accès refusé. Vous n\'êtes pas directeur de complexe.');
+        }
+        
+        $complexe = $user->complexe;
+        if (!$complexe) {
+            return redirect()->route('welcome')
+                ->with('error', 'Aucun complexe associé à votre compte.');
+        }
+
+        $etablissement = Etablissement::where('code_efp', $code_efp)
+            ->where('complexe_id', $complexe->id)
+            ->firstOrFail();
+
+        // Vérifier s'il y a des formations associées
+        if ($etablissement->formations()->count() > 0) {
+            return redirect()->route('administration.complexe.etablissements.index')
+                ->with('error', 'Impossible de supprimer cet établissement car il contient des formations.');
+        }
+
+        $etablissement->delete();
+
+        return redirect()->route('administration.complexe.etablissements.index')
+            ->with('success', 'Établissement supprimé avec succès.');
+    }
+
+    // ========== Méthodes privées existantes ==========
+
+    private function getEtablissementStats($code_efp)
+    {
+        $query = Avancement::query()
+            ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
+            ->join('formations', 'groupes.id_formation', '=', 'formations.id')
+            ->where('formations.code_efp', $code_efp);
+
+        $avancements = $query->get();
+
+        $nbGroupes = $avancements->pluck('groupe')->unique()->count();
+        $groupesUniques = $avancements->groupBy('groupe')->map(function($items) {
+            return $items->first()->effectif_groupe ?? 0;
+        });
+        $nbApprenants = $groupesUniques->sum();
+
+        $heuresRequises = $avancements->sum('mh_totale_drif') ?: 0;
+        $heuresRealisees = $avancements->sum('mh_realisee_globale') ?: 0;
+        $tauxRealisation = $heuresRequises > 0 ? ($heuresRealisees / $heuresRequises) * 100 : 0;
+
+        return [
+            'nb_groupes' => $nbGroupes,
+            'nb_apprenants' => $nbApprenants,
+            'taux_realisation' => round($tauxRealisation, 2),
+        ];
     }
 
     private function buildDetailedQuery($code_efp, $filters)
@@ -179,7 +422,7 @@ class EtablissementController extends Controller
         $formateursSyn = $avancements->pluck('mle_syn')->filter()->unique();
         $nbFormateurs = $formateursPresentiel->merge($formateursSyn)->unique()->count();
         
-        // Calculer l'effectif total correctement
+        // Calculer l'effectif total
         $groupesUniques = $avancements->groupBy('groupe')->map(function($items) {
             return $items->first()->effectif_groupe ?? 0;
         });

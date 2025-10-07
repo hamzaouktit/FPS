@@ -41,9 +41,9 @@
             </a>
         </div>
         
-        <div class="sidebar-nav-item">
-            <a href="#" 
-               class="sidebar-nav-link">
+       <div class="sidebar-nav-item">
+            <a href="{{ route('administration.complexe.etablissements.index') }}" 
+            class="sidebar-nav-link {{ request()->routeIs('administration.complexe.etablissements.*') ? 'active' : '' }}">
                 <div class="nav-icon-wrapper">
                     <i class="fas fa-school sidebar-nav-icon"></i>
                 </div>
@@ -53,7 +53,6 @@
                 </div>
             </a>
         </div>
-        
         <div class="sidebar-nav-item">
             <a href="#" class="sidebar-nav-link">
                 <div class="nav-icon-wrapper">

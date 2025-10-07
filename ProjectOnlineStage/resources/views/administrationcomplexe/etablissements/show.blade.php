@@ -63,6 +63,11 @@
         <a href="{{ route('administration.complexe.dashboard') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Retour au tableau de bord
         </a>
+        <a href="{{ route('administration.complexe.etablissements.index') }}" class="btn btn-secondary">
+                                <i class="bi bi-x-lg"></i> retour au liste
+        </a>
+
+        
     </div>
 
     {{-- Cartes de statistiques --}}

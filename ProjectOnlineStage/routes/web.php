@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\AdministrationComplexe\DashboardComplexeController;
 use App\Http\Controllers\AdministrationComplexe\EtablissementController;
 use App\Http\Controllers\AdministrationEtablissement\DashboardEtablissementController;
+use App\Http\Controllers\AdministrationComplexe\DirecteurController;
 
 /*
 |--------------------------------------------------------------------------
@@ -56,6 +57,9 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('etablissements', EtablissementController::class)->except(['show'])->parameters([
             'etablissements' => 'code_efp'
         ]);
+        
+        // CRUD des directeurs
+        Route::resource('directeurs', DirecteurController::class);
         
         // Route show personnalisée (avec filtres)
         Route::get('etablissements/{code_efp}', [EtablissementController::class, 'show'])

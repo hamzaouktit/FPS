@@ -29,8 +29,8 @@
         </div>
         
         <div class="sidebar-nav-item">
-            <a href="#" 
-               class="sidebar-nav-link">
+            <a href="{{ route('administration.complexe.directeurs.index') }}" 
+               class="sidebar-nav-link {{ request()->routeIs('administration.complexe.directeurs.*') ? 'active' : '' }}">
                 <div class="nav-icon-wrapper">
                     <i class="fas fa-user-tie sidebar-nav-icon"></i>
                 </div>

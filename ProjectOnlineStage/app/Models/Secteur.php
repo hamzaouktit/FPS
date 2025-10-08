@@ -37,4 +37,5 @@ class Secteur extends Model
             $query->where('code_efp', $code_efp);
         });
     }
+    
 }

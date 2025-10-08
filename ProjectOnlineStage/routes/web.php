@@ -8,6 +8,7 @@ use App\Http\Controllers\AdministrationEtablissement\DashboardEtablissementContr
 use App\Http\Controllers\AdministrationComplexe\DirecteurController;
 use App\Http\Controllers\AdministrationEtablissement\SecteurController;
 use App\Http\Controllers\AdministrationEtablissement\FiliereController;
+use App\Http\Controllers\AdministrationEtablissement\NiveauController; // NOUVEAU
 
 /*
 |--------------------------------------------------------------------------
@@ -90,5 +91,9 @@ Route::middleware(['auth'])->group(function () {
         // CRUD des filières
         Route::resource('filieres', FiliereController::class)
             ->parameters(['filieres' => 'code_filiere']);
+        
+        // CRUD des niveaux - NOUVEAU
+        Route::resource('niveaux', NiveauController::class)
+            ->parameters(['niveaux' => 'niveau']);
     });
 });

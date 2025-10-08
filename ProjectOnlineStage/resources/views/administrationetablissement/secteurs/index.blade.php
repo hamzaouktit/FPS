@@ -110,7 +110,15 @@
 <script>
 function confirmDelete(nomSecteur) {
     if (confirm('Êtes-vous sûr de vouloir supprimer ce secteur ?\n\nSecteur : ' + nomSecteur)) {
-        const slug = nomSecteur.toLowerCase().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
+        const slug = nomSecteur.toLowerCase()
+            .replace(/\s+/g, '-')
+            .replace(/[àáâãäå]/g, 'a')
+            .replace(/[èéêë]/g, 'e')
+            .replace(/[ìíîï]/g, 'i')
+            .replace(/[òóôõö]/g, 'o')
+            .replace(/[ùúûü]/g, 'u')
+            .replace(/[ç]/g, 'c')
+            .replace(/[^\w\-]+/g, '');
         document.getElementById('delete-form-' + slug).submit();
     }
 }

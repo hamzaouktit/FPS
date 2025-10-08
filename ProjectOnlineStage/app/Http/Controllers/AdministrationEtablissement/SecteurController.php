@@ -21,12 +21,12 @@ class SecteurController extends Controller
                 ->with('error', 'Aucun établissement associé à votre compte.');
         }
 
-        $secteurs = Secteur::forEtablissement($etablissement->code_efp)
-            ->withCount('filieres')
+        // Afficher tous les secteurs sans filtrage
+        $secteurs = Secteur::withCount('filieres')
             ->orderBy('nom_secteur')
             ->paginate(15);
 
-        return view('administrationetablissement.secteurs.index', compact('secteurs'));
+        return view('administrationetablissement.secteurs.index', compact('secteurs', 'etablissement'));
     }
 
     /**
@@ -67,10 +67,6 @@ class SecteurController extends Controller
                 'nom_secteur' => $request->nom_secteur
             ]);
 
-            // Optionally, associate the sector with the establishment by creating a filiere or formation
-            // For simplicity, we assume the sector is linked later via filieres/formations
-            // If you want to enforce immediate association, you could create a filiere here
-
             return redirect()
                 ->route('administration.etablissement.secteurs.index')
                 ->with('success', 'Secteur créé avec succès.');
@@ -92,25 +88,34 @@ class SecteurController extends Controller
                 ->with('error', 'Aucun établissement associé à votre compte.');
         }
 
-        $secteur = Secteur::forEtablissement($etablissement->code_efp)
-            ->where('nom_secteur', $nom_secteur)
+        // Récupérer le secteur sans filtrage par établissement
+        $secteur = Secteur::where('nom_secteur', $nom_secteur)
             ->withCount('filieres')
             ->firstOrFail();
 
-        // Récupérer les filières associées au secteur et à l'établissement
+        // Récupérer les filières du secteur qui ont des formations dans cet établissement
         $filieres = $secteur->filieres()
-            ->whereHas('formations', function ($query) use ($etablissement) {
-                $query->where('code_efp', $etablissement->code_efp);
+            ->where(function($query) use ($etablissement) {
+                $query->whereHas('formations', function ($q) use ($etablissement) {
+                    $q->where('code_efp', $etablissement->code_efp);
+                })
+                // OU les filières sans formations encore (nouvellement créées)
+                ->orWhereDoesntHave('formations');
             })
-            ->withCount('formations')
+            ->withCount(['formations' => function($query) use ($etablissement) {
+                $query->where('code_efp', $etablissement->code_efp);
+            }])
             ->orderBy('nom_filiere')
             ->paginate(10);
 
-        // Statistiques du secteur
+        // Statistiques du secteur pour cet établissement
         $stats = [
             'total_filieres' => $secteur->filieres()
-                ->whereHas('formations', function ($query) use ($etablissement) {
-                    $query->where('code_efp', $etablissement->code_efp);
+                ->where(function($query) use ($etablissement) {
+                    $query->whereHas('formations', function ($q) use ($etablissement) {
+                        $q->where('code_efp', $etablissement->code_efp);
+                    })
+                    ->orWhereDoesntHave('formations');
                 })->count(),
             'total_formations' => DB::table('formations')
                 ->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
@@ -125,7 +130,7 @@ class SecteurController extends Controller
                 ->count()
         ];
 
-        return view('administrationetablissement.secteurs.show', compact('secteur', 'filieres', 'stats'));
+        return view('administrationetablissement.secteurs.show', compact('secteur', 'filieres', 'stats', 'etablissement'));
     }
 
     /**
@@ -139,11 +144,10 @@ class SecteurController extends Controller
                 ->with('error', 'Aucun établissement associé à votre compte.');
         }
 
-        $secteur = Secteur::forEtablissement($etablissement->code_efp)
-            ->where('nom_secteur', $nom_secteur)
-            ->firstOrFail();
+        // Récupérer le secteur sans filtrage
+        $secteur = Secteur::where('nom_secteur', $nom_secteur)->firstOrFail();
 
-        return view('administrationetablissement.secteurs.edit', compact('secteur'));
+        return view('administrationetablissement.secteurs.edit', compact('secteur', 'etablissement'));
     }
 
     /**
@@ -157,9 +161,7 @@ class SecteurController extends Controller
                 ->with('error', 'Aucun établissement associé à votre compte.');
         }
 
-        $secteur = Secteur::forEtablissement($etablissement->code_efp)
-            ->where('nom_secteur', $nom_secteur)
-            ->firstOrFail();
+        $secteur = Secteur::where('nom_secteur', $nom_secteur)->firstOrFail();
 
         $request->validate([
             'nom_secteur' => 'required|string|max:255|unique:secteurs,nom_secteur,' . $nom_secteur . ',nom_secteur'
@@ -209,25 +211,16 @@ class SecteurController extends Controller
         }
 
         try {
-            $secteur = Secteur::forEtablissement($etablissement->code_efp)
-                ->where('nom_secteur', $nom_secteur)
-                ->firstOrFail();
+            $secteur = Secteur::where('nom_secteur', $nom_secteur)->firstOrFail();
 
-            // Vérifier s'il y a des filières associées dans cet établissement
-            $filieresCount = $secteur->filieres()
-                ->whereHas('formations', function ($query) use ($etablissement) {
-                    $query->where('code_efp', $etablissement->code_efp);
-                })->count();
+            // Vérifier s'il y a des filières associées globalement
+            $filieresCount = $secteur->filieres()->count();
 
             if ($filieresCount > 0) {
-                return back()->with('error', 'Impossible de supprimer ce secteur car il contient des filières dans votre établissement.');
+                return back()->with('error', 'Impossible de supprimer ce secteur car il contient des filières.');
             }
 
-            // Note: We don't delete the sector globally unless it's not used by other establishments
-            $globalFiliereCount = $secteur->filieres()->count();
-            if ($globalFiliereCount === 0) {
-                $secteur->delete();
-            }
+            $secteur->delete();
 
             return redirect()
                 ->route('administration.etablissement.secteurs.index')

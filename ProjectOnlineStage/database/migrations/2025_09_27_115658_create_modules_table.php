@@ -12,6 +12,8 @@ return new class extends Migration
             $table->string('code_module')->primary(); // PK string
             $table->string('nom_module')->nullable(false);
             $table->string('regional')->nullable(); // N/O
+            $table->string('code_efp');
+            $table->foreign('code_efp')->references('code_efp')->on('etablissements')->onDelete('cascade');
             $table->timestamps();
         });
     }

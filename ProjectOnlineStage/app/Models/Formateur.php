@@ -5,6 +5,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
 class Formateur extends Model
 {
@@ -17,44 +18,69 @@ class Formateur extends Model
     protected $fillable = [
         'mle',
         'nom_formateur',
+        'code_efp',
     ];
 
-    // Relation 1-N : un formateur peut avoir plusieurs avancements en présentiel
+    // Relations
+    public function etablissement()
+    {
+        return $this->belongsTo(Etablissement::class, 'code_efp', 'code_efp');
+    }
+
     public function avancementsPresentiel()
     {
         return $this->hasMany(Avancement::class, 'mle_presentiel', 'mle');
     }
 
-    // Relation 1-N : un formateur peut avoir plusieurs avancements en synchrone
     public function avancementsSynchrone()
     {
         return $this->hasMany(Avancement::class, 'mle_syn', 'mle');
     }
 
-    // Relation 1-N : un formateur peut avoir plusieurs affectations
     public function affectations()
     {
         return $this->hasMany(Affectation::class, 'mle_formateur', 'mle');
     }
 
-    // Relation N-N : un formateur peut enseigner plusieurs modules
     public function modules()
     {
         return $this->belongsToMany(Module::class, 'avancements', 'mle_presentiel', 'code_module')
                     ->orWhereColumn('avancements.mle_syn', 'formateurs.mle');
     }
 
-    // Relation N-N : un formateur peut enseigner plusieurs groupes
     public function groupes()
     {
         return $this->belongsToMany(Groupe::class, 'avancements', 'mle_presentiel', 'groupe')
                     ->orWhereColumn('avancements.mle_syn', 'formateurs.mle');
     }
 
-    // Méthode pour obtenir tous les avancements (présentiel + synchrone)
+    // Méthode pour obtenir tous les avancements
     public function tousAvancements()
     {
         return Avancement::where('mle_presentiel', $this->mle)
                          ->orWhere('mle_syn', $this->mle);
+    }
+
+    // Scopes
+    public function scopeForEtablissement(Builder $query, $code_efp)
+    {
+        return $query->where('code_efp', $code_efp);
+    }
+
+    public function scopeForComplexe(Builder $query, $complexe_id)
+    {
+        return $query->whereHas('etablissement', function ($q) use ($complexe_id) {
+            $q->where('complexe_id', $complexe_id);
+        });
+    }
+
+    public function scopeForUser(Builder $query, $user)
+    {
+        if ($user->role === 'directeur_etablissement') {
+            return $query->forEtablissement($user->etablissement->code_efp);
+        } elseif ($user->role === 'directeur_complexe') {
+            return $query->forComplexe($user->complexe->id);
+        }
+        return $query;
     }
 }

@@ -3,135 +3,86 @@
 @section('title', 'Détails du Secteur')
 
 @section('content')
-<div class="container-fluid px-4">
+<div class="container-fluid py-4">
     <!-- En-tête -->
-    <div class="mb-4">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item">
-                    <a href="{{ route('administration.etablissement.dashboard') }}">Tableau de bord</a>
-                </li>
-                <li class="breadcrumb-item">
-                    <a href="{{ route('administration.etablissement.secteurs.index') }}">Secteurs</a>
-                </li>
-                <li class="breadcrumb-item active">{{ $secteur->nom_secteur }}</li>
-            </ol>
-        </nav>
-        
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h1 class="h3 mb-1">{{ $secteur->nom_secteur }}</h1>
-                <p class="text-muted mb-0">Détails et statistiques du secteur</p>
-            </div>
-            <div class="btn-group">
-                <a href="{{ route('administration.etablissement.secteurs.edit', $secteur->nom_secteur) }}" 
-                   class="btn btn-warning">
-                    <i class="fas fa-edit me-2"></i>Modifier
-                </a>
-                <button type="button" 
-                        class="btn btn-danger" 
-                        onclick="confirmDelete()">
-                    <i class="fas fa-trash me-2"></i>Supprimer
-                </button>
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">{{ $secteur->nom_secteur }}</h2>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-building me-2"></i>{{ $secteur->etablissement->nom_efp }}
+                    </p>
+                </div>
+                <div>
+                    <a href="{{ route('administration.etablissement.secteurs.index') }}" class="btn btn-secondary me-2">
+                        <i class="fas fa-arrow-left me-2"></i>Retour
+                    </a>
+                    <a href="{{ route('administration.etablissement.secteurs.edit', $secteur->nom_secteur) }}" class="btn btn-warning">
+                        <i class="fas fa-edit me-2"></i>Modifier
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Statistiques -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <div class="card shadow-sm border-0 bg-primary text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-uppercase mb-1 opacity-75">Filières</h6>
-                            <h2 class="mb-0">{{ $stats['total_filieres'] }}</h2>
-                        </div>
-                        <div class="fs-1 opacity-50">
-                            <i class="fas fa-layer-group"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card shadow-sm border-0 bg-success text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-uppercase mb-1 opacity-75">Formations</h6>
-                            <h2 class="mb-0">{{ $stats['total_formations'] }}</h2>
-                        </div>
-                        <div class="fs-1 opacity-50">
-                            <i class="fas fa-graduation-cap"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card shadow-sm border-0 bg-info text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-uppercase mb-1 opacity-75">Groupes</h6>
-                            <h2 class="mb-0">{{ $stats['total_groupes'] }}</h2>
-                        </div>
-                        <div class="fs-1 opacity-50">
-                            <i class="fas fa-users"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Informations générales -->
     <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-info-circle text-primary me-2"></i>Informations générales
-                    </h5>
-                </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-start border-primary border-4">
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <dl class="row mb-0">
-                                <dt class="col-sm-4">Nom du secteur</dt>
-                                <dd class="col-sm-8">
-                                    <strong>{{ $secteur->nom_secteur }}</strong>
-                                </dd>
-                                
-                                <dt class="col-sm-4">Nombre de filières</dt>
-                                <dd class="col-sm-8">
-                                    <span class="badge bg-primary">{{ $stats['total_filieres'] }}</span>
-                                </dd>
-                            </dl>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Filières</h6>
+                            <h3 class="mb-0">{{ $stats['total_filieres'] }}</h3>
                         </div>
-                        <div class="col-md-6">
-                            <dl class="row mb-0">
-                                <dt class="col-sm-4">Date de création</dt>
-                                <dd class="col-sm-8">
-                                    @if($secteur->created_at)
-                                        {{ $secteur->created_at->format('d/m/Y à H:i') }}
-                                    @else
-                                        <span class="text-muted">Non disponible</span>
-                                    @endif
-                                </dd>
-                                
-                                <dt class="col-sm-4">Dernière modification</dt>
-                                <dd class="col-sm-8">
-                                    @if($secteur->updated_at)
-                                        {{ $secteur->updated_at->format('d/m/Y à H:i') }}
-                                    @else
-                                        <span class="text-muted">Non disponible</span>
-                                    @endif
-                                </dd>
-                            </dl>
+                        <div class="text-primary">
+                            <i class="fas fa-stream fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-start border-success border-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Formations</h6>
+                            <h3 class="mb-0">{{ $stats['total_formations'] }}</h3>
+                        </div>
+                        <div class="text-success">
+                            <i class="fas fa-graduation-cap fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-start border-info border-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Groupes</h6>
+                            <h3 class="mb-0">{{ $stats['total_groupes'] }}</h3>
+                        </div>
+                        <div class="text-info">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-start border-warning border-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Stagiaires</h6>
+                            <h3 class="mb-0">{{ $stats['total_stagiaires'] }}</h3>
+                        </div>
+                        <div class="text-warning">
+                            <i class="fas fa-user-graduate fa-2x"></i>
                         </div>
                     </div>
                 </div>
@@ -139,94 +90,210 @@
         </div>
     </div>
 
-    <!-- Liste des filières -->
-    <div class="card shadow-sm">
-        <div class="card-header bg-white">
-            <h5 class="mb-0">
-                <i class="fas fa-layer-group text-primary me-2"></i>Filières associées
-            </h5>
+    <!-- Filières -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-stream me-2"></i>Filières du Secteur</h5>
         </div>
         <div class="card-body">
-            @if($filieres->count() > 0)
+            @if($secteur->filieres->count() > 0)
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th>Code</th>
-                                <th>Nom de la filière</th>
-                                <th class="text-center">Nombre de formations</th>
+                                <th>Code Filière</th>
+                                <th>Nom de la Filière</th>
+                                <th class="text-center">Formations</th>
                                 <th class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($filieres as $filiere)
+                            @foreach($secteur->filieres as $filiere)
                                 <tr>
-                                    <td>
-                                        <code>{{ $filiere->code_filiere }}</code>
-                                    </td>
-                                    <td>
-                                        <strong>{{ $filiere->nom_filiere }}</strong>
-                                    </td>
+                                    <td><code>{{ $filiere->code_filiere }}</code></td>
+                                    <td><strong>{{ $filiere->nom_filiere }}</strong></td>
                                     <td class="text-center">
                                         <span class="badge bg-info">{{ $filiere->formations_count }}</span>
                                     </td>
                                     <td class="text-center">
-                                        @if(Route::has('administration.etablissement.filieres.show'))
-                                            <a href="{{ route('administration.etablissement.filieres.show', $filiere->code_filiere) }}" 
-                                               class="btn btn-sm btn-outline-info" 
-                                               title="Voir les détails">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                        @endif
+                                        <a href="#" class="btn btn-sm btn-outline-primary" title="Voir détails">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
                                     </td>
                                 </tr>
                             @endforeach
                         </tbody>
                     </table>
                 </div>
-
-                <!-- Pagination -->
-                @if($filieres->hasPages())
-                    <div class="d-flex justify-content-between align-items-center mt-3">
-                        <div class="text-muted">
-                            Affichage de {{ $filieres->firstItem() }} à {{ $filieres->lastItem() }} sur {{ $filieres->total() }} filières
-                        </div>
-                        {{ $filieres->links() }}
-                    </div>
-                @endif
             @else
                 <div class="text-center py-4">
                     <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
-                    <p class="text-muted mb-0">Aucune filière associée à ce secteur.</p>
+                    <p class="text-muted">Aucune filière dans ce secteur</p>
                 </div>
             @endif
         </div>
     </div>
 
-    <!-- Formulaire de suppression caché -->
-    <form id="delete-form" 
-          action="{{ route('administration.etablissement.secteurs.destroy', $secteur->nom_secteur) }}" 
-          method="POST" 
-          class="d-none">
-        @csrf
-        @method('DELETE')
-    </form>
-</div>
+    <!-- Formations par Filière -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-graduation-cap me-2"></i>Formations</h5>
+        </div>
+        <div class="card-body">
+            @if($secteur->formations->count() > 0)
+                @foreach($secteur->filieres as $filiere)
+                    @if($filiere->formations->count() > 0)
+                        <div class="mb-4">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-stream me-2"></i>{{ $filiere->nom_filiere }}
+                            </h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Année</th>
+                                            <th>Niveau</th>
+                                            <th>Type</th>
+                                            <th>Créneau</th>
+                                            <th class="text-center">Groupes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($filiere->formations as $formation)
+                                            <tr>
+                                                <td>{{ $formation->annee }}</td>
+                                                <td>{{ $formation->niveau }}</td>
+                                                <td>{{ $formation->type_formation }}</td>
+                                                <td>{{ $formation->creneau }}</td>
+                                                <td class="text-center">
+                                                    <span class="badge bg-secondary">{{ $formation->groupes->count() }}</span>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    @endif
+                @endforeach
+            @else
+                <div class="text-center py-4">
+                    <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">Aucune formation dans ce secteur</p>
+                </div>
+            @endif
+        </div>
+    </div>
 
-@push('scripts')
-<script>
-function confirmDelete() {
-    const filieresCount = {{ $stats['total_filieres'] }};
-    
-    if (filieresCount > 0) {
-        alert('Impossible de supprimer ce secteur car il contient ' + filieresCount + ' filière(s).\n\nVeuillez d\'abord supprimer ou réaffecter les filières.');
-        return;
-    }
-    
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce secteur ?\n\nSecteur : {{ $secteur->nom_secteur }}\n\nCette action est irréversible.')) {
-        document.getElementById('delete-form').submit();
-    }
-}
-</script>
-@endpush
+    <!-- Groupes -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-users me-2"></i>Groupes par Formation</h5>
+        </div>
+        <div class="card-body">
+            @if($secteur->formations->count() > 0)
+                @foreach($secteur->filieres as $filiere)
+                    @foreach($filiere->formations as $formation)
+                        @if($formation->groupes->count() > 0)
+                            <div class="mb-4">
+                                <h6 class="text-info mb-3">
+                                    <i class="fas fa-graduation-cap me-2"></i>
+                                    {{ $filiere->nom_filiere }} - {{ $formation->niveau }} ({{ $formation->annee }})
+                                </h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Groupe</th>
+                                                <th class="text-center">Effectif</th>
+                                                <th>Sous-groupe</th>
+                                                <th>Statut</th>
+                                                <th class="text-center">Avancements</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($formation->groupes as $groupe)
+                                                <tr>
+                                                    <td><strong>{{ $groupe->groupe }}</strong></td>
+                                                    <td class="text-center">
+                                                        <span class="badge bg-warning">{{ $groupe->effectif_groupe }}</span>
+                                                    </td>
+                                                    <td>{{ $groupe->sous_groupe ?? 'N/A' }}</td>
+                                                    <td>
+                                                        @if($groupe->statut_sous_groupe)
+                                                            <span class="badge bg-success">{{ $groupe->statut_sous_groupe }}</span>
+                                                        @else
+                                                            <span class="badge bg-secondary">Standard</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <span class="badge bg-primary">{{ $groupe->avancements_count ?? 0 }}</span>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        @endif
+                    @endforeach
+                @endforeach
+            @else
+                <div class="text-center py-4">
+                    <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">Aucun groupe dans ce secteur</p>
+                </div>
+            @endif
+        </div>
+    </div>
+
+    <!-- Informations Générales -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations Générales</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th width="40%">Code Établissement:</th>
+                            <td><code>{{ $secteur->code_efp }}</code></td>
+                        </tr>
+                        <tr>
+                            <th>Établissement:</th>
+                            <td>{{ $secteur->etablissement->nom_efp }}</td>
+                        </tr>
+                        <tr>
+                            <th>Date de création:</th>
+                            <td>{{ $secteur->created_at->format('d/m/Y à H:i') }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th width="40%">Dernière modification:</th>
+                            <td>{{ $secteur->updated_at->format('d/m/Y à H:i') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Complexe:</th>
+                            <td>{{ $secteur->etablissement->complexe->nom ?? 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Statut:</th>
+                            <td>
+                                @if($secteur->filieres->count() > 0)
+                                    <span class="badge bg-success">Actif</span>
+                                @else
+                                    <span class="badge bg-warning">Sans filières</span>
+                                @endif
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection

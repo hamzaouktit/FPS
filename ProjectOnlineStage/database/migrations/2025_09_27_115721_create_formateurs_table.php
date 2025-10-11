@@ -11,6 +11,8 @@ return new class extends Migration
         Schema::create('formateurs', function (Blueprint $table) {
             $table->string('mle')->primary(); // PK string
             $table->string('nom_formateur')->nullable(false);
+            $table->string('code_efp');
+            $table->foreign('code_efp')->references('code_efp')->on('etablissements')->onDelete('cascade');
             $table->timestamps();
         });
     }

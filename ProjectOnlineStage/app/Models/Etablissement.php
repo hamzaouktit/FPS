@@ -1,4 +1,5 @@
 <?php
+
 // app/Models/Etablissement.php
 namespace App\Models;
 
@@ -21,27 +22,65 @@ class Etablissement extends Model
         'user_id',
     ];
 
-    // Relation N-1 : un établissement appartient à un complexe
+    // Relations
     public function complexe()
     {
         return $this->belongsTo(Complexe::class, 'complexe_id');
     }
 
-    // Relation 1-1 : un établissement appartient à un utilisateur (directeur)
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    // Relation 1-N : un établissement peut avoir plusieurs formations
     public function formations()
     {
         return $this->hasMany(Formation::class, 'code_efp', 'code_efp');
     }
 
-    // Relation N-N via formations : un établissement peut avoir plusieurs groupes
     public function groupes()
     {
-        return $this->hasManyThrough(Groupe::class, Formation::class, 'code_efp', 'id_formation', 'code_efp', 'id');
+        return $this->hasMany(Groupe::class, 'code_efp', 'code_efp');
+    }
+
+    public function secteurs()
+    {
+        return $this->hasMany(Secteur::class, 'code_efp', 'code_efp');
+    }
+
+    public function filieres()
+    {
+        return $this->hasMany(Filiere::class, 'code_efp', 'code_efp');
+    }
+
+    public function niveaux()
+    {
+        return $this->hasMany(Niveau::class, 'code_efp', 'code_efp');
+    }
+
+    public function modules()
+    {
+        return $this->hasMany(Module::class, 'code_efp', 'code_efp');
+    }
+
+    public function formateurs()
+    {
+        return $this->hasMany(Formateur::class, 'code_efp', 'code_efp');
+    }
+
+    // Méthode pour obtenir tous les avancements de l'établissement
+    public function avancements()
+    {
+        return Avancement::whereHas('groupe', function ($q) {
+            $q->where('code_efp', $this->code_efp);
+        });
+    }
+
+    // Méthode pour obtenir toutes les affectations de l'établissement
+    public function affectations()
+    {
+        return Affectation::whereHas('groupe', function ($q) {
+            $q->where('code_efp', $this->code_efp);
+        });
     }
 }

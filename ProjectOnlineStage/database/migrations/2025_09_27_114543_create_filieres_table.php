@@ -12,7 +12,9 @@ return new class extends Migration
             $table->string('code_filiere')->primary(); // PK string
             $table->string('nom_filiere')->nullable(false);
             $table->string('nom_secteur');
+            $table->string('code_efp');
             $table->foreign('nom_secteur')->references('nom_secteur')->on('secteurs')->onDelete('cascade');
+            $table->foreign('code_efp')->references('code_efp')->on('etablissements')->onDelete('cascade');
             $table->timestamps();
         });
     }

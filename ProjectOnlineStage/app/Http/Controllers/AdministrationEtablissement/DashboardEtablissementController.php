@@ -41,10 +41,8 @@ class DashboardEtablissementController extends Controller
             'annee' => $request->input('annee', date('Y')),
         ];
 
-        // Construction de la requête de base avec les avancements de l'établissement
-        $avancementsQuery = Avancement::whereHas('groupe.formation', function($query) use ($etablissement) {
-            $query->where('code_efp', $etablissement->code_efp);
-        });
+        // Construction de la requête de base avec les avancements filtrés par utilisateur
+        $avancementsQuery = Avancement::forUser($user);
 
         // Application des filtres
         if ($filters['groupe']) {
@@ -75,10 +73,18 @@ class DashboardEtablissementController extends Controller
             });
         }
 
-        $avancements = $avancementsQuery->with(['groupe.formation.filiere', 'module', 'formateurPresentiel', 'formateurSynchrone'])->get();
+        // CORRECTION: Eager loading complet pour éviter les erreurs
+        $avancements = $avancementsQuery->with([
+            'groupe.formation.filiere',
+            'groupe.formation.niveau',
+            'groupe.etablissement',
+            'module',
+            'formateurPresentiel',
+            'formateurSynchrone'
+        ])->get();
 
         // Statistiques principales - Aligné sur complexe : sommes pondérées
-        $statistics = $this->calculateStatistics($avancements, $etablissement, $filters);
+        $statistics = $this->calculateStatistics($avancements, $etablissement, $filters, $user);
 
         // Analyse des heures par type (similaire, sommes)
         $heuresAnalysis = $this->calculateHeuresAnalysis($avancements);
@@ -102,7 +108,7 @@ class DashboardEtablissementController extends Controller
         $formateurStats = $this->getFormateurStats($avancements);
         
         // Options pour les filtres
-        $filterOptions = $this->getFilterOptions($etablissement);
+        $filterOptions = $this->getFilterOptions($etablissement, $user);
 
         // Modules non affectés
         $avancementsNonAffectes = $avancements->filter(function ($avancement) {
@@ -113,7 +119,7 @@ class DashboardEtablissementController extends Controller
         $nonAffectesParModule = $avancementsNonAffectes->groupBy('code_module')->map(function ($group) {
             return [
                 'code_module' => $group->first()->code_module,
-                'nom_module' => $group->first()->module->nom_module ?? 'N/A',
+                'nom_module' => $group->first()->module ? $group->first()->module->nom_module : 'N/A',
                 'groupes' => $group->pluck('groupe')->unique()->implode(', '),
                 'masse_horaire' => $group->sum('mh_totale_drif'),
                 'formateur' => 'Non affecté',
@@ -122,17 +128,20 @@ class DashboardEtablissementController extends Controller
 
         $totalNonAffectesModule = $avancementsNonAffectes->sum('mh_totale_drif');
 
-        // Par filière avec modules
+        // Par filière avec modules - CORRECTION: Utiliser $avancement->groupe sans ()
         $nonAffectesParFiliere = $avancementsNonAffectes->groupBy(function ($avancement) {
-            $groupeObj = $avancement->groupe()->first();
-            return $groupeObj && $groupeObj->formation ? $groupeObj->formation->code_filiere : 'N/A';
+            $groupeObj = $avancement->groupe;
+            if (is_object($groupeObj) && $groupeObj->formation) {
+                return $groupeObj->formation->code_filiere;
+            }
+            return 'N/A';
         })->map(function ($group) {
             $firstAvancement = $group->first();
-            $groupeObj = $firstAvancement->groupe()->first();
-            $filiere = $groupeObj && $groupeObj->formation ? $groupeObj->formation->filiere : null;
+            $groupeObj = $firstAvancement->groupe;
+            $filiere = (is_object($groupeObj) && $groupeObj->formation) ? $groupeObj->formation->filiere : null;
             
             $modules = $group->groupBy('code_module')->map(function ($moduleGroup) {
-                return $moduleGroup->first()->module->nom_module ?? 'N/A';
+                return $moduleGroup->first()->module ? $moduleGroup->first()->module->nom_module : 'N/A';
             })->implode(', ');
             
             return [
@@ -191,10 +200,10 @@ class DashboardEtablissementController extends Controller
         ));
     }
 
-    private function calculateStatistics($avancements, $etablissement, $filters = [])
+    private function calculateStatistics($avancements, $etablissement, $filters = [], $user)
     {
-        // Récupérer TOUTES les données de l'établissement (pas seulement les avancements filtrés)
-        $baseQuery = Formation::where('code_efp', $etablissement->code_efp);
+        // Récupérer TOUTES les données filtrées par utilisateur (pas seulement les avancements filtrés)
+        $baseQuery = Formation::forUser($user);
         
         // Appliquer les mêmes filtres que pour les avancements
         if (!empty($filters['annee'])) {
@@ -213,16 +222,16 @@ class DashboardEtablissementController extends Controller
         $totalFormations = $formations->count();
         
         // Compter les groupes
-        $groupesQuery = Groupe::whereIn('id_formation', $formations->pluck('id'));
+        $groupesQuery = Groupe::forUser($user)->whereIn('id_formation', $formations->pluck('id'));
         if (!empty($filters['groupe'])) {
             $groupesQuery->where('groupe', $filters['groupe']);
         }
         $groupes = $groupesQuery->get();
         $totalGroupes = $groupes->count();
         
-        // Compter les modules uniques de l'établissement
-        $modulesQuery = Module::whereIn('code_module', 
-            Avancement::whereIn('groupe', $groupes->pluck('groupe'))->pluck('code_module')
+        // Compter les modules uniques
+        $modulesQuery = Module::forUser($user)->whereIn('code_module', 
+            Avancement::forUser($user)->whereIn('groupe', $groupes->pluck('groupe'))->pluck('code_module')
         );
         if (!empty($filters['module'])) {
             $modulesQuery->where('code_module', $filters['module']);
@@ -230,8 +239,8 @@ class DashboardEtablissementController extends Controller
         $modules = $modulesQuery->get();
         $totalModules = $modules->count();
         
-        // Compter les formateurs uniques de l'établissement
-        $formateursIds = Avancement::whereIn('groupe', $groupes->pluck('groupe'))
+        // Compter les formateurs uniques
+        $formateursIds = Avancement::forUser($user)->whereIn('groupe', $groupes->pluck('groupe'))
             ->where(function($query) {
                 $query->whereNotNull('mle_presentiel')
                       ->orWhereNotNull('mle_syn');
@@ -245,12 +254,12 @@ class DashboardEtablissementController extends Controller
         
         $totalFormateurs = $formateursIds->count();
         
-        // Compter les filières uniques de l'établissement
+        // Compter les filières uniques
         $filieres = $formations->pluck('code_filiere')->unique();
         $totalFilieres = $filieres->count();
         
         // Compter les secteurs via filières
-        $secteurs = Filiere::whereIn('code_filiere', $filieres)->pluck('nom_secteur')->unique();
+        $secteurs = Filiere::forUser($user)->whereIn('code_filiere', $filieres)->pluck('nom_secteur')->unique();
         $totalSecteurs = $secteurs->count();
         
         // Heures (basé sur les avancements filtrés) - Aligné sur complexe : sommes pondérées
@@ -363,17 +372,22 @@ class DashboardEtablissementController extends Controller
         ];
     }
 
+    // CORRECTION: Méthode complètement réécrite
     private function getDetailedGroupeModuleData($avancements)
     {
         return $avancements->map(function($avancement) {
-            $groupeObj = $avancement->groupe()->first();
-            $formation = $groupeObj ? $groupeObj->formation : null;
+            // Récupérer le groupe (objet, pas string grâce au with())
+            $groupeObj = $avancement->groupe;
+            
+            // Vérifier que le groupe existe et a une formation
+            $formation = (is_object($groupeObj) && $groupeObj->formation) ? $groupeObj->formation : null;
+            
             return [
-                'groupe' => $avancement->groupe,
+                'groupe' => is_object($groupeObj) ? $groupeObj->groupe : $avancement->groupe,
                 'groupe_info' => $groupeObj,
                 'module' => $avancement->code_module,
-                'module_nom' => $avancement->module->nom_module ?? 'N/A',
-                'formation' => $formation && $formation->filiere ? $formation->filiere->nom_filiere : 'N/A',
+                'module_nom' => $avancement->module ? $avancement->module->nom_module : 'N/A',
+                'formation' => ($formation && $formation->filiere) ? $formation->filiere->nom_filiere : 'N/A',
                 'niveau' => $formation ? $formation->niveau : 'N/A',
                 'annee' => $formation ? $formation->annee : 'N/A',
                 'formateur_presentiel' => $avancement->formateurPresentiel ? $avancement->formateurPresentiel->nom_formateur : 'N/A',
@@ -401,7 +415,7 @@ class DashboardEtablissementController extends Controller
                 $tauxMoyen = $heuresRequises > 0 ? ($heuresRealisees / $heuresRequises) * 100 : 0;
                 return [
                     'code_module' => $codeModule,
-                    'nom_module' => $module->nom_module ?? 'N/A',
+                    'nom_module' => $module ? $module->nom_module : 'N/A',
                     'taux_moyen' => round($tauxMoyen, 2),
                     'heures_realisees' => round($heuresRealisees, 2),
                     'heures_affectees' => round($moduleAvancements->sum('mh_affectee_globale'), 2),
@@ -413,6 +427,7 @@ class DashboardEtablissementController extends Controller
             ->values();
     }
 
+    // CORRECTION: Vérifier is_object pour éviter les erreurs
     private function getChartData($avancements)
     {
         // Évolution mensuelle des heures réalisées
@@ -431,10 +446,13 @@ class DashboardEtablissementController extends Controller
             'Synchrone' => round($avancements->sum('mh_realisee_sync'), 2),
         ];
 
-        // Taux de réalisation par filière (pondéré)
+        // Taux de réalisation par filière (pondéré) - CORRECTION
         $tauxParFiliere = $avancements->groupBy(function($avancement) {
-            $groupeObj = $avancement->groupe()->first();
-            return $groupeObj && $groupeObj->formation && $groupeObj->formation->filiere ? $groupeObj->formation->filiere->nom_filiere : 'N/A';
+            $groupeObj = $avancement->groupe;
+            if (is_object($groupeObj) && $groupeObj->formation && $groupeObj->formation->filiere) {
+                return $groupeObj->formation->filiere->nom_filiere;
+            }
+            return 'N/A';
         })->map(function($group, $filiere) {
             $heuresRequises = $group->sum('mh_totale_drif') ?: 0;
             $heuresRealisees = $group->sum('mh_realisee_globale') ?: 0;
@@ -460,7 +478,7 @@ class DashboardEtablissementController extends Controller
                 $tauxRealisation = $heuresRequises > 0 ? ($heuresRealisees / $heuresRequises) * 100 : 0;
                 return [
                     'mle' => $group->first()->mle_presentiel,
-                    'nom' => $formateur->nom_formateur ?? 'N/A',
+                    'nom' => $formateur ? $formateur->nom_formateur : 'N/A',
                     'heures_realisees' => round($heuresRealisees, 2),
                     'heures_affectees' => round($group->sum('mh_affectee_presentiel'), 2),
                     'taux_realisation' => round($tauxRealisation, 2),
@@ -478,7 +496,7 @@ class DashboardEtablissementController extends Controller
                 $tauxRealisation = $heuresRequises > 0 ? ($heuresRealisees / $heuresRequises) * 100 : 0;
                 return [
                     'mle' => $group->first()->mle_syn,
-                    'nom' => $formateur->nom_formateur ?? 'N/A',
+                    'nom' => $formateur ? $formateur->nom_formateur : 'N/A',
                     'heures_realisees' => round($heuresRealisees, 2),
                     'heures_affectees' => round($group->sum('mh_affectee_sync'), 2),
                     'taux_realisation' => round($tauxRealisation, 2),
@@ -493,18 +511,18 @@ class DashboardEtablissementController extends Controller
         ];
     }
 
-    private function getFilterOptions($etablissement)
+    private function getFilterOptions($etablissement, $user)
     {
-        $formations = Formation::where('code_efp', $etablissement->code_efp)->get();
+        $formations = Formation::forUser($user)->get();
         
-        $groupes = Groupe::whereIn('id_formation', $formations->pluck('id'))->get();
+        $groupes = Groupe::forUser($user)->whereIn('id_formation', $formations->pluck('id'))->get();
         
-        $modules = Module::whereIn('code_module', 
-            Avancement::whereIn('groupe', $groupes->pluck('groupe'))->pluck('code_module')
+        $modules = Module::forUser($user)->whereIn('code_module', 
+            Avancement::forUser($user)->whereIn('groupe', $groupes->pluck('groupe'))->pluck('code_module')
         )->get();
         
-        $formateurs = Formateur::whereIn('mle', 
-            Avancement::whereIn('groupe', $groupes->pluck('groupe'))
+        $formateurs = Formateur::forUser($user)->whereIn('mle', 
+            Avancement::forUser($user)->whereIn('groupe', $groupes->pluck('groupe'))
                 ->where(function($query) {
                     $query->whereNotNull('mle_presentiel')
                           ->orWhereNotNull('mle_syn');
@@ -518,7 +536,7 @@ class DashboardEtablissementController extends Controller
         )->get();
 
         $niveaux = $formations->pluck('niveau')->unique();
-        $filieres = Filiere::whereIn('code_filiere', $formations->pluck('code_filiere'))->get()->pluck('nom_filiere', 'code_filiere');
+        $filieres = Filiere::forUser($user)->whereIn('code_filiere', $formations->pluck('code_filiere'))->pluck('nom_filiere', 'code_filiere');
         $annees = $formations->pluck('annee')->unique()->sort()->values();
 
         return [
@@ -545,7 +563,7 @@ class DashboardEtablissementController extends Controller
             'annee' => $request->input('annee'),
         ];
 
-        $filterOptions = $this->getFilterOptions($etablissement);
+        $filterOptions = $this->getFilterOptions($etablissement, $user);
 
         return response()->json($filterOptions);
     }
@@ -596,6 +614,7 @@ class DashboardEtablissementController extends Controller
             Excel::import($import, $request->file('excel_file'));
 
             $imported = $import->getImported();
+            $updated = $import->getUpdated();
             $skipped = $import->getSkipped();
             $errors = $import->getErrors();
 
@@ -603,7 +622,10 @@ class DashboardEtablissementController extends Controller
 
             $successMessages = [];
             if ($imported > 0) {
-                $successMessages[] = "{$imported} enregistrement(s) importé(s) avec succès.";
+                $successMessages[] = "{$imported} nouvel(nouveaux) enregistrement(s) créé(s).";
+            }
+            if ($updated > 0) {
+                $successMessages[] = "{$updated} enregistrement(s) mis à jour.";
             }
             if ($skipped > 0) {
                 $successMessages[] = "{$skipped} ligne(s) ignorée(s) (ne concernent pas votre établissement).";
@@ -614,8 +636,9 @@ class DashboardEtablissementController extends Controller
                     ->with('warning', implode(' ', $successMessages))
                     ->withErrors(['import_errors' => $errors]);
             } else {
+                $message = !empty($successMessages) ? implode(' ', $successMessages) : 'Importation terminée.';
                 return redirect()->route('administration.etablissement.dashboard')
-                    ->with('success', implode(' ', $successMessages));
+                    ->with('success', $message);
             }
 
         } catch (\Exception $e) {

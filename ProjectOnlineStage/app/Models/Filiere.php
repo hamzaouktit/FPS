@@ -5,6 +5,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
 class Filiere extends Model
 {
@@ -18,30 +19,50 @@ class Filiere extends Model
         'code_filiere',
         'nom_filiere',
         'nom_secteur',
+        'code_efp',
     ];
 
-    // Relation N-1 : une filière appartient à un secteur
+    // Relations
     public function secteur()
     {
         return $this->belongsTo(Secteur::class, 'nom_secteur', 'nom_secteur');
     }
 
-    // Relation 1-N : une filière peut avoir plusieurs formations
+    public function etablissement()
+    {
+        return $this->belongsTo(Etablissement::class, 'code_efp', 'code_efp');
+    }
+
     public function formations()
     {
         return $this->hasMany(Formation::class, 'code_filiere', 'code_filiere');
     }
 
-    // Relation N-N via formations : une filière peut avoir plusieurs groupes
     public function groupes()
     {
         return $this->hasManyThrough(Groupe::class, Formation::class, 'code_filiere', 'id_formation', 'code_filiere', 'id');
     }
-        // Scope to filter filières associated with a specific establishment
-    public function scopeForEtablissement($query, $code_efp)
+
+    // Scopes
+    public function scopeForEtablissement(Builder $query, $code_efp)
     {
-        return $query->whereHas('formations', function ($query) use ($code_efp) {
-            $query->where('code_efp', $code_efp);
+        return $query->where('code_efp', $code_efp);
+    }
+
+    public function scopeForComplexe(Builder $query, $complexe_id)
+    {
+        return $query->whereHas('etablissement', function ($q) use ($complexe_id) {
+            $q->where('complexe_id', $complexe_id);
         });
+    }
+
+    public function scopeForUser(Builder $query, $user)
+    {
+        if ($user->role === 'directeur_etablissement') {
+            return $query->forEtablissement($user->etablissement->code_efp);
+        } elseif ($user->role === 'directeur_complexe') {
+            return $query->forComplexe($user->complexe->id);
+        }
+        return $query;
     }
 }

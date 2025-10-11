@@ -10,6 +10,9 @@ return new class extends Migration
     {
         Schema::create('secteurs', function (Blueprint $table) {
             $table->string('nom_secteur')->primary();
+            $table->string('code_efp');
+            $table->foreign('code_efp')->references('code_efp')->on('etablissements')->onDelete('cascade');
+            $table->timestamps();
         });
     }
 

@@ -17,6 +17,8 @@ return new class extends Migration
             $table->string('fusion_groupe')->nullable();
             $table->string('code_fusion')->nullable();
             $table->integer('annee_formation')->nullable();
+            $table->string('code_efp');
+            $table->foreign('code_efp')->references('code_efp')->on('etablissements')->onDelete('cascade');
             $table->timestamps();
         });
     }

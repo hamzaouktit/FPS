@@ -26,10 +26,10 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
     protected $errors = [];
     protected $imported = 0;
     protected $skipped = 0;
+    protected $updated = 0;
 
     public function __construct()
     {
-        // Récupérer l'établissement du directeur connecté
         $this->etablissement = Auth::user()->etablissement;
         
         if (!$this->etablissement) {
@@ -43,7 +43,7 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
         
         try {
             foreach ($rows as $index => $row) {
-                $this->processRow($row, $index + 2); // +2 car WithHeadingRow commence à 0 et Excel à 1
+                $this->processRow($row, $index + 2);
             }
             
             DB::commit();
@@ -63,31 +63,37 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             
             if (empty($codeEfp) || $codeEfp !== $this->etablissement->code_efp) {
                 $this->skipped++;
-                return; // Ignorer les lignes qui ne concernent pas cet établissement
+                return;
             }
 
             // 1. Traiter le secteur
             $nomSecteur = trim($row['secteur'] ?? '');
             if (!empty($nomSecteur)) {
-                Secteur::firstOrCreate(['nom_secteur' => $nomSecteur]);
+                Secteur::firstOrCreate(
+                    ['nom_secteur' => $nomSecteur, 'code_efp' => $codeEfp]
+                );
             }
 
             // 2. Traiter le niveau
             $niveau = trim($row['niveau'] ?? '');
             if (!empty($niveau)) {
-                Niveau::firstOrCreate(['niveau' => $niveau]);
+                Niveau::firstOrCreate(
+                    ['niveau' => $niveau, 'code_efp' => $codeEfp]
+                );
             }
 
             // 3. Traiter la filière
             $codeFiliere = trim($row['code_filiere'] ?? '');
             $nomFiliere = trim($row['filiere'] ?? '');
             if (!empty($codeFiliere) && !empty($nomFiliere) && !empty($nomSecteur)) {
-                Filiere::firstOrCreate([
-                    'code_filiere' => $codeFiliere
-                ], [
-                    'nom_filiere' => $nomFiliere,
-                    'nom_secteur' => $nomSecteur
-                ]);
+                Filiere::firstOrCreate(
+                    ['code_filiere' => $codeFiliere],
+                    [
+                        'nom_filiere' => $nomFiliere,
+                        'nom_secteur' => $nomSecteur,
+                        'code_efp' => $codeEfp
+                    ]
+                );
             }
 
             // 4. Traiter la formation
@@ -95,16 +101,20 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             $typeFormation = trim($row['type_de_formation'] ?? '');
             $creneau = trim($row['creneau'] ?? '');
 
+            $formation = null;
             if (!empty($codeFiliere) && !empty($niveau)) {
-                $formation = Formation::firstOrCreate([
-                    'annee' => $annee,
-                    'code_efp' => $codeEfp,
-                    'niveau' => $niveau,
-                    'code_filiere' => $codeFiliere
-                ], [
-                    'type_formation' => $typeFormation,
-                    'creneau' => $creneau
-                ]);
+                $formation = Formation::firstOrCreate(
+                    [
+                        'annee' => $annee,
+                        'code_efp' => $codeEfp,
+                        'niveau' => $niveau,
+                        'code_filiere' => $codeFiliere
+                    ],
+                    [
+                        'type_formation' => $typeFormation,
+                        'creneau' => $creneau
+                    ]
+                );
             }
 
             // 5. Traiter le groupe
@@ -116,18 +126,20 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             $codeFusion = trim($row['code_fusion'] ?? '');
             $anneeFormation = intval($row['annee_de_formation'] ?? 1);
 
-            if (!empty($groupe) && isset($formation)) {
-                Groupe::firstOrCreate([
-                    'groupe' => $groupe
-                ], [
-                    'id_formation' => $formation->id,
-                    'effectif_groupe' => $effectifGroupe,
-                    'sous_groupe' => $sousGroupe,
-                    'statut_sous_groupe' => $statutSousGroupe,
-                    'fusion_groupe' => $fusionGroupe,
-                    'code_fusion' => $codeFusion,
-                    'annee_formation' => $anneeFormation
-                ]);
+            if (!empty($groupe) && $formation) {
+                Groupe::firstOrCreate(
+                    ['groupe' => $groupe],
+                    [
+                        'id_formation' => $formation->id,
+                        'effectif_groupe' => $effectifGroupe,
+                        'sous_groupe' => $sousGroupe,
+                        'statut_sous_groupe' => $statutSousGroupe,
+                        'fusion_groupe' => $fusionGroupe,
+                        'code_fusion' => $codeFusion,
+                        'annee_formation' => $anneeFormation,
+                        'code_efp' => $codeEfp
+                    ]
+                );
             }
 
             // 6. Traiter le module
@@ -136,12 +148,14 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             $regional = trim($row['regional'] ?? '');
 
             if (!empty($codeModule) && !empty($nomModule)) {
-                Module::firstOrCreate([
-                    'code_module' => $codeModule
-                ], [
-                    'nom_module' => $nomModule,
-                    'regional' => $regional
-                ]);
+                Module::firstOrCreate(
+                    ['code_module' => $codeModule],
+                    [
+                        'nom_module' => $nomModule,
+                        'regional' => $regional,
+                        'code_efp' => $codeEfp
+                    ]
+                );
             }
 
             // 7. Traiter les formateurs
@@ -151,19 +165,23 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             $formateurSyn = trim($row['formateur_affecte_syn_actif'] ?? '');
 
             if (!empty($mleAffectePresentiel) && !empty($formateurPresentiel)) {
-                Formateur::firstOrCreate([
-                    'mle' => $mleAffectePresentiel
-                ], [
-                    'nom_formateur' => $formateurPresentiel
-                ]);
+                Formateur::firstOrCreate(
+                    ['mle' => $mleAffectePresentiel],
+                    [
+                        'nom_formateur' => $formateurPresentiel,
+                        'code_efp' => $codeEfp
+                    ]
+                );
             }
 
             if (!empty($mleAffecteSyn) && !empty($formateurSyn) && $mleAffecteSyn !== $mleAffectePresentiel) {
-                Formateur::firstOrCreate([
-                    'mle' => $mleAffecteSyn
-                ], [
-                    'nom_formateur' => $formateurSyn
-                ]);
+                Formateur::firstOrCreate(
+                    ['mle' => $mleAffecteSyn],
+                    [
+                        'nom_formateur' => $formateurSyn,
+                        'code_efp' => $codeEfp
+                    ]
+                );
             }
 
             // 8. Traiter l'avancement
@@ -181,33 +199,38 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                     'mode' => $mode,
                     'mle_presentiel' => !empty($mleAffectePresentiel) ? $mleAffectePresentiel : null,
                     'mle_syn' => !empty($mleAffecteSyn) ? $mleAffecteSyn : null,
+                    
                     // Heures S1
-                    'mhp_s1_drif' => floatval($row['mhp_s1_drif'] ?? 0),
-                    'mhsyn_s1_drif' => floatval($row['mhsyn_s1_drif'] ?? 0),
-                    'mhasyn_s1_drif' => floatval($row['mhasyn_s1_drif'] ?? 0),
-                    'mh_totale_s1_drif' => floatval($row['mh_totale_s1_drif'] ?? 0),
+                    'mhp_s1_drif' => $this->parseDecimal($row['mhp_s1_drif'] ?? 0),
+                    'mhsyn_s1_drif' => $this->parseDecimal($row['mhsyn_s1_drif'] ?? 0),
+                    'mhasyn_s1_drif' => $this->parseDecimal($row['mhasyn_s1_drif'] ?? 0),
+                    'mh_totale_s1_drif' => $this->parseDecimal($row['mh_totale_s1_drif'] ?? 0),
+                    
                     // Heures S2
-                    'mhp_s2_drif' => floatval($row['mhp_s2_drif'] ?? 0),
-                    'mhsyn_s2_drif' => floatval($row['mhsyn_s2_drif'] ?? 0),
-                    'mhasyn_s2_drif' => floatval($row['mhasyn_s2_drif'] ?? 0),
-                    'mh_totale_s2_drif' => floatval($row['mh_totale_s2_drif'] ?? 0),
+                    'mhp_s2_drif' => $this->parseDecimal($row['mhp_s2_drif'] ?? 0),
+                    'mhsyn_s2_drif' => $this->parseDecimal($row['mhsyn_s2_drif'] ?? 0),
+                    'mhasyn_s2_drif' => $this->parseDecimal($row['mhasyn_s2_drif'] ?? 0),
+                    'mh_totale_s2_drif' => $this->parseDecimal($row['mh_totale_s2_drif'] ?? 0),
+                    
                     // Totaux DRIF
-                    'mhp_totale_drif' => floatval($row['mhp_totale_drif'] ?? 0),
-                    'mhsyn_totale_drif' => floatval($row['mhsyn_totale_drif'] ?? 0),
-                    'mhasyn_totale_drif' => floatval($row['mhasyn_totale_drif'] ?? 0),
-                    'mh_totale_drif' => floatval($row['mh_totale_drif'] ?? 0),
+                    'mhp_totale_drif' => $this->parseDecimal($row['mhp_totale_drif'] ?? 0),
+                    'mhsyn_totale_drif' => $this->parseDecimal($row['mhsyn_totale_drif'] ?? 0),
+                    'mhasyn_totale_drif' => $this->parseDecimal($row['mhasyn_totale_drif'] ?? 0),
+                    'mh_totale_drif' => $this->parseDecimal($row['mh_totale_drif'] ?? 0),
+                    
                     // Affectées et réalisées
-                    'mh_affectee_presentiel' => floatval($row['mh_affectee_presentiel'] ?? 0),
-                    'mh_affectee_sync' => floatval($row['mh_affectee_sync'] ?? 0),
-                    'mh_affectee_globale' => floatval($row['mh_affectee_globale_p_syn'] ?? 0),
-                    'mh_realisee_presentiel' => floatval($row['mh_realisee_presentiel'] ?? 0),
-                    'mh_realisee_sync' => floatval($row['mh_realisee_sync'] ?? 0),
-                    'mh_realisee_globale' => floatval($row['mh_realisee_globale'] ?? 0),
+                    'mh_affectee_presentiel' => $this->parseDecimal($row['mh_affectee_presentiel'] ?? 0),
+                    'mh_affectee_sync' => $this->parseDecimal($row['mh_affectee_sync'] ?? 0),
+                    'mh_affectee_globale' => $this->parseDecimal($row['mh_affectee_globale_p_syn'] ?? 0),
+                    'mh_realisee_presentiel' => $this->parseDecimal($row['mh_realisee_presentiel'] ?? 0),
+                    'mh_realisee_sync' => $this->parseDecimal($row['mh_realisee_sync'] ?? 0),
+                    'mh_realisee_globale' => $this->parseDecimal($row['mh_realisee_globale'] ?? 0),
+                    
                     // Taux et autres
-                    'taux_realisation_presentiel' => floatval($row['taux_realisation_presentiel'] ?? 0),
-                    'taux_realisation_syn' => floatval($row['taux_realisation_syn'] ?? 0),
-                    'taux_realisation_global' => floatval($row['taux_realisation_p_syn'] ?? 0),
-                    'moy_absence' => floatval($row['moy_absence'] ?? 0),
+                    'taux_realisation_presentiel' => $this->parseDecimal($row['taux_realisation_presentiel'] ?? 0),
+                    'taux_realisation_syn' => $this->parseDecimal($row['taux_realisation_syn'] ?? 0),
+                    'taux_realisation_global' => $this->parseDecimal($row['taux_realisation_p_syn'] ?? 0),
+                    'moy_absence' => $this->parseDecimal($row['moy_absence'] ?? 0),
                     'nb_cc' => intval($row['nb_cc'] ?? 0),
                     'seance_efm' => trim($row['seance_efm'] ?? ''),
                     'validation_efm' => trim($row['validation_efm'] ?? ''),
@@ -216,14 +239,19 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                     'efp_pie' => trim($row['efp_pie'] ?? '')
                 ];
 
-                Avancement::updateOrCreate($avancementData, $avancementValues);
+                $avancement = Avancement::updateOrCreate($avancementData, $avancementValues);
+                
+                if ($avancement->wasRecentlyCreated) {
+                    $this->imported++;
+                } else {
+                    $this->updated++;
+                }
             }
-
-            $this->imported++;
 
         } catch (\Exception $e) {
             $this->errors[] = "Ligne {$lineNumber}: " . $e->getMessage();
             Log::error("Erreur ligne {$lineNumber}: " . $e->getMessage());
+            Log::error("Données de la ligne: " . json_encode($row->toArray()));
         }
     }
 
@@ -235,11 +263,24 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
 
         try {
             // Essayer différents formats de date
-            $formats = ['d/m/Y H:i:s', 'd/m/Y', 'Y-m-d H:i:s', 'Y-m-d'];
+            $formats = [
+                'd/m/Y H:i:s',
+                'd/m/Y H:i',
+                'd/m/Y',
+                'Y-m-d H:i:s',
+                'Y-m-d',
+                'd-m-Y H:i:s',
+                'd-m-Y',
+                'm/d/Y H:i:s',
+                'm/d/Y'
+            ];
             
             foreach ($formats as $format) {
                 try {
-                    return Carbon::createFromFormat($format, trim($dateString));
+                    $date = Carbon::createFromFormat($format, trim($dateString));
+                    if ($date) {
+                        return $date;
+                    }
                 } catch (\Exception $e) {
                     continue;
                 }
@@ -249,15 +290,30 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             return Carbon::parse($dateString);
             
         } catch (\Exception $e) {
-            return now(); // Retourner la date actuelle si impossible à parser
+            Log::warning("Impossible de parser la date: {$dateString}. Utilisation de la date actuelle.");
+            return now();
         }
+    }
+
+    protected function parseDecimal($value)
+    {
+        if (empty($value)) {
+            return 0;
+        }
+        
+        // Remplacer la virgule par un point pour les nombres décimaux
+        $value = str_replace(',', '.', trim($value));
+        
+        // Supprimer les espaces
+        $value = str_replace(' ', '', $value);
+        
+        return floatval($value);
     }
 
     public function rules(): array
     {
         return [
             'code_efp' => 'required|string',
-            'efp' => 'nullable|string',
             'annee' => 'nullable|integer',
             'niveau' => 'nullable|string',
             'secteur' => 'nullable|string',
@@ -282,5 +338,10 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
     public function getSkipped()
     {
         return $this->skipped;
+    }
+
+    public function getUpdated()
+    {
+        return $this->updated;
     }
 }

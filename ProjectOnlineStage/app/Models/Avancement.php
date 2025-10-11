@@ -1,12 +1,10 @@
 <?php
-
-
-// app/Models/Avancement.php
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
 
 class Avancement extends Model
 {
@@ -19,29 +17,24 @@ class Avancement extends Model
         'mode',
         'mle_presentiel',
         'mle_syn',
-        // Heures S1
         'mhp_s1_drif',
         'mhsyn_s1_drif',
         'mhasyn_s1_drif',
         'mh_totale_s1_drif',
-        // Heures S2
         'mhp_s2_drif',
         'mhsyn_s2_drif',
         'mhasyn_s2_drif',
         'mh_totale_s2_drif',
-        // Totaux DRIF
         'mhp_totale_drif',
         'mhsyn_totale_drif',
         'mhasyn_totale_drif',
         'mh_totale_drif',
-        // Affectées et réalisées
         'mh_affectee_presentiel',
         'mh_affectee_sync',
         'mh_affectee_globale',
         'mh_realisee_presentiel',
         'mh_realisee_sync',
         'mh_realisee_globale',
-        // Taux et autres
         'taux_realisation_presentiel',
         'taux_realisation_syn',
         'taux_realisation_global',
@@ -56,33 +49,52 @@ class Avancement extends Model
 
     protected $casts = [
         'date_maj' => 'datetime',
+        'mhp_s1_drif' => 'decimal:2',
+        'mhsyn_s1_drif' => 'decimal:2',
+        'mhasyn_s1_drif' => 'decimal:2',
+        'mh_totale_s1_drif' => 'decimal:2',
+        'mhp_s2_drif' => 'decimal:2',
+        'mhsyn_s2_drif' => 'decimal:2',
+        'mhasyn_s2_drif' => 'decimal:2',
+        'mh_totale_s2_drif' => 'decimal:2',
+        'mhp_totale_drif' => 'decimal:2',
+        'mhsyn_totale_drif' => 'decimal:2',
+        'mhasyn_totale_drif' => 'decimal:2',
+        'mh_totale_drif' => 'decimal:2',
+        'mh_affectee_presentiel' => 'decimal:2',
+        'mh_affectee_sync' => 'decimal:2',
+        'mh_affectee_globale' => 'decimal:2',
+        'mh_realisee_presentiel' => 'decimal:2',
+        'mh_realisee_sync' => 'decimal:2',
+        'mh_realisee_globale' => 'decimal:2',
+        'taux_realisation_presentiel' => 'decimal:2',
+        'taux_realisation_syn' => 'decimal:2',
+        'taux_realisation_global' => 'decimal:2',
+        'moy_absence' => 'decimal:2',
+        'nb_cc' => 'integer',
     ];
 
-    // Relation N-1 : un avancement appartient à un groupe
+    // Relations
     public function groupe()
     {
         return $this->belongsTo(Groupe::class, 'groupe', 'groupe');
     }
 
-    // Relation N-1 : un avancement appartient à un module
     public function module()
     {
         return $this->belongsTo(Module::class, 'code_module', 'code_module');
     }
 
-    // Relation N-1 : un avancement peut avoir un formateur présentiel
     public function formateurPresentiel()
     {
         return $this->belongsTo(Formateur::class, 'mle_presentiel', 'mle');
     }
 
-    // Relation N-1 : un avancement peut avoir un formateur synchrone
     public function formateurSynchrone()
     {
         return $this->belongsTo(Formateur::class, 'mle_syn', 'mle');
     }
 
-    // Relations indirectes via groupe
     public function formation()
     {
         return $this->hasOneThrough(Formation::class, Groupe::class, 'groupe', 'id', 'groupe', 'id_formation');
@@ -90,13 +102,31 @@ class Avancement extends Model
 
     public function etablissement()
     {
-        return $this->hasOneThrough(
-            Etablissement::class, 
-            [Groupe::class, Formation::class], 
-            'groupe', 
-            'code_efp',
-            'groupe', 
-            ['id_formation', 'code_efp']
-        );
+        return $this->hasOneThrough(Etablissement::class, Groupe::class, 'groupe', 'code_efp', 'groupe', 'code_efp');
+    }
+
+    // Scopes pour l'isolation par établissement
+    public function scopeForEtablissement(Builder $query, $code_efp)
+    {
+        return $query->whereHas('groupe', function ($q) use ($code_efp) {
+            $q->where('code_efp', $code_efp);
+        });
+    }
+
+    public function scopeForComplexe(Builder $query, $complexe_id)
+    {
+        return $query->whereHas('groupe.etablissement', function ($q) use ($complexe_id) {
+            $q->where('complexe_id', $complexe_id);
+        });
+    }
+
+    public function scopeForUser(Builder $query, $user)
+    {
+        if ($user->role === 'directeur_etablissement') {
+            return $query->forEtablissement($user->etablissement->code_efp);
+        } elseif ($user->role === 'directeur_complexe') {
+            return $query->forComplexe($user->complexe->id);
+        }
+        return $query;
     }
 }

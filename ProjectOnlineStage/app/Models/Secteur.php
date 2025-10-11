@@ -5,6 +5,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
 class Secteur extends Model
 {
@@ -13,29 +14,48 @@ class Secteur extends Model
     protected $primaryKey = 'nom_secteur';
     protected $keyType = 'string';
     public $incrementing = false;
-    public $timestamps = false;
 
     protected $fillable = [
         'nom_secteur',
+        'code_efp',
     ];
 
-    // Relation 1-N : un secteur peut avoir plusieurs filières
+    // Relations
+    public function etablissement()
+    {
+        return $this->belongsTo(Etablissement::class, 'code_efp', 'code_efp');
+    }
+
     public function filieres()
     {
         return $this->hasMany(Filiere::class, 'nom_secteur', 'nom_secteur');
     }
 
-    // Relation N-N via filières : un secteur peut avoir plusieurs formations
     public function formations()
     {
         return $this->hasManyThrough(Formation::class, Filiere::class, 'nom_secteur', 'code_filiere', 'nom_secteur', 'code_filiere');
     }
-        // Relation to get sectors associated with a specific establishment
-    public function scopeForEtablissement($query, $code_efp)
+
+    // Scopes
+    public function scopeForEtablissement(Builder $query, $code_efp)
     {
-        return $query->whereHas('formations', function ($query) use ($code_efp) {
-            $query->where('code_efp', $code_efp);
+        return $query->where('code_efp', $code_efp);
+    }
+
+    public function scopeForComplexe(Builder $query, $complexe_id)
+    {
+        return $query->whereHas('etablissement', function ($q) use ($complexe_id) {
+            $q->where('complexe_id', $complexe_id);
         });
     }
-    
+
+    public function scopeForUser(Builder $query, $user)
+    {
+        if ($user->role === 'directeur_etablissement') {
+            return $query->forEtablissement($user->etablissement->code_efp);
+        } elseif ($user->role === 'directeur_complexe') {
+            return $query->forComplexe($user->complexe->id);
+        }
+        return $query;
+    }
 }

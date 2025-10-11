@@ -5,7 +5,6 @@ namespace App\Http\Controllers\AdministrationEtablissement;
 use App\Http\Controllers\Controller;
 use App\Models\Secteur;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
 class SecteurController extends Controller
@@ -15,18 +14,15 @@ class SecteurController extends Controller
      */
     public function index()
     {
-        $etablissement = Auth::user()->etablissement;
-        if (!$etablissement) {
-            return redirect()->route('administration.etablissement.dashboard')
-                ->with('error', 'Aucun établissement associé à votre compte.');
-        }
-
-        // Afficher tous les secteurs sans filtrage
-        $secteurs = Secteur::withCount('filieres')
+        $user = Auth::user();
+        
+        // Récupérer les secteurs en fonction du rôle
+        $secteurs = Secteur::with(['etablissement', 'filieres'])
+            ->forUser($user)
             ->orderBy('nom_secteur')
-            ->paginate(15);
-
-        return view('administrationetablissement.secteurs.index', compact('secteurs', 'etablissement'));
+            ->paginate(10);
+        
+        return view('administrationetablissement.secteurs.index', compact('secteurs'));
     }
 
     /**
@@ -34,13 +30,15 @@ class SecteurController extends Controller
      */
     public function create()
     {
-        $etablissement = Auth::user()->etablissement;
-        if (!$etablissement) {
-            return redirect()->route('administration.etablissement.dashboard')
-                ->with('error', 'Aucun établissement associé à votre compte.');
+        $user = Auth::user();
+        
+        // Vérifier que l'utilisateur a un établissement
+        if (!$user->etablissement) {
+            return redirect()->route('administration.etablissement.secteurs.index')
+                ->with('error', 'Vous devez être rattaché à un établissement.');
         }
-
-        return view('administrationetablissement.secteurs.create', compact('etablissement'));
+        
+        return view('administrationetablissement.secteurs.create');
     }
 
     /**
@@ -48,33 +46,27 @@ class SecteurController extends Controller
      */
     public function store(Request $request)
     {
-        $etablissement = Auth::user()->etablissement;
-        if (!$etablissement) {
-            return redirect()->route('administration.etablissement.dashboard')
-                ->with('error', 'Aucun établissement associé à votre compte.');
+        $user = Auth::user();
+        
+        if (!$user->etablissement) {
+            return redirect()->route('administration.etablissement.secteurs.index')
+                ->with('error', 'Vous devez être rattaché à un établissement.');
         }
-
+        
         $request->validate([
-            'nom_secteur' => 'required|string|max:255|unique:secteurs,nom_secteur'
+            'nom_secteur' => 'required|string|max:255|unique:secteurs,nom_secteur',
         ], [
             'nom_secteur.required' => 'Le nom du secteur est obligatoire.',
             'nom_secteur.unique' => 'Ce secteur existe déjà.',
-            'nom_secteur.max' => 'Le nom du secteur ne doit pas dépasser 255 caractères.'
         ]);
-
-        try {
-            $secteur = Secteur::create([
-                'nom_secteur' => $request->nom_secteur
-            ]);
-
-            return redirect()
-                ->route('administration.etablissement.secteurs.index')
-                ->with('success', 'Secteur créé avec succès.');
-        } catch (\Exception $e) {
-            return back()
-                ->withInput()
-                ->with('error', 'Erreur lors de la création du secteur: ' . $e->getMessage());
-        }
+        
+        Secteur::create([
+            'nom_secteur' => $request->nom_secteur,
+            'code_efp' => $user->etablissement->code_efp,
+        ]);
+        
+        return redirect()->route('administration.etablissement.secteurs.index')
+            ->with('success', 'Secteur créé avec succès.');
     }
 
     /**
@@ -82,55 +74,35 @@ class SecteurController extends Controller
      */
     public function show(string $nom_secteur)
     {
-        $etablissement = Auth::user()->etablissement;
-        if (!$etablissement) {
-            return redirect()->route('administration.etablissement.dashboard')
-                ->with('error', 'Aucun établissement associé à votre compte.');
-        }
-
-        // Récupérer le secteur sans filtrage par établissement
-        $secteur = Secteur::where('nom_secteur', $nom_secteur)
-            ->withCount('filieres')
-            ->firstOrFail();
-
-        // Récupérer les filières du secteur qui ont des formations dans cet établissement
-        $filieres = $secteur->filieres()
-            ->where(function($query) use ($etablissement) {
-                $query->whereHas('formations', function ($q) use ($etablissement) {
-                    $q->where('code_efp', $etablissement->code_efp);
-                })
-                // OU les filières sans formations encore (nouvellement créées)
-                ->orWhereDoesntHave('formations');
-            })
-            ->withCount(['formations' => function($query) use ($etablissement) {
-                $query->where('code_efp', $etablissement->code_efp);
-            }])
-            ->orderBy('nom_filiere')
-            ->paginate(10);
-
-        // Statistiques du secteur pour cet établissement
+        $user = Auth::user();
+        
+        $secteur = Secteur::with([
+            'etablissement',
+            'filieres.formations.groupes',
+            'filieres' => function($query) {
+                $query->withCount('formations');
+            },
+            'formations.groupes' => function($query) {
+                $query->withCount('avancements');
+            }
+        ])
+        ->forUser($user)
+        ->where('nom_secteur', $nom_secteur)
+        ->firstOrFail();
+        
+        // Statistiques
         $stats = [
-            'total_filieres' => $secteur->filieres()
-                ->where(function($query) use ($etablissement) {
-                    $query->whereHas('formations', function ($q) use ($etablissement) {
-                        $q->where('code_efp', $etablissement->code_efp);
-                    })
-                    ->orWhereDoesntHave('formations');
-                })->count(),
-            'total_formations' => DB::table('formations')
-                ->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
-                ->where('filieres.nom_secteur', $nom_secteur)
-                ->where('formations.code_efp', $etablissement->code_efp)
-                ->count(),
-            'total_groupes' => DB::table('groupes')
-                ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-                ->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
-                ->where('filieres.nom_secteur', $nom_secteur)
-                ->where('formations.code_efp', $etablissement->code_efp)
-                ->count()
+            'total_filieres' => $secteur->filieres->count(),
+            'total_formations' => $secteur->formations->count(),
+            'total_groupes' => $secteur->formations->sum(function($formation) {
+                return $formation->groupes->count();
+            }),
+            'total_stagiaires' => $secteur->formations->sum(function($formation) {
+                return $formation->groupes->sum('effectif_groupe');
+            })
         ];
-
-        return view('administrationetablissement.secteurs.show', compact('secteur', 'filieres', 'stats', 'etablissement'));
+        
+        return view('administrationetablissement.secteurs.show', compact('secteur', 'stats'));
     }
 
     /**
@@ -138,16 +110,13 @@ class SecteurController extends Controller
      */
     public function edit(string $nom_secteur)
     {
-        $etablissement = Auth::user()->etablissement;
-        if (!$etablissement) {
-            return redirect()->route('administration.etablissement.dashboard')
-                ->with('error', 'Aucun établissement associé à votre compte.');
-        }
-
-        // Récupérer le secteur sans filtrage
-        $secteur = Secteur::where('nom_secteur', $nom_secteur)->firstOrFail();
-
-        return view('administrationetablissement.secteurs.edit', compact('secteur', 'etablissement'));
+        $user = Auth::user();
+        
+        $secteur = Secteur::forUser($user)
+            ->where('nom_secteur', $nom_secteur)
+            ->firstOrFail();
+        
+        return view('administrationetablissement.secteurs.edit', compact('secteur'));
     }
 
     /**
@@ -155,48 +124,39 @@ class SecteurController extends Controller
      */
     public function update(Request $request, string $nom_secteur)
     {
-        $etablissement = Auth::user()->etablissement;
-        if (!$etablissement) {
-            return redirect()->route('administration.etablissement.dashboard')
-                ->with('error', 'Aucun établissement associé à votre compte.');
-        }
-
-        $secteur = Secteur::where('nom_secteur', $nom_secteur)->firstOrFail();
-
+        $user = Auth::user();
+        
+        $secteur = Secteur::forUser($user)
+            ->where('nom_secteur', $nom_secteur)
+            ->firstOrFail();
+        
         $request->validate([
-            'nom_secteur' => 'required|string|max:255|unique:secteurs,nom_secteur,' . $nom_secteur . ',nom_secteur'
+            'nom_secteur' => 'required|string|max:255|unique:secteurs,nom_secteur,' . $nom_secteur . ',nom_secteur',
         ], [
             'nom_secteur.required' => 'Le nom du secteur est obligatoire.',
             'nom_secteur.unique' => 'Ce secteur existe déjà.',
-            'nom_secteur.max' => 'Le nom du secteur ne doit pas dépasser 255 caractères.'
         ]);
-
-        try {
-            // Mise à jour du secteur et des clés étrangères
-            DB::transaction(function () use ($secteur, $request) {
-                $oldNom = $secteur->nom_secteur;
-                $newNom = $request->nom_secteur;
-
-                if ($oldNom !== $newNom) {
-                    // Mettre à jour les filières associées
-                    DB::table('filieres')
-                        ->where('nom_secteur', $oldNom)
-                        ->update(['nom_secteur' => $newNom]);
-
-                    // Supprimer l'ancien secteur et créer le nouveau
-                    Secteur::where('nom_secteur', $oldNom)->delete();
-                    Secteur::create(['nom_secteur' => $newNom]);
-                }
-            });
-
-            return redirect()
-                ->route('administration.etablissement.secteurs.index')
+        
+        // Si le nom change, on doit gérer la clé primaire
+        if ($request->nom_secteur !== $nom_secteur) {
+            // Créer un nouveau secteur
+            $newSecteur = Secteur::create([
+                'nom_secteur' => $request->nom_secteur,
+                'code_efp' => $secteur->code_efp,
+            ]);
+            
+            // Mettre à jour les filières associées
+            $secteur->filieres()->update(['nom_secteur' => $request->nom_secteur]);
+            
+            // Supprimer l'ancien secteur
+            $secteur->delete();
+            
+            return redirect()->route('administration.etablissement.secteurs.show', $newSecteur->nom_secteur)
                 ->with('success', 'Secteur modifié avec succès.');
-        } catch (\Exception $e) {
-            return back()
-                ->withInput()
-                ->with('error', 'Erreur lors de la modification du secteur: ' . $e->getMessage());
         }
+        
+        return redirect()->route('administration.etablissement.secteurs.show', $secteur->nom_secteur)
+            ->with('success', 'Secteur modifié avec succès.');
     }
 
     /**
@@ -204,29 +164,21 @@ class SecteurController extends Controller
      */
     public function destroy(string $nom_secteur)
     {
-        $etablissement = Auth::user()->etablissement;
-        if (!$etablissement) {
-            return redirect()->route('administration.etablissement.dashboard')
-                ->with('error', 'Aucun établissement associé à votre compte.');
+        $user = Auth::user();
+        
+        $secteur = Secteur::forUser($user)
+            ->where('nom_secteur', $nom_secteur)
+            ->firstOrFail();
+        
+        // Vérifier s'il y a des filières associées
+        if ($secteur->filieres()->count() > 0) {
+            return redirect()->route('administration.etablissement.secteurs.index')
+                ->with('error', 'Impossible de supprimer ce secteur car il contient des filières.');
         }
-
-        try {
-            $secteur = Secteur::where('nom_secteur', $nom_secteur)->firstOrFail();
-
-            // Vérifier s'il y a des filières associées globalement
-            $filieresCount = $secteur->filieres()->count();
-
-            if ($filieresCount > 0) {
-                return back()->with('error', 'Impossible de supprimer ce secteur car il contient des filières.');
-            }
-
-            $secteur->delete();
-
-            return redirect()
-                ->route('administration.etablissement.secteurs.index')
-                ->with('success', 'Secteur supprimé avec succès.');
-        } catch (\Exception $e) {
-            return back()->with('error', 'Erreur lors de la suppression du secteur: ' . $e->getMessage());
-        }
+        
+        $secteur->delete();
+        
+        return redirect()->route('administration.etablissement.secteurs.index')
+            ->with('success', 'Secteur supprimé avec succès.');
     }
 }

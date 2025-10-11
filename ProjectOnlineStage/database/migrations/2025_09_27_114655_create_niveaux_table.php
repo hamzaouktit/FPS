@@ -10,6 +10,8 @@ return new class extends Migration
     {
         Schema::create('niveaux', function (Blueprint $table) {
             $table->string('niveau')->primary(); // PK string
+            $table->string('code_efp');
+            $table->foreign('code_efp')->references('code_efp')->on('etablissements')->onDelete('cascade');
             $table->timestamps();
         });
     }

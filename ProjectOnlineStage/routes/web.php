@@ -9,6 +9,7 @@ use App\Http\Controllers\AdministrationComplexe\DirecteurController;
 use App\Http\Controllers\AdministrationEtablissement\SecteurController;
 use App\Http\Controllers\AdministrationEtablissement\FiliereController;
 use App\Http\Controllers\AdministrationEtablissement\NiveauController; // NOUVEAU
+use App\Http\Controllers\AdministrationEtablissement\FormationController; 
 
 /*
 |--------------------------------------------------------------------------
@@ -95,5 +96,8 @@ Route::middleware(['auth'])->group(function () {
         // CRUD des niveaux - NOUVEAU
         Route::resource('niveaux', NiveauController::class)
             ->parameters(['niveaux' => 'niveau']);
+        // CRUD des formations
+        Route::resource('formations', FormationController::class)
+        ->parameters(['formations' => 'id']);
     });
 });

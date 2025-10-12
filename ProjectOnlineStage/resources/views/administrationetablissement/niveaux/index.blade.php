@@ -1,107 +1,161 @@
 @extends('layouts.app')
 
+@section('title', 'Gestion des Niveaux')
+
+@section('breadcrumb')
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+            <a href="{{ route('administration.etablissement.dashboard') }}">
+                <i class="fas fa-home"></i> Tableau de bord
+            </a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">
+            <i class="fas fa-layer-group"></i> Niveaux
+        </li>
+    </ol>
+</nav>
+@endsection
+
 @section('content')
-<div class="container-fluid px-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-0">Gestion des Niveaux</h1>
-            <p class="text-muted mb-0">{{ $etablissement->nom_efp }}</p>
-        </div>
-        <a href="{{ route('administration.etablissement.niveaux.create') }}" class="btn btn-primary">
-            <i class="fas fa-plus me-2"></i>Ajouter un niveau
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h4 class="mb-0">
+            <i class="fas fa-layer-group me-2"></i>
+            Liste des Niveaux
+        </h4>
+        <a href="{{ route('administration.etablissement.niveaux.create') }}" class="btn btn-light btn-sm">
+            <i class="fas fa-plus-circle me-1"></i>
+            Nouveau Niveau
         </a>
     </div>
 
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="fas fa-check-circle me-2"></i>{{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
+    <div class="card-body">
+        @if($niveaux->isEmpty())
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle fa-2x mb-3"></i>
+                <p class="mb-0">Aucun niveau enregistré pour le moment.</p>
+                <a href="{{ route('administration.etablissement.niveaux.create') }}" class="btn btn-primary mt-3">
+                    <i class="fas fa-plus-circle me-1"></i>
+                    Ajouter un premier niveau
+                </a>
+            </div>
+        @else
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th><i class="fas fa-hashtag me-1"></i> ID</th>
+                            <th><i class="fas fa-layer-group me-1"></i> Niveau</th>
+                            <th><i class="fas fa-chalkboard-teacher me-1"></i> Formations</th>
+                            <th><i class="fas fa-users me-1"></i> Groupes</th>
+                            <th><i class="fas fa-calendar me-1"></i> Date de création</th>
+                            <th class="text-center"><i class="fas fa-cogs me-1"></i> Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($niveaux as $niveau)
+                        <tr>
+                            <td>
+                                <span class="badge bg-secondary">{{ $niveau->id }}</span>
+                            </td>
+                            <td>
+                                <strong>
+                                    <i class="fas fa-graduation-cap text-primary me-2"></i>
+                                    {{ $niveau->niveau }}
+                                </strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">
+                                    {{ $niveau->formations_count }} formation(s)
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">
+                                    {{ $niveau->groupes_count }} groupe(s)
+                                </span>
+                            </td>
+                            <td>
+                                <i class="fas fa-calendar-alt text-muted me-1"></i>
+                                {{ $niveau->created_at->format('d/m/Y') }}
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group" role="group">
+                                    <a href="{{ route('administration.etablissement.niveaux.show', $niveau->niveau) }}" 
+                                       class="btn btn-sm btn-info" 
+                                       title="Voir les détails">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ route('administration.etablissement.niveaux.edit', $niveau->niveau) }}" 
+                                       class="btn btn-sm btn-warning" 
+                                       title="Modifier">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-danger" 
+                                            onclick="confirmDelete('{{ $niveau->niveau }}', '{{ $niveau->niveau }}')"
+                                            title="Supprimer">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
 
-    @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-circle me-2"></i>{{ session('error') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
+            <div class="d-flex justify-content-center mt-4">
+                {{ $niveaux->links() }}
+            </div>
+        @endif
+    </div>
+</div>
 
-    <div class="card shadow-sm">
-        <div class="card-body">
-            @if($niveaux->count() > 0)
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Niveau</th>
-                                <th>Nombre de formations</th>
-                                <th>Date de création</th>
-                                <th class="text-end">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($niveaux as $niveau)
-                                <tr>
-                                    <td>
-                                        <strong>{{ $niveau->niveau }}</strong>
-                                    </td>
-                                    <td>
-                                        @if($niveau->formations_count > 0)
-                                            <span class="badge bg-info">
-                                                {{ $niveau->formations_count }} formation(s)
-                                            </span>
-                                        @else
-                                            <span class="badge bg-secondary">
-                                                Aucune formation
-                                            </span>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        <small class="text-muted">
-                                            {{ $niveau->created_at ? $niveau->created_at->format('d/m/Y') : 'N/A' }}
-                                        </small>
-                                    </td>
-                                    <td class="text-end">
-                                        <div class="btn-group" role="group">
-                                            <a href="{{ route('administration.etablissement.niveaux.show', $niveau->niveau) }}" 
-                                               class="btn btn-sm btn-outline-info" 
-                                               title="Voir les détails">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            <a href="{{ route('administration.etablissement.niveaux.edit', $niveau->niveau) }}" 
-                                               class="btn btn-sm btn-outline-primary" 
-                                               title="Modifier">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                            <form action="{{ route('administration.etablissement.niveaux.destroy', $niveau->niveau) }}" 
-                                                  method="POST" 
-                                                  class="d-inline"
-                                                  onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce niveau ?');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" 
-                                                        class="btn btn-sm btn-outline-danger" 
-                                                        title="Supprimer">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Confirmation de suppression
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer le niveau <strong id="niveauNameToDelete"></strong> ?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    Cette action est irréversible. Assurez-vous qu'aucune formation n'est liée à ce niveau.
                 </div>
-            @else
-                <div class="text-center py-5">
-                    <i class="fas fa-layer-group fa-3x text-muted mb-3"></i>
-                    <p class="text-muted mb-3">Aucun niveau enregistré pour cet établissement.</p>
-                    <a href="{{ route('administration.etablissement.niveaux.create') }}" class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i>Créer le premier niveau
-                    </a>
-                </div>
-            @endif
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> Annuler
+                </button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i> Supprimer
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    function confirmDelete(niveauCode, niveauName) {
+        document.getElementById('niveauNameToDelete').textContent = niveauName;
+        document.getElementById('deleteForm').action = 
+            "{{ route('administration.etablissement.niveaux.destroy', ':niveau') }}".replace(':niveau', niveauCode);
+        
+        var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        deleteModal.show();
+    }
+</script>
+@endpush

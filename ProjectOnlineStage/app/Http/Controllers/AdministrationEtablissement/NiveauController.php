@@ -4,34 +4,40 @@ namespace App\Http\Controllers\AdministrationEtablissement;
 
 use App\Http\Controllers\Controller;
 use App\Models\Niveau;
-use App\Models\Formation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class NiveauController extends Controller
 {
+    /**
+     * Récupérer le code EFP de l'utilisateur connecté
+     */
+    private function getCodeEfp()
+    {
+        $user = Auth::user();
+        
+        if ($user->role !== 'directeur_etablissement' || !$user->etablissement) {
+            abort(403, 'Accès non autorisé');
+        }
+        
+        return $user->etablissement->code_efp;
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        // Récupérer l'établissement de l'utilisateur connecté
-        $etablissement = Auth::user()->etablissement;
+        $code_efp = $this->getCodeEfp();
         
-        if (!$etablissement) {
-            return redirect()->route('administration.etablissement.dashboard')
-                ->with('error', 'Vous n\'êtes pas associé à un établissement.');
-        }
+        $niveaux = Niveau::with(['etablissement'])
+            ->forEtablissement($code_efp)
+            ->withCount(['formations', 'groupes'])
+            ->orderBy('niveau')
+            ->paginate(15);
 
-        // Récupérer TOUS les niveaux avec le nombre de formations pour cet établissement
-        $niveaux = Niveau::withCount(['formations' => function($query) use ($etablissement) {
-            $query->where('code_efp', $etablissement->code_efp);
-        }])
-        ->orderBy('created_at', 'desc') // Les plus récents en premier
-        ->get();
-
-        return view('administrationetablissement.niveaux.index', compact('niveaux', 'etablissement'));
+        return view('administrationetablissement.niveaux.index', compact('niveaux'));
     }
 
     /**
@@ -39,14 +45,9 @@ class NiveauController extends Controller
      */
     public function create()
     {
-        $etablissement = Auth::user()->etablissement;
+        $this->getCodeEfp(); // Vérification de l'accès
         
-        if (!$etablissement) {
-            return redirect()->route('administration.etablissement.dashboard')
-                ->with('error', 'Vous n\'êtes pas associé à un établissement.');
-        }
-
-        return view('administrationetablissement.niveaux.create', compact('etablissement'));
+        return view('administrationetablissement.niveaux.create');
     }
 
     /**
@@ -54,31 +55,30 @@ class NiveauController extends Controller
      */
     public function store(Request $request)
     {
-        $etablissement = Auth::user()->etablissement;
-        
-        if (!$etablissement) {
-            return redirect()->route('administration.etablissement.dashboard')
-                ->with('error', 'Vous n\'êtes pas associé à un établissement.');
-        }
+        $code_efp = $this->getCodeEfp();
 
-        $request->validate([
-            'niveau' => 'required|string|max:255|unique:niveaux,niveau',
+        $validated = $request->validate([
+            'niveau' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('niveaux')->where(function ($query) use ($code_efp) {
+                    return $query->where('code_efp', $code_efp);
+                })
+            ],
         ], [
             'niveau.required' => 'Le niveau est obligatoire.',
-            'niveau.unique' => 'Ce niveau existe déjà.',
+            'niveau.unique' => 'Ce niveau existe déjà dans votre établissement.',
+            'niveau.max' => 'Le niveau ne peut pas dépasser 100 caractères.',
         ]);
 
-        try {
-            Niveau::create([
-                'niveau' => $request->niveau,
-            ]);
+        // Ajouter automatiquement le code_efp
+        $validated['code_efp'] = $code_efp;
 
-            return redirect()->route('administration.etablissement.niveaux.index')
-                ->with('success', 'Niveau créé avec succès. Il apparaîtra dans les filtres du dashboard une fois qu\'une formation l\'utilisera.');
-        } catch (\Exception $e) {
-            return back()->withInput()
-                ->with('error', 'Erreur lors de la création du niveau : ' . $e->getMessage());
-        }
+        Niveau::create($validated);
+
+        return redirect()->route('administration.etablissement.niveaux.index')
+            ->with('success', 'Niveau créé avec succès.');
     }
 
     /**
@@ -86,22 +86,80 @@ class NiveauController extends Controller
      */
     public function show(string $niveau)
     {
-        $etablissement = Auth::user()->etablissement;
-        
-        if (!$etablissement) {
-            return redirect()->route('administration.etablissement.dashboard')
-                ->with('error', 'Vous n\'êtes pas associé à un établissement.');
-        }
+        $code_efp = $this->getCodeEfp();
 
-        $niveauModel = Niveau::where('niveau', $niveau)->firstOrFail();
-        
-        // Récupérer les formations de ce niveau pour cet établissement
-        $formations = Formation::where('niveau', $niveau)
-            ->where('code_efp', $etablissement->code_efp)
-            ->with(['filiere.secteur', 'groupes'])
+        $niveauData = Niveau::with([
+            'etablissement',
+            'formations.filiere.secteur',
+            'formations.groupes',
+            'groupes'
+        ])
+            ->forEtablissement($code_efp)
+            ->where('niveau', $niveau)
+            ->firstOrFail();
+
+        // Statistiques du niveau
+        $stats = [
+            'total_formations' => $niveauData->formations()->count(),
+            'total_groupes' => $niveauData->groupes()->count(),
+            'effectif_total' => $niveauData->groupes()->sum('effectif_groupe'),
+            'formations_par_filiere' => $niveauData->formations()
+                ->with('filiere')
+                ->get()
+                ->groupBy('filiere.nom_filiere')
+                ->map->count(),
+            'formations_par_type' => $niveauData->formations()
+                ->get()
+                ->groupBy('type_formation')
+                ->map->count(),
+            'formations_par_annee' => $niveauData->formations()
+                ->get()
+                ->groupBy('annee')
+                ->map->count(),
+        ];
+
+        // Récupérer les filières associées via les formations
+        $filieres = \App\Models\Filiere::whereHas('formations', function ($query) use ($niveauData) {
+            $query->where('niveau_id', $niveauData->id);
+        })
+            ->forEtablissement($code_efp)
+            ->with('secteur')
+            ->distinct()
             ->get();
 
-        return view('administrationetablissement.niveaux.show', compact('niveauModel', 'formations', 'etablissement'));
+        // Récupérer les secteurs via les filières
+        $secteurs = \App\Models\Secteur::whereHas('filieres.formations', function ($query) use ($niveauData) {
+            $query->where('niveau_id', $niveauData->id);
+        })
+            ->forEtablissement($code_efp)
+            ->distinct()
+            ->get();
+
+        // Récupérer les modules via les avancements des groupes
+        $modules = \App\Models\Module::whereHas('avancements.groupe.formation', function ($query) use ($niveauData) {
+            $query->where('niveau_id', $niveauData->id);
+        })
+            ->forEtablissement($code_efp)
+            ->distinct()
+            ->withCount('avancements')
+            ->get();
+
+        // Récupérer les formateurs via les affectations
+        $formateurs = \App\Models\Formateur::whereHas('affectations.groupe.formation', function ($query) use ($niveauData) {
+            $query->where('niveau_id', $niveauData->id);
+        })
+            ->forEtablissement($code_efp)
+            ->distinct()
+            ->get();
+
+        return view('administrationetablissement.niveaux.show', compact(
+            'niveauData',
+            'stats',
+            'filieres',
+            'secteurs',
+            'modules',
+            'formateurs'
+        ));
     }
 
     /**
@@ -109,16 +167,13 @@ class NiveauController extends Controller
      */
     public function edit(string $niveau)
     {
-        $etablissement = Auth::user()->etablissement;
-        
-        if (!$etablissement) {
-            return redirect()->route('administration.etablissement.dashboard')
-                ->with('error', 'Vous n\'êtes pas associé à un établissement.');
-        }
+        $code_efp = $this->getCodeEfp();
 
-        $niveauModel = Niveau::where('niveau', $niveau)->firstOrFail();
+        $niveauData = Niveau::forEtablissement($code_efp)
+            ->where('niveau', $niveau)
+            ->firstOrFail();
 
-        return view('administrationetablissement.niveaux.edit', compact('niveauModel', 'etablissement'));
+        return view('administrationetablissement.niveaux.edit', compact('niveauData'));
     }
 
     /**
@@ -126,33 +181,31 @@ class NiveauController extends Controller
      */
     public function update(Request $request, string $niveau)
     {
-        $etablissement = Auth::user()->etablissement;
-        
-        if (!$etablissement) {
-            return redirect()->route('administration.etablissement.dashboard')
-                ->with('error', 'Vous n\'êtes pas associé à un établissement.');
-        }
+        $code_efp = $this->getCodeEfp();
 
-        $niveauModel = Niveau::where('niveau', $niveau)->firstOrFail();
+        $niveauData = Niveau::forEtablissement($code_efp)
+            ->where('niveau', $niveau)
+            ->firstOrFail();
 
-        $request->validate([
-            'niveau' => 'required|string|max:255|unique:niveaux,niveau,' . $niveauModel->niveau . ',niveau',
+        $validated = $request->validate([
+            'niveau' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('niveaux')->where(function ($query) use ($code_efp) {
+                    return $query->where('code_efp', $code_efp);
+                })->ignore($niveauData->id)
+            ],
         ], [
             'niveau.required' => 'Le niveau est obligatoire.',
-            'niveau.unique' => 'Ce niveau existe déjà.',
+            'niveau.unique' => 'Ce niveau existe déjà dans votre établissement.',
+            'niveau.max' => 'Le niveau ne peut pas dépasser 100 caractères.',
         ]);
 
-        try {
-            $niveauModel->update([
-                'niveau' => $request->niveau,
-            ]);
+        $niveauData->update($validated);
 
-            return redirect()->route('administration.etablissement.niveaux.index')
-                ->with('success', 'Niveau modifié avec succès.');
-        } catch (\Exception $e) {
-            return back()->withInput()
-                ->with('error', 'Erreur lors de la modification du niveau : ' . $e->getMessage());
-        }
+        return redirect()->route('administration.etablissement.niveaux.index')
+            ->with('success', 'Niveau modifié avec succès.');
     }
 
     /**
@@ -160,31 +213,21 @@ class NiveauController extends Controller
      */
     public function destroy(string $niveau)
     {
-        $etablissement = Auth::user()->etablissement;
-        
-        if (!$etablissement) {
-            return redirect()->route('administration.etablissement.dashboard')
-                ->with('error', 'Vous n\'êtes pas associé à un établissement.');
-        }
+        $code_efp = $this->getCodeEfp();
 
-        $niveauModel = Niveau::where('niveau', $niveau)->firstOrFail();
+        $niveauData = Niveau::forEtablissement($code_efp)
+            ->where('niveau', $niveau)
+            ->firstOrFail();
 
-        try {
-            // Vérifier si le niveau est utilisé dans des formations de cet établissement
-            $formationsCount = Formation::where('niveau', $niveau)
-                ->where('code_efp', $etablissement->code_efp)
-                ->count();
-
-            if ($formationsCount > 0) {
-                return back()->with('error', 'Impossible de supprimer ce niveau car il est utilisé dans ' . $formationsCount . ' formation(s) de votre établissement.');
-            }
-
-            $niveauModel->delete();
-
+        // Vérifier s'il y a des formations liées
+        if ($niveauData->formations()->count() > 0) {
             return redirect()->route('administration.etablissement.niveaux.index')
-                ->with('success', 'Niveau supprimé avec succès.');
-        } catch (\Exception $e) {
-            return back()->with('error', 'Erreur lors de la suppression du niveau : ' . $e->getMessage());
+                ->with('error', 'Impossible de supprimer ce niveau car il contient des formations.');
         }
+
+        $niveauData->delete();
+
+        return redirect()->route('administration.etablissement.niveaux.index')
+            ->with('success', 'Niveau supprimé avec succès.');
     }
 }

@@ -162,9 +162,9 @@
                             <label class="form-label fw-bold">Filière</label>
                             <select name="filiere" class="form-select" onchange="this.form.submit()">
                                 <option value="">Toutes</option>
-                                @foreach($filterOptions['filieres'] as $codeFiliere => $nomFiliere)
-                                    <option value="{{ $codeFiliere }}" {{ $filters['filiere'] == $codeFiliere ? 'selected' : '' }}>
-                                        {{ $nomFiliere }}
+                                @foreach($filterOptions['filieres'] as $filiere)
+                                    <option value="{{ $filiere->id }}" {{ $filters['filiere'] == $filiere->id ? 'selected' : '' }}>
+                                        {{ $filiere->nom_filiere }}
                                     </option>
                                 @endforeach
                             </select>
@@ -174,8 +174,8 @@
                             <select name="niveau" class="form-select" onchange="this.form.submit()">
                                 <option value="">Tous</option>
                                 @foreach($filterOptions['niveaux'] as $niveau)
-                                    <option value="{{ $niveau }}" {{ $filters['niveau'] == $niveau ? 'selected' : '' }}>
-                                        {{ $niveau }}
+                                    <option value="{{ $niveau->id }}" {{ $filters['niveau'] == $niveau->id ? 'selected' : '' }}>
+                                        {{ $niveau->niveau }}
                                     </option>
                                 @endforeach
                             </select>
@@ -185,8 +185,8 @@
                             <select name="groupe" class="form-select" onchange="this.form.submit()">
                                 <option value="">Tous</option>
                                 @foreach($filterOptions['groupes'] as $groupe)
-                                    <option value="{{ $groupe->groupe }}" {{ $filters['groupe'] == $groupe->groupe ? 'selected' : '' }}>
-                                        {{ $groupe->groupe }}
+                                    <option value="{{ $groupe->id }}" {{ $filters['groupe'] == $groupe->id ? 'selected' : '' }}>
+                                        {{ $groupe->nom_groupe }}
                                     </option>
                                 @endforeach
                             </select>
@@ -196,7 +196,7 @@
                             <select name="module" class="form-select" onchange="this.form.submit()">
                                 <option value="">Tous</option>
                                 @foreach($filterOptions['modules'] as $module)
-                                    <option value="{{ $module->code_module }}" {{ $filters['module'] == $module->code_module ? 'selected' : '' }}>
+                                    <option value="{{ $module->id }}" {{ $filters['module'] == $module->id ? 'selected' : '' }}>
                                         {{ Str::limit($module->nom_module, 20) }}
                                     </option>
                                 @endforeach

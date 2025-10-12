@@ -11,10 +11,6 @@ class Secteur extends Model
 {
     use HasFactory;
 
-    protected $primaryKey = 'nom_secteur';
-    protected $keyType = 'string';
-    public $incrementing = false;
-
     protected $fillable = [
         'nom_secteur',
         'code_efp',
@@ -28,12 +24,12 @@ class Secteur extends Model
 
     public function filieres()
     {
-        return $this->hasMany(Filiere::class, 'nom_secteur', 'nom_secteur');
+        return $this->hasMany(Filiere::class, 'secteur_id');
     }
 
     public function formations()
     {
-        return $this->hasManyThrough(Formation::class, Filiere::class, 'nom_secteur', 'code_filiere', 'nom_secteur', 'code_filiere');
+        return $this->hasManyThrough(Formation::class, Filiere::class, 'secteur_id', 'filiere_id', 'id', 'id');
     }
 
     // Scopes

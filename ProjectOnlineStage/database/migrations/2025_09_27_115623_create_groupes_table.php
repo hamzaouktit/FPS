@@ -9,8 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('groupes', function (Blueprint $table) {
-            $table->string('groupe')->primary(); // PK string (composite si besoin avec id_formation)
-            $table->foreignId('id_formation')->constrained('formations')->onDelete('cascade');
+            $table->id();
+            $table->string('nom_groupe');
+            $table->foreignId('formation_id')->constrained('formations')->onDelete('cascade');
             $table->integer('effectif_groupe')->nullable();
             $table->string('sous_groupe')->nullable();
             $table->string('statut_sous_groupe')->nullable();
@@ -21,6 +22,7 @@ return new class extends Migration
             $table->foreign('code_efp')->references('code_efp')->on('etablissements')->onDelete('cascade');
             $table->timestamps();
         });
+
     }
 
     public function down(): void

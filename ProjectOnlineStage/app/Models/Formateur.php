@@ -44,14 +44,12 @@ class Formateur extends Model
 
     public function modules()
     {
-        return $this->belongsToMany(Module::class, 'avancements', 'mle_presentiel', 'code_module')
-                    ->orWhereColumn('avancements.mle_syn', 'formateurs.mle');
+        return $this->belongsToMany(Module::class, 'avancements', 'mle_presentiel', 'module_id');
     }
 
     public function groupes()
     {
-        return $this->belongsToMany(Groupe::class, 'avancements', 'mle_presentiel', 'groupe')
-                    ->orWhereColumn('avancements.mle_syn', 'formateurs.mle');
+        return $this->belongsToMany(Groupe::class, 'avancements', 'mle_presentiel', 'groupe_id');
     }
 
     // Méthode pour obtenir tous les avancements

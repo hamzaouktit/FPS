@@ -14,8 +14,8 @@ class Formation extends Model
     protected $fillable = [
         'annee',
         'code_efp',
-        'niveau',
-        'code_filiere',
+        'niveau_id',
+        'filiere_id',
         'type_formation',
         'creneau',
     ];
@@ -32,32 +32,32 @@ class Formation extends Model
 
     public function niveau()
     {
-        return $this->belongsTo(Niveau::class, 'niveau', 'niveau');
+        return $this->belongsTo(Niveau::class, 'niveau_id');
     }
 
     public function filiere()
     {
-        return $this->belongsTo(Filiere::class, 'code_filiere', 'code_filiere');
+        return $this->belongsTo(Filiere::class, 'filiere_id');
     }
 
     public function groupes()
     {
-        return $this->hasMany(Groupe::class, 'id_formation');
+        return $this->hasMany(Groupe::class, 'formation_id');
     }
 
     public function avancements()
     {
-        return $this->hasManyThrough(Avancement::class, Groupe::class, 'id_formation', 'groupe', 'id', 'groupe');
+        return $this->hasManyThrough(Avancement::class, Groupe::class, 'formation_id', 'groupe_id', 'id', 'id');
     }
 
     public function affectations()
     {
-        return $this->hasManyThrough(Affectation::class, Groupe::class, 'id_formation', 'groupe', 'id', 'groupe');
+        return $this->hasManyThrough(Affectation::class, Groupe::class, 'formation_id', 'groupe_id', 'id', 'id');
     }
 
     public function secteur()
     {
-        return $this->hasOneThrough(Secteur::class, Filiere::class, 'code_filiere', 'nom_secteur', 'code_filiere', 'nom_secteur');
+        return $this->hasOneThrough(Secteur::class, Filiere::class, 'id', 'id', 'filiere_id', 'secteur_id');
     }
 
     public function complexe()

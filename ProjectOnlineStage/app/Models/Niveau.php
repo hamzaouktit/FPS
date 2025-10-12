@@ -11,10 +11,6 @@ class Niveau extends Model
 {
     use HasFactory;
 
-    protected $primaryKey = 'niveau';
-    protected $keyType = 'string';
-    public $incrementing = false;
-
     protected $fillable = [
         'niveau',
         'code_efp',
@@ -28,12 +24,12 @@ class Niveau extends Model
 
     public function formations()
     {
-        return $this->hasMany(Formation::class, 'niveau', 'niveau');
+        return $this->hasMany(Formation::class, 'niveau_id');
     }
 
     public function groupes()
     {
-        return $this->hasManyThrough(Groupe::class, Formation::class, 'niveau', 'id_formation', 'niveau', 'id');
+        return $this->hasManyThrough(Groupe::class, Formation::class, 'niveau_id', 'formation_id', 'id', 'id');
     }
 
     // Scopes

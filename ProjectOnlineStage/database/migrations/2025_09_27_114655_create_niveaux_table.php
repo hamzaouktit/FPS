@@ -9,11 +9,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('niveaux', function (Blueprint $table) {
-            $table->string('niveau')->primary(); // PK string
+            $table->id();
+            $table->string('niveau');
             $table->string('code_efp');
             $table->foreign('code_efp')->references('code_efp')->on('etablissements')->onDelete('cascade');
             $table->timestamps();
         });
+
     }
 
     public function down(): void

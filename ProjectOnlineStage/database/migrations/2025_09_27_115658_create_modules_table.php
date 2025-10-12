@@ -9,13 +9,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('modules', function (Blueprint $table) {
-            $table->string('code_module')->primary(); // PK string
-            $table->string('nom_module')->nullable(false);
-            $table->string('regional')->nullable(); // N/O
+            $table->id();
+            $table->string('code_module');
+            $table->string('nom_module');
+            $table->string('regional')->nullable();
             $table->string('code_efp');
             $table->foreign('code_efp')->references('code_efp')->on('etablissements')->onDelete('cascade');
             $table->timestamps();
         });
+
     }
 
     public function down(): void

@@ -9,18 +9,19 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('formations', function (Blueprint $table) {
-            $table->id(); // PK auto-incrément
+            $table->id();
             $table->integer('annee')->nullable(false);
             $table->string('code_efp');
-            $table->string('niveau');
-            $table->string('code_filiere');
+            $table->unsignedBigInteger('niveau_id');
+            $table->unsignedBigInteger('filiere_id');
             $table->string('type_formation')->nullable();
             $table->string('creneau')->nullable();
             $table->foreign('code_efp')->references('code_efp')->on('etablissements')->onDelete('cascade');
-            $table->foreign('niveau')->references('niveau')->on('niveaux')->onDelete('cascade');
-            $table->foreign('code_filiere')->references('code_filiere')->on('filieres')->onDelete('cascade');
+            $table->foreign('niveau_id')->references('id')->on('niveaux')->onDelete('cascade');
+            $table->foreign('filiere_id')->references('id')->on('filieres')->onDelete('cascade');
             $table->timestamps();
         });
+
     }
 
     public function down(): void

@@ -18,7 +18,7 @@
                     <a href="{{ route('administration.etablissement.secteurs.index') }}" class="btn btn-secondary me-2">
                         <i class="fas fa-arrow-left me-2"></i>Retour
                     </a>
-                    <a href="{{ route('administration.etablissement.secteurs.edit', $secteur->nom_secteur) }}" class="btn btn-warning">
+                    <a href="{{ route('administration.etablissement.secteurs.edit', $secteur->id) }}" class="btn btn-warning">
                         <i class="fas fa-edit me-2"></i>Modifier
                     </a>
                 </div>
@@ -116,7 +116,7 @@
                                         <span class="badge bg-info">{{ $filiere->formations_count }}</span>
                                     </td>
                                     <td class="text-center">
-                                        <a href="#" class="btn btn-sm btn-outline-primary" title="Voir détails">
+                                        <a href="#filiere-{{ $filiere->id }}" class="btn btn-sm btn-outline-primary" title="Voir détails">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                     </td>
@@ -143,7 +143,7 @@
             @if($secteur->formations->count() > 0)
                 @foreach($secteur->filieres as $filiere)
                     @if($filiere->formations->count() > 0)
-                        <div class="mb-4">
+                        <div class="mb-4" id="filiere-{{ $filiere->id }}">
                             <h6 class="text-primary mb-3">
                                 <i class="fas fa-stream me-2"></i>{{ $filiere->nom_filiere }}
                             </h6>
@@ -162,7 +162,7 @@
                                         @foreach($filiere->formations as $formation)
                                             <tr>
                                                 <td>{{ $formation->annee }}</td>
-                                                <td>{{ $formation->niveau }}</td>
+                                                <td>{{ $formation->niveau->niveau ?? 'N/A' }}</td>
                                                 <td>{{ $formation->type_formation }}</td>
                                                 <td>{{ $formation->creneau }}</td>
                                                 <td class="text-center">
@@ -198,7 +198,7 @@
                             <div class="mb-4">
                                 <h6 class="text-info mb-3">
                                     <i class="fas fa-graduation-cap me-2"></i>
-                                    {{ $filiere->nom_filiere }} - {{ $formation->niveau }} ({{ $formation->annee }})
+                                    {{ $filiere->nom_filiere }} - {{ $formation->niveau->niveau ?? 'N/A' }} ({{ $formation->annee }})
                                 </h6>
                                 <div class="table-responsive">
                                     <table class="table table-sm table-bordered">
@@ -214,7 +214,7 @@
                                         <tbody>
                                             @foreach($formation->groupes as $groupe)
                                                 <tr>
-                                                    <td><strong>{{ $groupe->groupe }}</strong></td>
+                                                    <td><strong>{{ $groupe->nom_groupe }}</strong></td>
                                                     <td class="text-center">
                                                         <span class="badge bg-warning">{{ $groupe->effectif_groupe }}</span>
                                                     </td>

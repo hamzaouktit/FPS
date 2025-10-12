@@ -1,4 +1,6 @@
 <?php
+
+// app/Models/Avancement.php
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,8 +14,8 @@ class Avancement extends Model
 
     protected $fillable = [
         'date_maj',
-        'groupe',
-        'code_module',
+        'groupe_id',
+        'module_id',
         'mode',
         'mle_presentiel',
         'mle_syn',
@@ -77,12 +79,12 @@ class Avancement extends Model
     // Relations
     public function groupe()
     {
-        return $this->belongsTo(Groupe::class, 'groupe', 'groupe');
+        return $this->belongsTo(Groupe::class, 'groupe_id');
     }
 
     public function module()
     {
-        return $this->belongsTo(Module::class, 'code_module', 'code_module');
+        return $this->belongsTo(Module::class, 'module_id');
     }
 
     public function formateurPresentiel()
@@ -97,12 +99,12 @@ class Avancement extends Model
 
     public function formation()
     {
-        return $this->hasOneThrough(Formation::class, Groupe::class, 'groupe', 'id', 'groupe', 'id_formation');
+        return $this->hasOneThrough(Formation::class, Groupe::class, 'id', 'id', 'groupe_id', 'formation_id');
     }
 
     public function etablissement()
     {
-        return $this->hasOneThrough(Etablissement::class, Groupe::class, 'groupe', 'code_efp', 'groupe', 'code_efp');
+        return $this->hasOneThrough(Etablissement::class, Groupe::class, 'id', 'code_efp', 'groupe_id', 'code_efp');
     }
 
     // Scopes pour l'isolation par établissement

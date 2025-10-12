@@ -11,21 +11,17 @@ class Filiere extends Model
 {
     use HasFactory;
 
-    protected $primaryKey = 'code_filiere';
-    protected $keyType = 'string';
-    public $incrementing = false;
-
     protected $fillable = [
         'code_filiere',
         'nom_filiere',
-        'nom_secteur',
+        'secteur_id',
         'code_efp',
     ];
 
     // Relations
     public function secteur()
     {
-        return $this->belongsTo(Secteur::class, 'nom_secteur', 'nom_secteur');
+        return $this->belongsTo(Secteur::class, 'secteur_id');
     }
 
     public function etablissement()
@@ -35,12 +31,12 @@ class Filiere extends Model
 
     public function formations()
     {
-        return $this->hasMany(Formation::class, 'code_filiere', 'code_filiere');
+        return $this->hasMany(Formation::class, 'filiere_id');
     }
 
     public function groupes()
     {
-        return $this->hasManyThrough(Groupe::class, Formation::class, 'code_filiere', 'id_formation', 'code_filiere', 'id');
+        return $this->hasManyThrough(Groupe::class, Formation::class, 'filiere_id', 'formation_id', 'id', 'id');
     }
 
     // Scopes

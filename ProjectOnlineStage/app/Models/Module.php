@@ -11,10 +11,6 @@ class Module extends Model
 {
     use HasFactory;
 
-    protected $primaryKey = 'code_module';
-    protected $keyType = 'string';
-    public $incrementing = false;
-
     protected $fillable = [
         'code_module',
         'nom_module',
@@ -30,23 +26,22 @@ class Module extends Model
 
     public function avancements()
     {
-        return $this->hasMany(Avancement::class, 'code_module', 'code_module');
+        return $this->hasMany(Avancement::class, 'module_id');
     }
 
     public function affectations()
     {
-        return $this->hasMany(Affectation::class, 'code_module', 'code_module');
+        return $this->hasMany(Affectation::class, 'module_id');
     }
 
     public function groupes()
     {
-        return $this->belongsToMany(Groupe::class, 'avancements', 'code_module', 'groupe');
+        return $this->belongsToMany(Groupe::class, 'avancements', 'module_id', 'groupe_id');
     }
 
     public function formateurs()
     {
-        return $this->belongsToMany(Formateur::class, 'avancements', 'code_module', 'mle_presentiel')
-                    ->orWhereColumn('avancements.mle_syn', 'formateurs.mle');
+        return $this->belongsToMany(Formateur::class, 'avancements', 'module_id', 'mle_presentiel', 'id', 'mle');
     }
 
     // Scopes

@@ -68,30 +68,32 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
 
             // 1. Traiter le secteur
             $nomSecteur = trim($row['secteur'] ?? '');
+            $secteur = null;
             if (!empty($nomSecteur)) {
-                Secteur::firstOrCreate(
+                $secteur = Secteur::firstOrCreate(
                     ['nom_secteur' => $nomSecteur, 'code_efp' => $codeEfp]
                 );
             }
 
             // 2. Traiter le niveau
-            $niveau = trim($row['niveau'] ?? '');
-            if (!empty($niveau)) {
-                Niveau::firstOrCreate(
-                    ['niveau' => $niveau, 'code_efp' => $codeEfp]
+            $niveauNom = trim($row['niveau'] ?? '');
+            $niveau = null;
+            if (!empty($niveauNom)) {
+                $niveau = Niveau::firstOrCreate(
+                    ['niveau' => $niveauNom, 'code_efp' => $codeEfp]
                 );
             }
 
             // 3. Traiter la filière
             $codeFiliere = trim($row['code_filiere'] ?? '');
             $nomFiliere = trim($row['filiere'] ?? '');
-            if (!empty($codeFiliere) && !empty($nomFiliere) && !empty($nomSecteur)) {
-                Filiere::firstOrCreate(
-                    ['code_filiere' => $codeFiliere],
+            $filiere = null;
+            if (!empty($codeFiliere) && !empty($nomFiliere) && $secteur) {
+                $filiere = Filiere::firstOrCreate(
+                    ['code_filiere' => $codeFiliere, 'code_efp' => $codeEfp],
                     [
                         'nom_filiere' => $nomFiliere,
-                        'nom_secteur' => $nomSecteur,
-                        'code_efp' => $codeEfp
+                        'secteur_id' => $secteur->id,
                     ]
                 );
             }
@@ -102,13 +104,13 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             $creneau = trim($row['creneau'] ?? '');
 
             $formation = null;
-            if (!empty($codeFiliere) && !empty($niveau)) {
+            if ($filiere && $niveau) {
                 $formation = Formation::firstOrCreate(
                     [
                         'annee' => $annee,
                         'code_efp' => $codeEfp,
-                        'niveau' => $niveau,
-                        'code_filiere' => $codeFiliere
+                        'niveau_id' => $niveau->id,
+                        'filiere_id' => $filiere->id
                     ],
                     [
                         'type_formation' => $typeFormation,
@@ -118,7 +120,7 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             }
 
             // 5. Traiter le groupe
-            $groupe = trim($row['groupe'] ?? '');
+            $nomGroupe = trim($row['groupe'] ?? '');
             $effectifGroupe = intval($row['effectif_groupe'] ?? 0);
             $sousGroupe = trim($row['sous_groupe'] ?? '');
             $statutSousGroupe = trim($row['statut_sous_groupe'] ?? '');
@@ -126,18 +128,18 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             $codeFusion = trim($row['code_fusion'] ?? '');
             $anneeFormation = intval($row['annee_de_formation'] ?? 1);
 
-            if (!empty($groupe) && $formation) {
-                Groupe::firstOrCreate(
-                    ['groupe' => $groupe],
+            $groupe = null;
+            if (!empty($nomGroupe) && $formation) {
+                $groupe = Groupe::firstOrCreate(
+                    ['nom_groupe' => $nomGroupe, 'code_efp' => $codeEfp],
                     [
-                        'id_formation' => $formation->id,
+                        'formation_id' => $formation->id,
                         'effectif_groupe' => $effectifGroupe,
                         'sous_groupe' => $sousGroupe,
                         'statut_sous_groupe' => $statutSousGroupe,
                         'fusion_groupe' => $fusionGroupe,
                         'code_fusion' => $codeFusion,
                         'annee_formation' => $anneeFormation,
-                        'code_efp' => $codeEfp
                     ]
                 );
             }
@@ -147,13 +149,13 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             $nomModule = trim($row['module'] ?? '');
             $regional = trim($row['regional'] ?? '');
 
+            $module = null;
             if (!empty($codeModule) && !empty($nomModule)) {
-                Module::firstOrCreate(
-                    ['code_module' => $codeModule],
+                $module = Module::firstOrCreate(
+                    ['code_module' => $codeModule, 'code_efp' => $codeEfp],
                     [
                         'nom_module' => $nomModule,
                         'regional' => $regional,
-                        'code_efp' => $codeEfp
                     ]
                 );
             }
@@ -185,13 +187,13 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             }
 
             // 8. Traiter l'avancement
-            if (!empty($groupe) && !empty($codeModule)) {
+            if ($groupe && $module) {
                 $dateMaj = $this->parseDate($row['date_maj'] ?? null);
                 $mode = trim($row['mode'] ?? '');
 
                 $avancementData = [
-                    'groupe' => $groupe,
-                    'code_module' => $codeModule
+                    'groupe_id' => $groupe->id,
+                    'module_id' => $module->id
                 ];
 
                 $avancementValues = [

@@ -11,13 +11,9 @@ class Groupe extends Model
 {
     use HasFactory;
 
-    protected $primaryKey = 'groupe';
-    protected $keyType = 'string';
-    public $incrementing = false;
-
     protected $fillable = [
-        'groupe',
-        'id_formation',
+        'nom_groupe',
+        'formation_id',
         'effectif_groupe',
         'sous_groupe',
         'statut_sous_groupe',
@@ -35,7 +31,7 @@ class Groupe extends Model
     // Relations
     public function formation()
     {
-        return $this->belongsTo(Formation::class, 'id_formation');
+        return $this->belongsTo(Formation::class, 'formation_id');
     }
 
     public function etablissement()
@@ -45,33 +41,32 @@ class Groupe extends Model
 
     public function avancements()
     {
-        return $this->hasMany(Avancement::class, 'groupe', 'groupe');
+        return $this->hasMany(Avancement::class, 'groupe_id');
     }
 
     public function affectations()
     {
-        return $this->hasMany(Affectation::class, 'groupe', 'groupe');
+        return $this->hasMany(Affectation::class, 'groupe_id');
     }
 
     public function modules()
     {
-        return $this->belongsToMany(Module::class, 'avancements', 'groupe', 'code_module');
+        return $this->belongsToMany(Module::class, 'avancements', 'groupe_id', 'module_id');
     }
 
     public function formateurs()
     {
-        return $this->belongsToMany(Formateur::class, 'avancements', 'groupe', 'mle_presentiel')
-                    ->orWhereColumn('avancements.mle_syn', 'formateurs.mle');
+        return $this->belongsToMany(Formateur::class, 'avancements', 'groupe_id', 'mle_presentiel', 'id', 'mle');
     }
 
     public function filiere()
     {
-        return $this->hasOneThrough(Filiere::class, Formation::class, 'id', 'code_filiere', 'id_formation', 'code_filiere');
+        return $this->hasOneThrough(Filiere::class, Formation::class, 'id', 'id', 'formation_id', 'filiere_id');
     }
 
     public function niveau()
     {
-        return $this->hasOneThrough(Niveau::class, Formation::class, 'id', 'niveau', 'id_formation', 'niveau');
+        return $this->hasOneThrough(Niveau::class, Formation::class, 'id', 'id', 'formation_id', 'niveau_id');
     }
 
     // Scopes

@@ -2,115 +2,124 @@
 
 @section('title', 'Modifier la Filière')
 
-@section('breadcrumb')
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item">
-            <a href="{{ route('administration.etablissement.dashboard') }}">
-                <i class="fas fa-home"></i> Tableau de bord
-            </a>
-        </li>
-        <li class="breadcrumb-item">
-            <a href="{{ route('administration.etablissement.filieres.index') }}">
-                <i class="fas fa-graduation-cap"></i> Filières
-            </a>
-        </li>
-        <li class="breadcrumb-item active" aria-current="page">
-            <i class="fas fa-edit"></i> Modifier
-        </li>
-    </ol>
-</nav>
-@endsection
-
 @section('content')
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow-sm">
-            <div class="card-header bg-warning text-dark">
-                <h4 class="mb-0">
-                    <i class="fas fa-edit me-2"></i>
-                    Modifier la Filière : {{ $filiere->nom_filiere }}
-                </h4>
-            </div>
+<div class="container-fluid px-4 py-4">
+    <!-- En-tête avec fil d'Ariane -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{{ route('administration.etablissement.dashboard') }}">Dashboard</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{{ route('administration.etablissement.filieres.index') }}">Filières</a>
+            </li>
+            <li class="breadcrumb-item active">Modifier {{ $filiere->nom_filiere }}</li>
+        </ol>
+    </nav>
 
-            <div class="card-body">
-                <form action="{{ route('administration.etablissement.filieres.update', $filiere->code_filiere) }}" method="POST">
-                    @csrf
-                    @method('PUT')
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-edit"></i> Modifier la Filière</h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ route('administration.etablissement.filieres.update', $filiere->code_filiere) }}" method="POST">
+                        @csrf
+                        @method('PUT')
 
-                    <div class="mb-4">
-                        <label for="code_filiere" class="form-label">
-                            <i class="fas fa-hashtag me-1"></i>
-                            Code de la Filière <span class="text-danger">*</span>
-                        </label>
-                        <input type="text" 
-                               class="form-control @error('code_filiere') is-invalid @enderror" 
-                               id="code_filiere" 
-                               name="code_filiere" 
-                               value="{{ old('code_filiere', $filiere->code_filiere) }}"
-                               required>
-                        @error('code_filiere')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
+                        <!-- Code Filière -->
+                        <div class="mb-3">
+                            <label for="code_filiere" class="form-label">
+                                Code de la Filière <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control @error('code_filiere') is-invalid @enderror" 
+                                   id="code_filiere" 
+                                   name="code_filiere" 
+                                   value="{{ old('code_filiere', $filiere->code_filiere) }}" 
+                                   required
+                                   placeholder="Ex: INFO-2024">
+                            @error('code_filiere')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <div class="form-text">Code unique pour identifier la filière</div>
+                        </div>
 
-                    <div class="mb-4">
-                        <label for="nom_filiere" class="form-label">
-                            <i class="fas fa-graduation-cap me-1"></i>
-                            Nom de la Filière <span class="text-danger">*</span>
-                        </label>
-                        <input type="text" 
-                               class="form-control @error('nom_filiere') is-invalid @enderror" 
-                               id="nom_filiere" 
-                               name="nom_filiere" 
-                               value="{{ old('nom_filiere', $filiere->nom_filiere) }}"
-                               required>
-                        @error('nom_filiere')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
+                        <!-- Nom Filière -->
+                        <div class="mb-3">
+                            <label for="nom_filiere" class="form-label">
+                                Nom de la Filière <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control @error('nom_filiere') is-invalid @enderror" 
+                                   id="nom_filiere" 
+                                   name="nom_filiere" 
+                                   value="{{ old('nom_filiere', $filiere->nom_filiere) }}" 
+                                   required
+                                   placeholder="Ex: Développement Informatique">
+                            @error('nom_filiere')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
 
-                    <div class="mb-4">
-                        <label for="secteur_id" class="form-label">
-                            <i class="fas fa-layer-group me-1"></i>
-                            Secteur <span class="text-danger">*</span>
-                        </label>
-                        <select class="form-select @error('secteur_id') is-invalid @enderror" 
-                                id="secteur_id" 
-                                name="secteur_id"
-                                required>
-                            <option value="">-- Sélectionner un secteur --</option>
-                            @foreach($secteurs as $secteur)
-                                <option value="{{ $secteur->id }}" 
-                                    {{ old('secteur_id', $filiere->secteur_id) == $secteur->id ? 'selected' : '' }}>
-                                    {{ $secteur->nom_secteur }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('secteur_id')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
+                        <!-- Secteur -->
+                        <div class="mb-4">
+                            <label for="secteur_id" class="form-label">
+                                Secteur <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select @error('secteur_id') is-invalid @enderror" 
+                                    id="secteur_id" 
+                                    name="secteur_id" 
+                                    required>
+                                <option value="">-- Sélectionner un secteur --</option>
+                                @foreach($secteurs as $secteur)
+                                    <option value="{{ $secteur->id }}" 
+                                            {{ old('secteur_id', $filiere->secteur_id) == $secteur->id ? 'selected' : '' }}>
+                                        {{ $secteur->nom_secteur }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('secteur_id')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
 
-                    @if($filiere->formations()->count() > 0)
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Attention :</strong> Cette filière contient {{ $filiere->formations()->count() }} formation(s). 
-                        Les modifications peuvent impacter les données existantes.
-                    </div>
-                    @endif
+                        <!-- Informations sur les relations -->
+                        @if($filiere->formations->count() > 0)
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Attention :</strong> Cette filière est associée à 
+                                {{ $filiere->formations->count() }} formation(s). 
+                                La modification peut avoir un impact sur ces formations.
+                            </div>
+                        @endif
 
-                    <div class="d-flex justify-content-between mt-4">
-                        <a href="{{ route('administration.etablissement.filieres.index') }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left me-1"></i>
-                            Retour
-                        </a>
-                        <button type="submit" class="btn btn-warning">
-                            <i class="fas fa-save me-1"></i>
-                            Mettre à jour
-                        </button>
-                    </div>
-                </form>
+                        <!-- Informations -->
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Information :</strong> Les champs marqués d'une étoile 
+                            <span class="text-danger">*</span> sont obligatoires.
+                        </div>
+
+                        <!-- Boutons d'action -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ route('administration.etablissement.filieres.index') }}" 
+                               class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Retour
+                            </a>
+                            <div>
+                                <a href="{{ route('administration.etablissement.filieres.show', $filiere->code_filiere) }}" 
+                                   class="btn btn-info me-2">
+                                    <i class="fas fa-eye"></i> Voir détails
+                                </a>
+                                <button type="submit" class="btn btn-warning">
+                                    <i class="fas fa-save"></i> Enregistrer les modifications
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>

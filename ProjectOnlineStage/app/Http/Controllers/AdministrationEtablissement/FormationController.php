@@ -4,274 +4,285 @@ namespace App\Http\Controllers\AdministrationEtablissement;
 
 use App\Http\Controllers\Controller;
 use App\Models\Formation;
-use App\Models\Niveau;
-use App\Models\Filiere;
+use App\Models\Etablissement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 
 class FormationController extends Controller
 {
     /**
-     * Display a listing of the formations.
+     * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
-        
-        // Vérifier que l'utilisateur est bien un directeur d'établissement
-        if ($user->role !== 'directeur_etablissement' || !$user->etablissement) {
-            return redirect()->route('login')->with('error', 'Accès non autorisé.');
+        $etablissement = $user->etablissement;
+
+        if (!$etablissement) {
+            return redirect()->route('administration.etablissement.dashboard')
+                ->with('error', 'Aucun établissement associé à votre compte.');
         }
 
-        $code_efp = $user->etablissement->code_efp;
+        // Récupérer les formations avec pagination et filtres
+        $query = Formation::where('code_efp', $etablissement->code_efp);
 
-        // Récupérer les formations de l'établissement avec leurs relations
-        $formations = Formation::forEtablissement($code_efp)
-            ->with(['niveau', 'filiere.secteur', 'etablissement', 'groupes'])
-            ->orderBy('annee', 'desc')
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
+        // Filtre par type
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
 
-        return view('administrationetablissement.formations.index', compact('formations'));
+        // Filtre par mode
+        if ($request->filled('mode')) {
+            $query->where('mode', $request->mode);
+        }
+
+        // Filtre par créneau
+        if ($request->filled('creneau')) {
+            $query->where('creneau', $request->creneau);
+        }
+
+        // Recherche
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('type', 'like', "%{$search}%")
+                  ->orWhere('mode', 'like', "%{$search}%")
+                  ->orWhere('creneau', 'like', "%{$search}%");
+            });
+        }
+
+        $formations = $query->orderBy('created_at', 'desc')->paginate(15);
+
+        // Statistiques
+        $stats = [
+            'total' => Formation::where('code_efp', $etablissement->code_efp)->count(),
+            'diplomante' => Formation::where('code_efp', $etablissement->code_efp)->where('type', 'Diplômante')->count(),
+            'qualifiante' => Formation::where('code_efp', $etablissement->code_efp)->where('type', 'Qualifiante')->count(),
+            'pp' => Formation::where('code_efp', $etablissement->code_efp)->where('type', 'PP')->count(),
+        ];
+
+        return view('administrationetablissement.formations.index', compact('formations', 'stats', 'etablissement'));
     }
 
     /**
-     * Show the form for creating a new formation.
+     * Show the form for creating a new resource.
      */
     public function create()
     {
         $user = Auth::user();
-        
-        if ($user->role !== 'directeur_etablissement' || !$user->etablissement) {
-            return redirect()->route('login')->with('error', 'Accès non autorisé.');
+        $etablissement = $user->etablissement;
+
+        if (!$etablissement) {
+            return redirect()->route('administration.etablissement.dashboard')
+                ->with('error', 'Aucun établissement associé à votre compte.');
         }
 
-        $code_efp = $user->etablissement->code_efp;
-
-        // Récupérer les niveaux et filières de l'établissement
-        $niveaux = Niveau::forEtablissement($code_efp)->orderBy('niveau')->get();
-        $filieres = Filiere::forEtablissement($code_efp)
-            ->with('secteur')
-            ->orderBy('nom_filiere')
-            ->get();
-
-        return view('administrationetablissement.formations.create', compact('niveaux', 'filieres'));
+        return view('administrationetablissement.formations.create', compact('etablissement'));
     }
 
     /**
-     * Store a newly created formation in storage.
+     * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
         $user = Auth::user();
-        
-        if ($user->role !== 'directeur_etablissement' || !$user->etablissement) {
-            return redirect()->route('login')->with('error', 'Accès non autorisé.');
+        $etablissement = $user->etablissement;
+
+        if (!$etablissement) {
+            return redirect()->route('administration.etablissement.dashboard')
+                ->with('error', 'Aucun établissement associé à votre compte.');
         }
 
-        $code_efp = $user->etablissement->code_efp;
-
-        $validated = $request->validate([
-            'annee' => 'required|integer|min:2000|max:2100',
-            'niveau_id' => 'required|exists:niveaux,id',
-            'filiere_id' => 'required|exists:filieres,id',
-            'type_formation' => 'nullable|string|max:255',
-            'creneau' => 'nullable|string|max:255',
+        $validator = Validator::make($request->all(), [
+            'type' => 'required|in:Diplômante,Qualifiante,PP',
+            'mode' => 'required|in:Résidentiel,Alterné',
+            'creneau' => 'required|in:CDJ,CDS',
         ], [
-            'annee.required' => 'L\'année est obligatoire.',
-            'annee.integer' => 'L\'année doit être un nombre entier.',
-            'annee.min' => 'L\'année doit être supérieure ou égale à 2000.',
-            'annee.max' => 'L\'année doit être inférieure ou égale à 2100.',
-            'niveau_id.required' => 'Le niveau est obligatoire.',
-            'niveau_id.exists' => 'Le niveau sélectionné n\'existe pas.',
-            'filiere_id.required' => 'La filière est obligatoire.',
-            'filiere_id.exists' => 'La filière sélectionnée n\'existe pas.',
+            'type.required' => 'Le type de formation est obligatoire.',
+            'type.in' => 'Le type doit être: Diplômante, Qualifiante ou PP.',
+            'mode.required' => 'Le mode de formation est obligatoire.',
+            'mode.in' => 'Le mode doit être: Résidentiel ou Alterné.',
+            'creneau.required' => 'Le créneau est obligatoire.',
+            'creneau.in' => 'Le créneau doit être: CDJ ou CDS.',
         ]);
 
-        // Vérifier que le niveau et la filière appartiennent à l'établissement
-        $niveau = Niveau::forEtablissement($code_efp)->find($validated['niveau_id']);
-        $filiere = Filiere::forEtablissement($code_efp)->find($validated['filiere_id']);
-
-        if (!$niveau || !$filiere) {
-            return back()->with('error', 'Le niveau ou la filière sélectionné n\'appartient pas à votre établissement.')
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
                 ->withInput();
         }
 
-        // Vérifier si une formation similaire existe déjà
-        $existingFormation = Formation::forEtablissement($code_efp)
-            ->where('annee', $validated['annee'])
-            ->where('niveau_id', $validated['niveau_id'])
-            ->where('filiere_id', $validated['filiere_id'])
-            ->where('type_formation', $validated['type_formation'])
-            ->where('creneau', $validated['creneau'])
-            ->first();
+        // Vérifier si une formation identique existe déjà
+        $exists = Formation::where('code_efp', $etablissement->code_efp)
+            ->where('type', $request->type)
+            ->where('mode', $request->mode)
+            ->where('creneau', $request->creneau)
+            ->exists();
 
-        if ($existingFormation) {
-            return back()->with('warning', 'Une formation identique existe déjà.')
+        if ($exists) {
+            return redirect()->back()
+                ->with('error', 'Cette combinaison de formation existe déjà.')
                 ->withInput();
         }
 
-        // Ajouter automatiquement le code_efp
-        $validated['code_efp'] = $code_efp;
-
-        Formation::create($validated);
+        Formation::create([
+            'type' => $request->type,
+            'mode' => $request->mode,
+            'creneau' => $request->creneau,
+            'code_efp' => $etablissement->code_efp,
+        ]);
 
         return redirect()->route('administration.etablissement.formations.index')
             ->with('success', 'Formation créée avec succès.');
     }
 
     /**
-     * Display the specified formation.
+     * Display the specified resource.
      */
     public function show($id)
     {
         $user = Auth::user();
-        
-        if ($user->role !== 'directeur_etablissement' || !$user->etablissement) {
-            return redirect()->route('login')->with('error', 'Accès non autorisé.');
+        $etablissement = $user->etablissement;
+
+        if (!$etablissement) {
+            return redirect()->route('administration.etablissement.dashboard')
+                ->with('error', 'Aucun établissement associé à votre compte.');
         }
 
-        $code_efp = $user->etablissement->code_efp;
+        $formation = Formation::where('id', $id)
+            ->where('code_efp', $etablissement->code_efp)
+            ->firstOrFail();
 
-        // Récupérer la formation avec toutes ses relations
-        $formation = Formation::forEtablissement($code_efp)
-            ->with([
-                'niveau',
-                'filiere.secteur',
-                'etablissement',
-                'groupes.avancements.module',
-                'groupes.avancements.formateurPresentiel',
-                'groupes.avancements.formateurSynchrone',
-                'groupes.affectations.formateur',
-                'groupes.affectations.module'
-            ])
-            ->findOrFail($id);
+        // Statistiques des groupes liés
+        $groupes = $formation->groupes()
+            ->with(['filiere.secteur', 'filiere.niveau'])
+            ->get();
 
-        // Récupérer tous les modules liés via affectations ET avancements
-        $modulesFromAffectations = $formation->groupes->flatMap(function($groupe) {
-            return $groupe->affectations->pluck('module')->filter();
-        });
-
-        $modulesFromAvancements = $formation->groupes->flatMap(function($groupe) {
-            return $groupe->avancements->pluck('module')->filter();
-        });
-
-        $modules = $modulesFromAffectations->merge($modulesFromAvancements)->unique('id');
-
-        // Récupérer tous les formateurs liés via affectations ET avancements
-        $formateursFromAffectations = $formation->groupes->flatMap(function($groupe) {
-            return $groupe->affectations->pluck('formateur')->filter();
-        });
-
-        $formateursFromAvancements = $formation->groupes->flatMap(function($groupe) {
-            $formateursPresentiel = $groupe->avancements->pluck('formateurPresentiel')->filter();
-            $formateursSynchrone = $groupe->avancements->pluck('formateurSynchrone')->filter();
-            return $formateursPresentiel->merge($formateursSynchrone);
-        });
-
-        $formateurs = $formateursFromAffectations->merge($formateursFromAvancements)->unique('mle')->filter();
-
-        // Statistiques
         $stats = [
-            'total_groupes' => $formation->groupes->count(),
-            'total_stagiaires' => $formation->groupes->sum('effectif_groupe'),
-            'total_modules' => $modules->count(),
-            'total_formateurs' => $formateurs->count(),
+            'total_groupes' => $groupes->count(),
+            'effectif_total' => $groupes->sum('effectif'),
+            'groupes_actifs' => $groupes->where('statut', 'Actif')->count(),
+            'groupes_inactifs' => $groupes->where('statut', 'Inactif')->count(),
         ];
 
-        return view('administrationetablissement.formations.show', compact('formation', 'modules', 'formateurs', 'stats'));
+        return view('administrationetablissement.formations.show', compact('formation', 'groupes', 'stats', 'etablissement'));
     }
 
     /**
-     * Show the form for editing the specified formation.
+     * Show the form for editing the specified resource.
      */
     public function edit($id)
     {
         $user = Auth::user();
-        
-        if ($user->role !== 'directeur_etablissement' || !$user->etablissement) {
-            return redirect()->route('login')->with('error', 'Accès non autorisé.');
+        $etablissement = $user->etablissement;
+
+        if (!$etablissement) {
+            return redirect()->route('administration.etablissement.dashboard')
+                ->with('error', 'Aucun établissement associé à votre compte.');
         }
 
-        $code_efp = $user->etablissement->code_efp;
+        $formation = Formation::where('id', $id)
+            ->where('code_efp', $etablissement->code_efp)
+            ->firstOrFail();
 
-        $formation = Formation::forEtablissement($code_efp)->findOrFail($id);
-
-        $niveaux = Niveau::forEtablissement($code_efp)->orderBy('niveau')->get();
-        $filieres = Filiere::forEtablissement($code_efp)
-            ->with('secteur')
-            ->orderBy('nom_filiere')
-            ->get();
-
-        return view('administrationetablissement.formations.edit', compact('formation', 'niveaux', 'filieres'));
+        return view('administrationetablissement.formations.edit', compact('formation', 'etablissement'));
     }
 
     /**
-     * Update the specified formation in storage.
+     * Update the specified resource in storage.
      */
     public function update(Request $request, $id)
     {
         $user = Auth::user();
-        
-        if ($user->role !== 'directeur_etablissement' || !$user->etablissement) {
-            return redirect()->route('login')->with('error', 'Accès non autorisé.');
+        $etablissement = $user->etablissement;
+
+        if (!$etablissement) {
+            return redirect()->route('administration.etablissement.dashboard')
+                ->with('error', 'Aucun établissement associé à votre compte.');
         }
 
-        $code_efp = $user->etablissement->code_efp;
+        $formation = Formation::where('id', $id)
+            ->where('code_efp', $etablissement->code_efp)
+            ->firstOrFail();
 
-        $formation = Formation::forEtablissement($code_efp)->findOrFail($id);
-
-        $validated = $request->validate([
-            'annee' => 'required|integer|min:2000|max:2100',
-            'niveau_id' => 'required|exists:niveaux,id',
-            'filiere_id' => 'required|exists:filieres,id',
-            'type_formation' => 'nullable|string|max:255',
-            'creneau' => 'nullable|string|max:255',
+        $validator = Validator::make($request->all(), [
+            'type' => 'required|in:Diplômante,Qualifiante,PP',
+            'mode' => 'required|in:Résidentiel,Alterné',
+            'creneau' => 'required|in:CDJ,CDS',
         ], [
-            'annee.required' => 'L\'année est obligatoire.',
-            'annee.integer' => 'L\'année doit être un nombre entier.',
-            'niveau_id.required' => 'Le niveau est obligatoire.',
-            'filiere_id.required' => 'La filière est obligatoire.',
+            'type.required' => 'Le type de formation est obligatoire.',
+            'type.in' => 'Le type doit être: Diplômante, Qualifiante ou PP.',
+            'mode.required' => 'Le mode de formation est obligatoire.',
+            'mode.in' => 'Le mode doit être: Résidentiel ou Alterné.',
+            'creneau.required' => 'Le créneau est obligatoire.',
+            'creneau.in' => 'Le créneau doit être: CDJ ou CDS.',
         ]);
 
-        // Vérifier que le niveau et la filière appartiennent à l'établissement
-        $niveau = Niveau::forEtablissement($code_efp)->find($validated['niveau_id']);
-        $filiere = Filiere::forEtablissement($code_efp)->find($validated['filiere_id']);
-
-        if (!$niveau || !$filiere) {
-            return back()->with('error', 'Le niveau ou la filière sélectionné n\'appartient pas à votre établissement.')
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
                 ->withInput();
         }
 
-        $formation->update($validated);
+        // Vérifier si une formation identique existe (sauf celle en cours de modification)
+        $exists = Formation::where('code_efp', $etablissement->code_efp)
+            ->where('type', $request->type)
+            ->where('mode', $request->mode)
+            ->where('creneau', $request->creneau)
+            ->where('id', '!=', $id)
+            ->exists();
+
+        if ($exists) {
+            return redirect()->back()
+                ->with('error', 'Cette combinaison de formation existe déjà.')
+                ->withInput();
+        }
+
+        $formation->update([
+            'type' => $request->type,
+            'mode' => $request->mode,
+            'creneau' => $request->creneau,
+        ]);
 
         return redirect()->route('administration.etablissement.formations.index')
-            ->with('success', 'Formation mise à jour avec succès.');
+            ->with('success', 'Formation modifiée avec succès.');
     }
 
     /**
-     * Remove the specified formation from storage.
+     * Remove the specified resource from storage.
      */
     public function destroy($id)
     {
         $user = Auth::user();
-        
-        if ($user->role !== 'directeur_etablissement' || !$user->etablissement) {
-            return redirect()->route('login')->with('error', 'Accès non autorisé.');
+        $etablissement = $user->etablissement;
+
+        if (!$etablissement) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Aucun établissement associé à votre compte.'
+            ], 403);
         }
 
-        $code_efp = $user->etablissement->code_efp;
+        $formation = Formation::where('id', $id)
+            ->where('code_efp', $etablissement->code_efp)
+            ->firstOrFail();
 
-        $formation = Formation::forEtablissement($code_efp)->findOrFail($id);
+        // Vérifier si la formation est utilisée par des groupes
+        $groupesCount = $formation->groupes()->count();
 
-        // Vérifier s'il y a des groupes associés
-        if ($formation->groupes()->count() > 0) {
-            return back()->with('error', 'Impossible de supprimer cette formation car elle contient des groupes.');
+        if ($groupesCount > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => "Impossible de supprimer cette formation car elle est utilisée par {$groupesCount} groupe(s)."
+            ], 400);
         }
 
         $formation->delete();
 
-        return redirect()->route('administration.etablissement.formations.index')
-            ->with('success', 'Formation supprimée avec succès.');
+        return response()->json([
+            'success' => true,
+            'message' => 'Formation supprimée avec succès.'
+        ]);
     }
 }

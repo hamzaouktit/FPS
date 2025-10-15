@@ -29,12 +29,12 @@
             <div class="card-header bg-warning text-dark">
                 <h4 class="mb-0">
                     <i class="fas fa-edit me-2"></i>
-                    Modifier le Niveau : {{ $niveauData->niveau }}
+                    Modifier le Niveau : {{ $niveauData->nom }}
                 </h4>
             </div>
 
             <div class="card-body">
-                <form action="{{ route('administration.etablissement.niveaux.update', $niveauData->niveau) }}" method="POST">
+                <form action="{{ route('administration.etablissement.niveaux.update', $niveauData->code) }}" method="POST">
                     @csrf
                     @method('PUT')
 
@@ -47,51 +47,55 @@
                                class="form-control @error('niveau') is-invalid @enderror" 
                                id="niveau" 
                                name="niveau" 
-                               value="{{ old('niveau', $niveauData->niveau) }}"
+                               value="{{ old('niveau', $niveauData->nom) }}"
                                required>
                         @error('niveau')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                         <small class="form-text text-muted">
                             <i class="fas fa-info-circle me-1"></i>
-                            Exemples : Technicien, Technicien Spécialisé, Qualification, Spécialisation
+                            Code actuel : <strong>{{ $niveauData->code }}</strong> (sera mis à jour automatiquement)
                         </small>
                     </div>
 
-                    @if($niveauData->formations()->count() > 0)
+                    @if($niveauData->formations_count > 0 || $niveauData->groupes_count > 0)
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Attention :</strong> Ce niveau contient {{ $niveauData->formations()->count() }} formation(s). 
-                        Les modifications peuvent impacter les données existantes.
+                        <strong>Attention :</strong> Ce niveau contient des données dans votre établissement. 
+                        Les modifications peuvent impacter :
+                        <ul class="mb-0 mt-2">
+                            <li>{{ $niveauData->formations_count }} filière(s)</li>
+                            <li>{{ $niveauData->groupes_count }} groupe(s)</li>
+                        </ul>
                     </div>
                     @endif
 
-                    <!-- Statistiques du niveau -->
+                    <!-- Statistiques du niveau dans votre établissement -->
                     <div class="card bg-light mb-4">
                         <div class="card-body">
                             <h6 class="card-title">
                                 <i class="fas fa-chart-bar text-primary me-2"></i>
-                                Statistiques actuelles :
+                                Statistiques dans votre établissement :
                             </h6>
                             <div class="row text-center">
                                 <div class="col-4">
                                     <div class="p-2">
-                                        <i class="fas fa-chalkboard-teacher fa-2x text-primary mb-2"></i>
-                                        <h5>{{ $niveauData->formations()->count() }}</h5>
-                                        <small class="text-muted">Formations</small>
+                                        <i class="fas fa-graduation-cap fa-2x text-primary mb-2"></i>
+                                        <h5>{{ $niveauData->formations_count }}</h5>
+                                        <small class="text-muted">Filières</small>
                                     </div>
                                 </div>
                                 <div class="col-4">
                                     <div class="p-2">
                                         <i class="fas fa-users fa-2x text-success mb-2"></i>
-                                        <h5>{{ $niveauData->groupes()->count() }}</h5>
+                                        <h5>{{ $niveauData->groupes_count }}</h5>
                                         <small class="text-muted">Groupes</small>
                                     </div>
                                 </div>
                                 <div class="col-4">
                                     <div class="p-2">
                                         <i class="fas fa-user-graduate fa-2x text-info mb-2"></i>
-                                        <h5>{{ $niveauData->groupes()->sum('effectif_groupe') }}</h5>
+                                        <h5>{{ $niveauData->effectif_total ?? 0 }}</h5>
                                         <small class="text-muted">Stagiaires</small>
                                     </div>
                                 </div>

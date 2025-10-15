@@ -1,134 +1,92 @@
 <?php
 
-// app/Models/Avancement.php
+// ========================================
+// 2. Model Avancement - Ajout relation établissement
+// ========================================
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Builder;
 
 class Avancement extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $fillable = [
-        'date_maj',
-        'groupe_id',
-        'module_id',
-        'mode',
-        'mle_presentiel',
-        'mle_syn',
-        'mhp_s1_drif',
-        'mhsyn_s1_drif',
-        'mhasyn_s1_drif',
-        'mh_totale_s1_drif',
-        'mhp_s2_drif',
-        'mhsyn_s2_drif',
-        'mhasyn_s2_drif',
-        'mh_totale_s2_drif',
-        'mhp_totale_drif',
-        'mhsyn_totale_drif',
-        'mhasyn_totale_drif',
-        'mh_totale_drif',
-        'mh_affectee_presentiel',
-        'mh_affectee_sync',
-        'mh_affectee_globale',
+        'affectation_id',
+        'code_efp',
         'mh_realisee_presentiel',
         'mh_realisee_sync',
         'mh_realisee_globale',
         'taux_realisation_presentiel',
         'taux_realisation_syn',
-        'taux_realisation_global',
-        'moy_absence',
+        'taux_realisation_globale',
+        'moyenne_absence',
         'nb_cc',
         'seance_efm',
         'validation_efm',
         'classe_teams',
-        'module_pie',
-        'efp_pie',
+        'date_maj'
     ];
 
     protected $casts = [
-        'date_maj' => 'datetime',
-        'mhp_s1_drif' => 'decimal:2',
-        'mhsyn_s1_drif' => 'decimal:2',
-        'mhasyn_s1_drif' => 'decimal:2',
-        'mh_totale_s1_drif' => 'decimal:2',
-        'mhp_s2_drif' => 'decimal:2',
-        'mhsyn_s2_drif' => 'decimal:2',
-        'mhasyn_s2_drif' => 'decimal:2',
-        'mh_totale_s2_drif' => 'decimal:2',
-        'mhp_totale_drif' => 'decimal:2',
-        'mhsyn_totale_drif' => 'decimal:2',
-        'mhasyn_totale_drif' => 'decimal:2',
-        'mh_totale_drif' => 'decimal:2',
-        'mh_affectee_presentiel' => 'decimal:2',
-        'mh_affectee_sync' => 'decimal:2',
-        'mh_affectee_globale' => 'decimal:2',
         'mh_realisee_presentiel' => 'decimal:2',
         'mh_realisee_sync' => 'decimal:2',
         'mh_realisee_globale' => 'decimal:2',
         'taux_realisation_presentiel' => 'decimal:2',
         'taux_realisation_syn' => 'decimal:2',
-        'taux_realisation_global' => 'decimal:2',
-        'moy_absence' => 'decimal:2',
+        'taux_realisation_globale' => 'decimal:2',
+        'moyenne_absence' => 'decimal:2',
         'nb_cc' => 'integer',
+        'date_maj' => 'date'
     ];
 
     // Relations
-    public function groupe()
-    {
-        return $this->belongsTo(Groupe::class, 'groupe_id');
-    }
-
-    public function module()
-    {
-        return $this->belongsTo(Module::class, 'module_id');
-    }
-
-    public function formateurPresentiel()
-    {
-        return $this->belongsTo(Formateur::class, 'mle_presentiel', 'mle');
-    }
-
-    public function formateurSynchrone()
-    {
-        return $this->belongsTo(Formateur::class, 'mle_syn', 'mle');
-    }
-
-    public function formation()
-    {
-        return $this->hasOneThrough(Formation::class, Groupe::class, 'id', 'id', 'groupe_id', 'formation_id');
-    }
-
     public function etablissement()
     {
-        return $this->hasOneThrough(Etablissement::class, Groupe::class, 'id', 'code_efp', 'groupe_id', 'code_efp');
+        return $this->belongsTo(Etablissement::class, 'code_efp', 'code_efp');
     }
 
-    // Scopes pour l'isolation par établissement
-    public function scopeForEtablissement(Builder $query, $code_efp)
+    public function affectation()
     {
-        return $query->whereHas('groupe', function ($q) use ($code_efp) {
-            $q->where('code_efp', $code_efp);
+        return $this->belongsTo(Affectation::class);
+    }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($avancement) {
+            $affectation = $avancement->affectation;
+
+            $avancement->mh_realisee_globale = 
+                $avancement->mh_realisee_presentiel + 
+                $avancement->mh_realisee_sync;
+
+            if ($affectation->mh_affectee_presentiel > 0) {
+                $avancement->taux_realisation_presentiel = 
+                    ($avancement->mh_realisee_presentiel / $affectation->mh_affectee_presentiel) * 100;
+            }
+
+            if ($affectation->mh_affectee_sync > 0) {
+                $avancement->taux_realisation_syn = 
+                    ($avancement->mh_realisee_sync / $affectation->mh_affectee_sync) * 100;
+            }
+
+            if ($affectation->mh_affectee_globale > 0) {
+                $avancement->taux_realisation_globale = 
+                    ($avancement->mh_realisee_globale / $affectation->mh_affectee_globale) * 100;
+            }
         });
     }
 
-    public function scopeForComplexe(Builder $query, $complexe_id)
+    public function scopeValide($query)
     {
-        return $query->whereHas('groupe.etablissement', function ($q) use ($complexe_id) {
-            $q->where('complexe_id', $complexe_id);
-        });
+        return $query->where('validation_efm', 'oui');
     }
 
-    public function scopeForUser(Builder $query, $user)
+    public function scopeAvecEfm($query)
     {
-        if ($user->role === 'directeur_etablissement') {
-            return $query->forEtablissement($user->etablissement->code_efp);
-        } elseif ($user->role === 'directeur_complexe') {
-            return $query->forComplexe($user->complexe->id);
-        }
-        return $query;
+        return $query->where('seance_efm', 'Oui');
     }
 }

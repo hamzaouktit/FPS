@@ -1,21 +1,31 @@
 <?php
 
-// app/Models/Module.php
+
+// ========================================
+// 7. Model Module - Ajout relation établissement
+// ========================================
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
 
 class Module extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'code_module',
-        'nom_module',
+        'code',
+        'nom',
         'regional',
-        'code_efp',
+        'module_pie',
+        'efp_pie',
+        'filiere_id',
+        'code_efp'
+    ];
+
+    protected $casts = [
+        'module_pie' => 'boolean'
     ];
 
     // Relations
@@ -24,46 +34,28 @@ class Module extends Model
         return $this->belongsTo(Etablissement::class, 'code_efp', 'code_efp');
     }
 
-    public function avancements()
+    public function filiere()
     {
-        return $this->hasMany(Avancement::class, 'module_id');
+        return $this->belongsTo(Filiere::class);
     }
 
     public function affectations()
     {
-        return $this->hasMany(Affectation::class, 'module_id');
-    }
-
-    public function groupes()
-    {
-        return $this->belongsToMany(Groupe::class, 'avancements', 'module_id', 'groupe_id');
+        return $this->hasMany(Affectation::class);
     }
 
     public function formateurs()
     {
-        return $this->belongsToMany(Formateur::class, 'avancements', 'module_id', 'mle_presentiel', 'id', 'mle');
+        return $this->belongsToMany(Formateur::class, 'formateur_module');
     }
 
-    // Scopes
-    public function scopeForEtablissement(Builder $query, $code_efp)
+    public function scopeRegional($query)
     {
-        return $query->where('code_efp', $code_efp);
+        return $query->where('regional', 'O');
     }
 
-    public function scopeForComplexe(Builder $query, $complexe_id)
+    public function scopePie($query)
     {
-        return $query->whereHas('etablissement', function ($q) use ($complexe_id) {
-            $q->where('complexe_id', $complexe_id);
-        });
-    }
-
-    public function scopeForUser(Builder $query, $user)
-    {
-        if ($user->role === 'directeur_etablissement') {
-            return $query->forEtablissement($user->etablissement->code_efp);
-        } elseif ($user->role === 'directeur_complexe') {
-            return $query->forComplexe($user->complexe->id);
-        }
-        return $query;
+        return $query->where('module_pie', true);
     }
 }

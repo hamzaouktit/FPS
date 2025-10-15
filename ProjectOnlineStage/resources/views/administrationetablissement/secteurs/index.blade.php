@@ -11,7 +11,7 @@
                 <div>
                     <h2 class="mb-1">Gestion des Secteurs</h2>
                     <p class="text-muted mb-0">
-                        <i class="fas fa-industry me-2"></i>Liste des secteurs de formation
+                        <i class="fas fa-industry me-2"></i>Secteurs de {{ $etablissement->nom_efp }}
                     </p>
                 </div>
                 <div>
@@ -38,9 +38,32 @@
         </div>
     @endif
 
+    <!-- Carte d'information établissement -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm border-start border-info border-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-building fa-3x text-info"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">{{ $etablissement->nom_efp }}</h5>
+                            <p class="text-muted mb-0">
+                                <i class="fas fa-tag me-2"></i>Code: <code>{{ $etablissement->code_efp }}</code>
+                                <span class="mx-2">|</span>
+                                <i class="fas fa-map-marker-alt me-2"></i>{{ $etablissement->ville }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Statistiques -->
     <div class="row mb-4">
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card shadow-sm border-start border-primary border-4">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -55,7 +78,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card shadow-sm border-start border-success border-4">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -70,22 +93,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-warning border-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">Sans Filières</h6>
-                            <h3 class="mb-0">{{ $secteurs->where('filieres_count', 0)->count() }}</h3>
-                        </div>
-                        <div class="text-warning">
-                            <i class="fas fa-exclamation-triangle fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card shadow-sm border-start border-info border-4">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -114,8 +122,8 @@
                         <thead class="table-light">
                             <tr>
                                 <th>#</th>
+                                <th>Code</th>
                                 <th>Nom du Secteur</th>
-                                <th>Établissement</th>
                                 <th class="text-center">Filières</th>
                                 <th>Date de Création</th>
                                 <th class="text-center">Actions</th>
@@ -125,16 +133,9 @@
                             @foreach($secteurs as $index => $secteur)
                                 <tr>
                                     <td>{{ $secteurs->firstItem() + $index }}</td>
+                                    <td><code>{{ $secteur->code }}</code></td>
                                     <td>
-                                        <strong>{{ $secteur->nom_secteur }}</strong>
-                                    </td>
-                                    <td>
-                                        <i class="fas fa-building text-muted me-2"></i>
-                                        {{ $secteur->etablissement->nom_efp }}
-                                        <br>
-                                        <small class="text-muted">
-                                            <code>{{ $secteur->code_efp }}</code>
-                                        </small>
+                                        <strong>{{ $secteur->nom }}</strong>
                                     </td>
                                     <td class="text-center">
                                         @if($secteur->filieres_count > 0)
@@ -164,7 +165,8 @@
                                             <button type="button" 
                                                     class="btn btn-sm btn-danger" 
                                                     onclick="confirmDelete({{ $secteur->id }})" 
-                                                    title="Supprimer">
+                                                    title="Supprimer"
+                                                    @if($secteur->filieres_count > 0) disabled @endif>
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </div>
@@ -191,7 +193,7 @@
                 <div class="text-center py-5">
                     <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
                     <h5 class="text-muted">Aucun secteur trouvé</h5>
-                    <p class="text-muted">Commencez par créer un nouveau secteur</p>
+                    <p class="text-muted">Commencez par créer un nouveau secteur pour votre établissement</p>
                     <a href="{{ route('administration.etablissement.secteurs.create') }}" class="btn btn-primary mt-3">
                         <i class="fas fa-plus me-2"></i>Créer un Secteur
                     </a>
@@ -204,7 +206,7 @@
 @push('scripts')
 <script>
 function confirmDelete(id) {
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce secteur ?')) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce secteur ?\n\nCette action est irréversible.')) {
         document.getElementById('delete-form-' + id).submit();
     }
 }

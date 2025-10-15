@@ -164,7 +164,7 @@
                                 <option value="">Toutes</option>
                                 @foreach($filterOptions['filieres'] as $filiere)
                                     <option value="{{ $filiere->id }}" {{ $filters['filiere'] == $filiere->id ? 'selected' : '' }}>
-                                        {{ $filiere->nom_filiere }}
+                                        {{ $filiere->nom }}
                                     </option>
                                 @endforeach
                             </select>
@@ -175,7 +175,7 @@
                                 <option value="">Tous</option>
                                 @foreach($filterOptions['niveaux'] as $niveau)
                                     <option value="{{ $niveau->id }}" {{ $filters['niveau'] == $niveau->id ? 'selected' : '' }}>
-                                        {{ $niveau->niveau }}
+                                        {{ $niveau->nom }}
                                     </option>
                                 @endforeach
                             </select>
@@ -186,7 +186,7 @@
                                 <option value="">Tous</option>
                                 @foreach($filterOptions['groupes'] as $groupe)
                                     <option value="{{ $groupe->id }}" {{ $filters['groupe'] == $groupe->id ? 'selected' : '' }}>
-                                        {{ $groupe->nom_groupe }}
+                                        {{ $groupe->code }}
                                     </option>
                                 @endforeach
                             </select>
@@ -197,7 +197,7 @@
                                 <option value="">Tous</option>
                                 @foreach($filterOptions['modules'] as $module)
                                     <option value="{{ $module->id }}" {{ $filters['module'] == $module->id ? 'selected' : '' }}>
-                                        {{ Str::limit($module->nom_module, 20) }}
+                                        {{ Str::limit($module->nom, 20) }}
                                     </option>
                                 @endforeach
                             </select>
@@ -208,7 +208,7 @@
                                 <option value="">Tous</option>
                                 @foreach($filterOptions['formateurs'] as $formateur)
                                     <option value="{{ $formateur->mle }}" {{ $filters['formateur'] == $formateur->mle ? 'selected' : '' }}>
-                                        {{ Str::limit($formateur->nom_formateur, 20) }}
+                                        {{ Str::limit($formateur->nom_complet, 20) }}
                                     </option>
                                 @endforeach
                             </select>

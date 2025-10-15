@@ -22,7 +22,7 @@
     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
         <h4 class="mb-0">
             <i class="fas fa-layer-group me-2"></i>
-            Liste des Niveaux
+            Liste des Niveaux de mon Établissement
         </h4>
         <a href="{{ route('administration.etablissement.niveaux.create') }}" class="btn btn-light btn-sm">
             <i class="fas fa-plus-circle me-1"></i>
@@ -34,7 +34,7 @@
         @if($niveaux->isEmpty())
             <div class="alert alert-info text-center">
                 <i class="fas fa-info-circle fa-2x mb-3"></i>
-                <p class="mb-0">Aucun niveau enregistré pour le moment.</p>
+                <p class="mb-0">Aucun niveau enregistré pour votre établissement.</p>
                 <a href="{{ route('administration.etablissement.niveaux.create') }}" class="btn btn-primary mt-3">
                     <i class="fas fa-plus-circle me-1"></i>
                     Ajouter un premier niveau
@@ -45,9 +45,9 @@
                 <table class="table table-hover table-bordered align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th><i class="fas fa-hashtag me-1"></i> ID</th>
+                            <th><i class="fas fa-hashtag me-1"></i> Code</th>
                             <th><i class="fas fa-layer-group me-1"></i> Niveau</th>
-                            <th><i class="fas fa-chalkboard-teacher me-1"></i> Formations</th>
+                            <th><i class="fas fa-graduation-cap me-1"></i> Filières</th>
                             <th><i class="fas fa-users me-1"></i> Groupes</th>
                             <th><i class="fas fa-calendar me-1"></i> Date de création</th>
                             <th class="text-center"><i class="fas fa-cogs me-1"></i> Actions</th>
@@ -57,17 +57,17 @@
                         @foreach($niveaux as $niveau)
                         <tr>
                             <td>
-                                <span class="badge bg-secondary">{{ $niveau->id }}</span>
+                                <span class="badge bg-secondary">{{ $niveau->code }}</span>
                             </td>
                             <td>
                                 <strong>
                                     <i class="fas fa-graduation-cap text-primary me-2"></i>
-                                    {{ $niveau->niveau }}
+                                    {{ $niveau->nom }}
                                 </strong>
                             </td>
                             <td>
                                 <span class="badge bg-info">
-                                    {{ $niveau->formations_count }} formation(s)
+                                    {{ $niveau->filieres_count }} filière(s)
                                 </span>
                             </td>
                             <td>
@@ -81,19 +81,19 @@
                             </td>
                             <td class="text-center">
                                 <div class="btn-group" role="group">
-                                    <a href="{{ route('administration.etablissement.niveaux.show', $niveau->niveau) }}" 
+                                    <a href="{{ route('administration.etablissement.niveaux.show', $niveau->code) }}" 
                                        class="btn btn-sm btn-info" 
                                        title="Voir les détails">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <a href="{{ route('administration.etablissement.niveaux.edit', $niveau->niveau) }}" 
+                                    <a href="{{ route('administration.etablissement.niveaux.edit', $niveau->code) }}" 
                                        class="btn btn-sm btn-warning" 
                                        title="Modifier">
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     <button type="button" 
                                             class="btn btn-sm btn-danger" 
-                                            onclick="confirmDelete('{{ $niveau->niveau }}', '{{ $niveau->niveau }}')"
+                                            onclick="confirmDelete('{{ $niveau->code }}', '{{ $niveau->nom }}')"
                                             title="Supprimer">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -127,7 +127,7 @@
                 <p>Êtes-vous sûr de vouloir supprimer le niveau <strong id="niveauNameToDelete"></strong> ?</p>
                 <div class="alert alert-warning">
                     <i class="fas fa-exclamation-circle me-2"></i>
-                    Cette action est irréversible. Assurez-vous qu'aucune formation n'est liée à ce niveau.
+                    Cette action est irréversible. Assurez-vous qu'aucune donnée n'est liée à ce niveau.
                 </div>
             </div>
             <div class="modal-footer">

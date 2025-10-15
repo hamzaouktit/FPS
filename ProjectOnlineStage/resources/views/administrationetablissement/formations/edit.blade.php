@@ -2,273 +2,261 @@
 
 @section('title', 'Modifier une Formation')
 
-@section('breadcrumb')
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item">
-            <a href="{{ route('administration.etablissement.dashboard') }}">
-                <i class="fas fa-home"></i> Tableau de bord
-            </a>
-        </li>
-        <li class="breadcrumb-item">
-            <a href="{{ route('administration.etablissement.formations.index') }}">
-                <i class="fas fa-graduation-cap"></i> Formations
-            </a>
-        </li>
-        <li class="breadcrumb-item active">
-            <i class="fas fa-edit"></i> Modifier
-        </li>
-    </ol>
-</nav>
-@endsection
-
 @section('content')
-<div class="container-fluid">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <!-- En-tête -->
-            <div class="mb-4">
-                <h2 class="mb-2">
-                    <i class="fas fa-edit text-warning"></i>
-                    Modifier la Formation
-                </h2>
-                <p class="text-muted mb-0">
-                    <i class="fas fa-school me-1"></i>
-                    {{ Auth::user()->etablissement->nom_efp }}
-                </p>
-            </div>
+<div class="container-fluid px-4 py-4">
+    <!-- En-tête avec breadcrumb -->
+    <div class="mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ route('administration.etablissement.dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('administration.etablissement.formations.index') }}">Formations</a></li>
+                <li class="breadcrumb-item active">Modifier</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-2 text-gray-800">Modifier la Formation #{{ $formation->id }}</h1>
+        <p class="text-muted">{{ $etablissement->nom_efp }} ({{ $etablissement->code_efp }})</p>
+    </div>
 
+    <!-- Messages d'erreur -->
+    @if($errors->any())
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <h6 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Erreurs de validation</h6>
+            <ul class="mb-0">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>{{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
+    <div class="row">
+        <div class="col-lg-8">
             <!-- Formulaire -->
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-warning text-dark">
-                    <h5 class="mb-0">
-                        <i class="fas fa-edit me-2"></i>
-                        Informations de la Formation
-                    </h5>
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Informations de la Formation</h6>
                 </div>
-                <div class="card-body p-4">
-                    <form action="{{ route('administration.etablissement.formations.update', $formation->id) }}" method="POST">
+                <div class="card-body">
+                    <form action="{{ route('administration.etablissement.formations.update', $formation->id) }}" method="POST" id="formationForm">
                         @csrf
                         @method('PUT')
 
-                        <div class="row">
-                            <!-- Année -->
-                            <div class="col-md-6 mb-3">
-                                <label for="annee" class="form-label">
-                                    Année <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="fas fa-calendar-alt"></i>
-                                    </span>
-                                    <input type="number" 
-                                           class="form-control @error('annee') is-invalid @enderror" 
-                                           id="annee" 
-                                           name="annee" 
-                                           value="{{ old('annee', $formation->annee) }}"
-                                           min="2000"
-                                           max="2100"
-                                           required>
-                                </div>
-                                @error('annee')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <!-- Niveau -->
-                            <div class="col-md-6 mb-3">
-                                <label for="niveau_id" class="form-label">
-                                    Niveau <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="fas fa-layer-group"></i>
-                                    </span>
-                                    <select class="form-select @error('niveau_id') is-invalid @enderror" 
-                                            id="niveau_id" 
-                                            name="niveau_id" 
-                                            required>
-                                        <option value="">-- Sélectionnez un niveau --</option>
-                                        @foreach($niveaux as $niveau)
-                                            <option value="{{ $niveau->id }}" 
-                                                {{ old('niveau_id', $formation->niveau_id) == $niveau->id ? 'selected' : '' }}>
-                                                {{ $niveau->niveau }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                @error('niveau_id')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
+                        <!-- Type de formation -->
+                        <div class="mb-4">
+                            <label for="type" class="form-label">Type de Formation <span class="text-danger">*</span></label>
+                            <select name="type" id="type" class="form-select @error('type') is-invalid @enderror" required>
+                                <option value="">-- Sélectionnez un type --</option>
+                                <option value="Diplômante" {{ old('type', $formation->type) == 'Diplômante' ? 'selected' : '' }}>Diplômante</option>
+                                <option value="Qualifiante" {{ old('type', $formation->type) == 'Qualifiante' ? 'selected' : '' }}>Qualifiante</option>
+                                <option value="PP" {{ old('type', $formation->type) == 'PP' ? 'selected' : '' }}>PP (Passerelle)</option>
+                            </select>
+                            @error('type')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Type de certification délivrée
                             </div>
                         </div>
 
-                        <div class="row">
-                            <!-- Filière -->
-                            <div class="col-md-12 mb-3">
-                                <label for="filiere_id" class="form-label">
-                                    Filière <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="fas fa-book"></i>
-                                    </span>
-                                    <select class="form-select @error('filiere_id') is-invalid @enderror" 
-                                            id="filiere_id" 
-                                            name="filiere_id" 
-                                            required>
-                                        <option value="">-- Sélectionnez une filière --</option>
-                                        @foreach($filieres as $filiere)
-                                            <option value="{{ $filiere->id }}" 
-                                                {{ old('filiere_id', $formation->filiere_id) == $filiere->id ? 'selected' : '' }}>
-                                                {{ $filiere->nom_filiere }} 
-                                                ({{ $filiere->code_filiere }}) 
-                                                - {{ $filiere->secteur->nom_secteur ?? 'N/A' }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                @error('filiere_id')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
+                        <!-- Mode de formation -->
+                        <div class="mb-4">
+                            <label for="mode" class="form-label">Mode de Formation <span class="text-danger">*</span></label>
+                            <select name="mode" id="mode" class="form-select @error('mode') is-invalid @enderror" required>
+                                <option value="">-- Sélectionnez un mode --</option>
+                                <option value="Résidentiel" {{ old('mode', $formation->mode) == 'Résidentiel' ? 'selected' : '' }}>Résidentiel</option>
+                                <option value="Alterné" {{ old('mode', $formation->mode) == 'Alterné' ? 'selected' : '' }}>Alterné</option>
+                            </select>
+                            @error('mode')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Résidentiel : formation en présentiel continu / Alterné : alternance entreprise/centre
                             </div>
                         </div>
 
-                        <div class="row">
-                            <!-- Type de Formation -->
-                            <div class="col-md-6 mb-3">
-                                <label for="type_formation" class="form-label">
-                                    Type de Formation
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="fas fa-tag"></i>
-                                    </span>
-                                    <select class="form-select @error('type_formation') is-invalid @enderror" 
-                                            id="type_formation" 
-                                            name="type_formation">
-                                        <option value="">-- Sélectionnez un type --</option>
-                                        <option value="Initiale" 
-                                            {{ old('type_formation', $formation->type_formation) == 'Initiale' ? 'selected' : '' }}>
-                                            Initiale
-                                        </option>
-                                        <option value="Continue" 
-                                            {{ old('type_formation', $formation->type_formation) == 'Continue' ? 'selected' : '' }}>
-                                            Continue
-                                        </option>
-                                        <option value="Alternance" 
-                                            {{ old('type_formation', $formation->type_formation) == 'Alternance' ? 'selected' : '' }}>
-                                            Alternance
-                                        </option>
-                                        <option value="Apprentissage" 
-                                            {{ old('type_formation', $formation->type_formation) == 'Apprentissage' ? 'selected' : '' }}>
-                                            Apprentissage
-                                        </option>
-                                        <option value="Diplômante" 
-                                            {{ old('type_formation', $formation->type_formation) == 'Diplômante' ? 'selected' : '' }}>
-                                            Diplômante
-                                        </option>
-                                    </select>
-                                </div>
-                                @error('type_formation')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <!-- Créneau -->
-                            <div class="col-md-6 mb-3">
-                                <label for="creneau" class="form-label">
-                                    Créneau
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="fas fa-clock"></i>
-                                    </span>
-                                    <select class="form-select @error('creneau') is-invalid @enderror" 
-                                            id="creneau" 
-                                            name="creneau">
-                                        <option value="">-- Sélectionnez un créneau --</option>
-                                        <option value="Matin" 
-                                            {{ old('creneau', $formation->creneau) == 'Matin' ? 'selected' : '' }}>
-                                            Matin
-                                        </option>
-                                        <option value="Après-midi" 
-                                            {{ old('creneau', $formation->creneau) == 'Après-midi' ? 'selected' : '' }}>
-                                            Après-midi
-                                        </option>
-                                        <option value="Soir" 
-                                            {{ old('creneau', $formation->creneau) == 'Soir' ? 'selected' : '' }}>
-                                            Soir
-                                        </option>
-                                        <option value="Journée complète" 
-                                            {{ old('creneau', $formation->creneau) == 'Journée complète' ? 'selected' : '' }}>
-                                            Journée complète
-                                        </option>
-                                        <option value="CDJ" 
-                                            {{ old('creneau', $formation->creneau) == 'CDJ' ? 'selected' : '' }}>
-                                            CDJ
-                                        </option>
-                                    </select>
-                                </div>
-                                @error('creneau')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
+                        <!-- Créneau horaire -->
+                        <div class="mb-4">
+                            <label for="creneau" class="form-label">Créneau Horaire <span class="text-danger">*</span></label>
+                            <select name="creneau" id="creneau" class="form-select @error('creneau') is-invalid @enderror" required>
+                                <option value="">-- Sélectionnez un créneau --</option>
+                                <option value="CDJ" {{ old('creneau', $formation->creneau) == 'CDJ' ? 'selected' : '' }}>CDJ (Cours de Jour)</option>
+                                <option value="CDS" {{ old('creneau', $formation->creneau) == 'CDS' ? 'selected' : '' }}>CDS (Cours du Soir)</option>
+                            </select>
+                            @error('creneau')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Plage horaire durant laquelle se déroule la formation
                             </div>
                         </div>
 
-                        <!-- Note d'information -->
-                        <div class="alert alert-warning mb-4">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Attention :</strong>
-                            La modification de cette formation peut affecter les groupes associés.
-                            Les champs marqués d'un <span class="text-danger">*</span> sont obligatoires.
-                        </div>
-
-                        <!-- Boutons -->
-                        <div class="d-flex justify-content-between">
+                        <!-- Boutons d'action -->
+                        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
                             <a href="{{ route('administration.etablissement.formations.index') }}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left me-2"></i>
-                                Retour
+                                <i class="fas fa-arrow-left me-2"></i>Retour
                             </a>
-                            <button type="submit" class="btn btn-warning text-dark">
-                                <i class="fas fa-save me-2"></i>
-                                Enregistrer les Modifications
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Enregistrer les Modifications
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
+
+        <!-- Panneau d'information -->
+        <div class="col-lg-4">
+            <!-- Info sur la formation -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-warning">
+                    <h6 class="m-0 font-weight-bold text-white">
+                        <i class="fas fa-info-circle me-2"></i>Informations
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">ID de la formation :</small>
+                        <div class="font-weight-bold">#{{ $formation->id }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">Groupes associés :</small>
+                        <div class="font-weight-bold">{{ $formation->groupes->count() }} groupe(s)</div>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">Créé le :</small>
+                        <div class="font-weight-bold">{{ $formation->created_at->format('d/m/Y à H:i') }}</div>
+                    </div>
+                    <div>
+                        <small class="text-muted">Dernière modification :</small>
+                        <div class="font-weight-bold">{{ $formation->updated_at->format('d/m/Y à H:i') }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aide -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">
+                        <i class="fas fa-question-circle me-2"></i>Aide
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <h6 class="font-weight-bold">Types de Formation</h6>
+                    <ul class="small mb-3">
+                        <li><strong>Diplômante :</strong> Formation menant à un diplôme reconnu</li>
+                        <li><strong>Qualifiante :</strong> Formation menant à une qualification professionnelle</li>
+                        <li><strong>PP :</strong> Passerelle permettant de passer d'un niveau à un autre</li>
+                    </ul>
+
+                    <h6 class="font-weight-bold">Modes de Formation</h6>
+                    <ul class="small mb-3">
+                        <li><strong>Résidentiel :</strong> Formation continue en centre</li>
+                        <li><strong>Alterné :</strong> Alternance entre centre de formation et entreprise</li>
+                    </ul>
+
+                    <h6 class="font-weight-bold">Créneaux Horaires</h6>
+                    <ul class="small mb-0">
+                        <li><strong>CDJ :</strong> Cours de Jour (horaires standards)</li>
+                        <li><strong>CDS :</strong> Cours du Soir (pour salariés/actifs)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Avertissement si groupes associés -->
+            @if($formation->groupes->count() > 0)
+            <div class="card shadow mb-4 border-warning">
+                <div class="card-header py-3 bg-warning text-white">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Attention
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="small mb-0">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Cette formation est utilisée par <strong>{{ $formation->groupes->count() }} groupe(s)</strong>. 
+                        Les modifications peuvent impacter les données associées.
+                    </p>
+                </div>
+            </div>
+            @endif
+
+            <!-- Aperçu des modifications -->
+            <div class="card shadow mb-4" id="previewCard">
+                <div class="card-header py-3 bg-info text-white">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-eye me-2"></i>Aperçu
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <small class="text-muted">Type :</small>
+                        <div id="preview-type" class="font-weight-bold">{{ $formation->type }}</div>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Mode :</small>
+                        <div id="preview-mode" class="font-weight-bold">{{ $formation->mode }}</div>
+                    </div>
+                    <div>
+                        <small class="text-muted">Créneau :</small>
+                        <div id="preview-creneau" class="font-weight-bold">{{ $formation->creneau }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
-<style>
-.form-label {
-    font-weight: 500;
-    color: #495057;
-}
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const typeSelect = document.getElementById('type');
+    const modeSelect = document.getElementById('mode');
+    const creneauSelect = document.getElementById('creneau');
+    const previewType = document.getElementById('preview-type');
+    const previewMode = document.getElementById('preview-mode');
+    const previewCreneau = document.getElementById('preview-creneau');
 
-.input-group-text {
-    background-color: #f8f9fa;
-    border-right: none;
-}
+    // Fonction pour mettre à jour l'aperçu
+    function updatePreview() {
+        previewType.textContent = typeSelect.value || '-';
+        previewMode.textContent = modeSelect.value || '-';
+        previewCreneau.textContent = creneauSelect.value || '-';
+    }
 
-.form-control, .form-select {
-    border-left: none;
-}
+    // Écouter les changements
+    typeSelect.addEventListener('change', updatePreview);
+    modeSelect.addEventListener('change', updatePreview);
+    creneauSelect.addEventListener('change', updatePreview);
 
-.form-control:focus, .form-select:focus {
-    border-color: #ced4da;
-    box-shadow: none;
-}
+    // Validation du formulaire
+    document.getElementById('formationForm').addEventListener('submit', function(e) {
+        const type = typeSelect.value;
+        const mode = modeSelect.value;
+        const creneau = creneauSelect.value;
 
-.input-group:focus-within .input-group-text {
-    border-color: #86b7fe;
-}
-
-.input-group:focus-within .form-control,
-.input-group:focus-within .form-select {
-    border-color: #86b7fe;
-}
-</style>
+        if (!type || !mode || !creneau) {
+            e.preventDefault();
+            Swal.fire({
+                title: 'Champs requis',
+                text: 'Veuillez remplir tous les champs obligatoires.',
+                icon: 'warning',
+                confirmButtonText: 'OK'
+            });
+            return false;
+        }
+    });
+});
+</script>
+@endpush
 @endsection

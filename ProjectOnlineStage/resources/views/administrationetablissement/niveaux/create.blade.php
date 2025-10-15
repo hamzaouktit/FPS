@@ -29,7 +29,7 @@
             <div class="card-header bg-primary text-white">
                 <h4 class="mb-0">
                     <i class="fas fa-plus-circle me-2"></i>
-                    Ajouter un Nouveau Niveau
+                    Ajouter un Nouveau Niveau pour mon Établissement
                 </h4>
             </div>
 
@@ -54,13 +54,13 @@
                         @enderror
                         <small class="form-text text-muted">
                             <i class="fas fa-info-circle me-1"></i>
-                            Exemples : Technicien, Technicien Spécialisé, Qualification, Spécialisation
+                            Le code sera généré automatiquement à partir des 3 premières lettres
                         </small>
                     </div>
 
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>Information :</strong> Ce niveau sera automatiquement associé à votre établissement.
+                        <strong>Information :</strong> Ce niveau sera spécifique à votre établissement.
                     </div>
 
                     <!-- Exemples de niveaux communs -->
@@ -72,19 +72,22 @@
                             </h6>
                             <div class="d-flex flex-wrap gap-2">
                                 <button type="button" class="btn btn-sm btn-outline-primary" onclick="setNiveau('Technicien')">
-                                    Technicien
+                                    Technicien (T)
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-primary" onclick="setNiveau('Technicien Spécialisé')">
-                                    Technicien Spécialisé
+                                    Technicien Spécialisé (TS)
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-primary" onclick="setNiveau('Qualification')">
-                                    Qualification
+                                    Qualification (Q)
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-primary" onclick="setNiveau('Spécialisation')">
-                                    Spécialisation
+                                    Spécialisation (S)
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="setNiveau('Lauréat')">
-                                    Lauréat
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="setNiveau('Brevet Professionnel')">
+                                    Brevet Professionnel (BP)
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="setNiveau('Formation Qualifiante')">
+                                    Formation Qualifiante (FQ)
                                 </button>
                             </div>
                         </div>

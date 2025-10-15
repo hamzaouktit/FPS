@@ -1,79 +1,124 @@
 <?php
-
-// app/Models/Affectation.php
+// ========================================
+// 1. Model Affectation - Ajout relation établissement
+// ========================================
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Builder;
 
 class Affectation extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $fillable = [
         'groupe_id',
         'module_id',
-        'mle_formateur',
-        'mode',
-        'mh_affectee',
-        'date_affectation',
+        'code_efp',
+        'mle_affecte_presentiel',
+        'formateur_affecte_presentiel',
+        'mle_affecte_syn',
+        'formateur_affecte_syn',
+        'mhp_s1_drif',
+        'mhsyn_s1_drif',
+        'mhasyn_s1_drif',
+        'mh_totale_s1_drif',
+        'mhp_s2_drif',
+        'mhsyn_s2_drif',
+        'mhasyn_s2_drif',
+        'mh_totale_s2_drif',
+        'mhp_totale_drif',
+        'mhsyn_totale_drif',
+        'mhasyn_totale_drif',
+        'mh_totale_drif',
+        'mh_affectee_presentiel',
+        'mh_affectee_sync',
+        'mh_affectee_globale'
     ];
 
     protected $casts = [
-        'date_affectation' => 'datetime',
-        'mh_affectee' => 'decimal:2',
+        'mhp_s1_drif' => 'decimal:2',
+        'mhsyn_s1_drif' => 'decimal:2',
+        'mhasyn_s1_drif' => 'decimal:2',
+        'mh_totale_s1_drif' => 'decimal:2',
+        'mhp_s2_drif' => 'decimal:2',
+        'mhsyn_s2_drif' => 'decimal:2',
+        'mhasyn_s2_drif' => 'decimal:2',
+        'mh_totale_s2_drif' => 'decimal:2',
+        'mhp_totale_drif' => 'decimal:2',
+        'mhsyn_totale_drif' => 'decimal:2',
+        'mhasyn_totale_drif' => 'decimal:2',
+        'mh_totale_drif' => 'decimal:2',
+        'mh_affectee_presentiel' => 'decimal:2',
+        'mh_affectee_sync' => 'decimal:2',
+        'mh_affectee_globale' => 'decimal:2'
     ];
 
     // Relations
+    public function etablissement()
+    {
+        return $this->belongsTo(Etablissement::class, 'code_efp', 'code_efp');
+    }
+
     public function groupe()
     {
-        return $this->belongsTo(Groupe::class, 'groupe_id');
+        return $this->belongsTo(Groupe::class);
     }
 
     public function module()
     {
-        return $this->belongsTo(Module::class, 'module_id');
+        return $this->belongsTo(Module::class);
     }
 
-    public function formateur()
+    public function formateurPresentiel()
     {
-        return $this->belongsTo(Formateur::class, 'mle_formateur', 'mle');
+        return $this->belongsTo(Formateur::class, 'mle_affecte_presentiel', 'mle');
     }
 
-    public function formation()
+    public function formateurSynchrone()
     {
-        return $this->hasOneThrough(Formation::class, Groupe::class, 'id', 'id', 'groupe_id', 'formation_id');
+        return $this->belongsTo(Formateur::class, 'mle_affecte_syn', 'mle');
     }
 
-    public function etablissement()
+    public function avancement()
     {
-        return $this->hasOneThrough(Etablissement::class, Groupe::class, 'id', 'code_efp', 'groupe_id', 'code_efp');
+        return $this->hasOne(Avancement::class);
     }
 
-    // Scopes pour l'isolation par établissement
-    public function scopeForEtablissement(Builder $query, $code_efp)
+    protected static function boot()
     {
-        return $query->whereHas('groupe', function ($q) use ($code_efp) {
-            $q->where('code_efp', $code_efp);
+        parent::boot();
+
+        static::saving(function ($affectation) {
+            $affectation->mh_totale_s1_drif = 
+                $affectation->mhp_s1_drif + 
+                $affectation->mhsyn_s1_drif + 
+                $affectation->mhasyn_s1_drif;
+
+            $affectation->mh_totale_s2_drif = 
+                $affectation->mhp_s2_drif + 
+                $affectation->mhsyn_s2_drif + 
+                $affectation->mhasyn_s2_drif;
+
+            $affectation->mhp_totale_drif = 
+                $affectation->mhp_s1_drif + 
+                $affectation->mhp_s2_drif;
+
+            $affectation->mhsyn_totale_drif = 
+                $affectation->mhsyn_s1_drif + 
+                $affectation->mhsyn_s2_drif;
+
+            $affectation->mhasyn_totale_drif = 
+                $affectation->mhasyn_s1_drif + 
+                $affectation->mhasyn_s2_drif;
+
+            $affectation->mh_totale_drif = 
+                $affectation->mh_totale_s1_drif + 
+                $affectation->mh_totale_s2_drif;
+
+            $affectation->mh_affectee_globale = 
+                $affectation->mh_affectee_presentiel + 
+                $affectation->mh_affectee_sync;
         });
-    }
-
-    public function scopeForComplexe(Builder $query, $complexe_id)
-    {
-        return $query->whereHas('groupe.etablissement', function ($q) use ($complexe_id) {
-            $q->where('complexe_id', $complexe_id);
-        });
-    }
-
-    public function scopeForUser(Builder $query, $user)
-    {
-        if ($user->role === 'directeur_etablissement') {
-            return $query->forEtablissement($user->etablissement->code_efp);
-        } elseif ($user->role === 'directeur_complexe') {
-            return $query->forComplexe($user->complexe->id);
-        }
-        return $query;
     }
 }

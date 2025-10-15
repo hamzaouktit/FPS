@@ -10,38 +10,22 @@ use Illuminate\Support\Facades\Auth;
 
 class SecteurController extends Controller
 {
-    
-
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
         $user = Auth::user();
+        $etablissement = $user->etablissement;
         
-        // Récupérer les secteurs selon le rôle
-        if ($user->role === 'directeur_etablissement') {
-            $secteurs = Secteur::with(['etablissement', 'filieres'])
-                ->where('code_efp', $user->etablissement->code_efp)
-                ->withCount(['filieres'])
-                ->latest()
-                ->paginate(10);
-        } elseif ($user->role === 'directeur_complexe') {
-            $secteurs = Secteur::with(['etablissement', 'filieres'])
-                ->whereHas('etablissement', function ($q) use ($user) {
-                    $q->where('complexe_id', $user->complexe->id);
-                })
-                ->withCount(['filieres'])
-                ->latest()
-                ->paginate(10);
-        } else {
-            $secteurs = Secteur::with(['etablissement', 'filieres'])
-                ->withCount(['filieres'])
-                ->latest()
-                ->paginate(10);
-        }
+        // Récupérer uniquement les secteurs de l'établissement connecté
+        $secteurs = Secteur::with(['filieres'])
+            ->where('code_efp', $etablissement->code_efp)
+            ->withCount(['filieres'])
+            ->latest()
+            ->paginate(10);
 
-        return view('administrationetablissement.secteurs.index', compact('secteurs'));
+        return view('administrationetablissement.secteurs.index', compact('secteurs', 'etablissement'));
     }
 
     /**
@@ -50,17 +34,9 @@ class SecteurController extends Controller
     public function create()
     {
         $user = Auth::user();
-        
-        // Vérifier les permissions
-        if ($user->role === 'directeur_etablissement') {
-            $etablissements = Etablissement::where('code_efp', $user->etablissement->code_efp)->get();
-        } elseif ($user->role === 'directeur_complexe') {
-            $etablissements = Etablissement::where('complexe_id', $user->complexe->id)->get();
-        } else {
-            $etablissements = Etablissement::all();
-        }
+        $etablissement = $user->etablissement;
 
-        return view('administrationetablissement.secteurs.create', compact('etablissements'));
+        return view('administrationetablissement.secteurs.create', compact('etablissement'));
     }
 
     /**
@@ -69,50 +45,27 @@ class SecteurController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
+        $etablissement = $user->etablissement;
 
         $request->validate([
-            'nom_secteur' => 'required|string|max:255',
+            'code' => [
+                'required',
+                'string',
+                'max:50',
+                // Le code doit être unique pour cet établissement uniquement
+                'unique:secteurs,code,NULL,id,code_efp,' . $etablissement->code_efp
+            ],
+            'nom' => 'required|string|max:255',
+        ], [
+            'code.required' => 'Le code du secteur est obligatoire',
+            'code.unique' => 'Ce code de secteur existe déjà dans votre établissement',
+            'nom.required' => 'Le nom du secteur est obligatoire',
         ]);
 
-        // Récupérer automatiquement le code_efp selon le rôle
-        $code_efp = null;
-        if ($user->role === 'directeur_etablissement') {
-            $code_efp = $user->etablissement->code_efp;
-        } elseif ($user->role === 'directeur_complexe') {
-            // Pour un directeur de complexe, il peut choisir l'établissement
-            $request->validate([
-                'code_efp' => 'required|exists:etablissements,code_efp',
-            ]);
-            
-            // Vérifier que l'établissement appartient bien au complexe
-            $etablissement = Etablissement::where('code_efp', $request->code_efp)
-                ->where('complexe_id', $user->complexe->id)
-                ->first();
-            
-            if (!$etablissement) {
-                return back()->with('error', 'Établissement non autorisé')->withInput();
-            }
-            
-            $code_efp = $request->code_efp;
-        } else {
-            $request->validate([
-                'code_efp' => 'required|exists:etablissements,code_efp',
-            ]);
-            $code_efp = $request->code_efp;
-        }
-
-        // Vérifier si le secteur existe déjà pour cet établissement
-        $exists = Secteur::where('nom_secteur', $request->nom_secteur)
-            ->where('code_efp', $code_efp)
-            ->exists();
-
-        if ($exists) {
-            return back()->with('error', 'Ce secteur existe déjà pour cet établissement')->withInput();
-        }
-
         Secteur::create([
-            'nom_secteur' => $request->nom_secteur,
-            'code_efp' => $code_efp,
+            'code' => strtoupper($request->code),
+            'nom' => $request->nom,
+            'code_efp' => $etablissement->code_efp,
         ]);
 
         return redirect()->route('administration.etablissement.secteurs.index')
@@ -125,43 +78,34 @@ class SecteurController extends Controller
     public function show(string $id)
     {
         $user = Auth::user();
+        $etablissement = $user->etablissement;
         
+        // Vérifier que le secteur appartient à l'établissement
         $secteur = Secteur::with([
-            'etablissement.complexe',
-            'filieres' => function ($query) {
-                $query->withCount('formations');
+            'filieres' => function($query) use ($etablissement) {
+                $query->where('code_efp', $etablissement->code_efp);
             },
-            'filieres.formations.groupes' => function ($query) {
-                $query->withCount('avancements');
-            }
-        ])->findOrFail($id);
-
-        // Vérifier les permissions
-        if ($user->role === 'directeur_etablissement' && $secteur->code_efp !== $user->etablissement->code_efp) {
-            abort(403, 'Accès non autorisé');
-        }
-
-        if ($user->role === 'directeur_complexe' && $secteur->etablissement->complexe_id !== $user->complexe->id) {
-            abort(403, 'Accès non autorisé');
-        }
+            'filieres.niveau',
+            'filieres.groupes' => function($query) use ($etablissement) {
+                $query->where('code_efp', $etablissement->code_efp);
+            },
+            'filieres.groupes.formation'
+        ])
+        ->where('code_efp', $etablissement->code_efp)
+        ->findOrFail($id);
 
         // Calculer les statistiques
         $stats = [
             'total_filieres' => $secteur->filieres->count(),
-            'total_formations' => $secteur->formations->count(),
             'total_groupes' => $secteur->filieres->sum(function ($filiere) {
-                return $filiere->formations->sum(function ($formation) {
-                    return $formation->groupes->count();
-                });
+                return $filiere->groupes->count();
             }),
             'total_stagiaires' => $secteur->filieres->sum(function ($filiere) {
-                return $filiere->formations->sum(function ($formation) {
-                    return $formation->groupes->sum('effectif_groupe');
-                });
+                return $filiere->groupes->sum('effectif');
             }),
         ];
 
-        return view('administrationetablissement.secteurs.show', compact('secteur', 'stats'));
+        return view('administrationetablissement.secteurs.show', compact('secteur', 'stats', 'etablissement'));
     }
 
     /**
@@ -170,28 +114,13 @@ class SecteurController extends Controller
     public function edit(string $id)
     {
         $user = Auth::user();
+        $etablissement = $user->etablissement;
         
-        $secteur = Secteur::with('etablissement')->findOrFail($id);
+        // Vérifier que le secteur appartient à l'établissement
+        $secteur = Secteur::where('code_efp', $etablissement->code_efp)
+            ->findOrFail($id);
 
-        // Vérifier les permissions
-        if ($user->role === 'directeur_etablissement' && $secteur->code_efp !== $user->etablissement->code_efp) {
-            abort(403, 'Accès non autorisé');
-        }
-
-        if ($user->role === 'directeur_complexe' && $secteur->etablissement->complexe_id !== $user->complexe->id) {
-            abort(403, 'Accès non autorisé');
-        }
-
-        // Récupérer les établissements selon le rôle
-        if ($user->role === 'directeur_etablissement') {
-            $etablissements = Etablissement::where('code_efp', $user->etablissement->code_efp)->get();
-        } elseif ($user->role === 'directeur_complexe') {
-            $etablissements = Etablissement::where('complexe_id', $user->complexe->id)->get();
-        } else {
-            $etablissements = Etablissement::all();
-        }
-
-        return view('administrationetablissement.secteurs.edit', compact('secteur', 'etablissements'));
+        return view('administrationetablissement.secteurs.edit', compact('secteur', 'etablissement'));
     }
 
     /**
@@ -200,34 +129,30 @@ class SecteurController extends Controller
     public function update(Request $request, string $id)
     {
         $user = Auth::user();
+        $etablissement = $user->etablissement;
         
-        $secteur = Secteur::findOrFail($id);
-
-        // Vérifier les permissions
-        if ($user->role === 'directeur_etablissement' && $secteur->code_efp !== $user->etablissement->code_efp) {
-            abort(403, 'Accès non autorisé');
-        }
-
-        if ($user->role === 'directeur_complexe' && $secteur->etablissement->complexe_id !== $user->complexe->id) {
-            abort(403, 'Accès non autorisé');
-        }
+        // Vérifier que le secteur appartient à l'établissement
+        $secteur = Secteur::where('code_efp', $etablissement->code_efp)
+            ->findOrFail($id);
 
         $request->validate([
-            'nom_secteur' => 'required|string|max:255',
+            'code' => [
+                'required',
+                'string',
+                'max:50',
+                // Le code doit être unique pour cet établissement uniquement
+                'unique:secteurs,code,' . $id . ',id,code_efp,' . $etablissement->code_efp
+            ],
+            'nom' => 'required|string|max:255',
+        ], [
+            'code.required' => 'Le code du secteur est obligatoire',
+            'code.unique' => 'Ce code de secteur existe déjà dans votre établissement',
+            'nom.required' => 'Le nom du secteur est obligatoire',
         ]);
 
-        // Vérifier si le nouveau nom existe déjà pour cet établissement (sauf pour le secteur actuel)
-        $exists = Secteur::where('nom_secteur', $request->nom_secteur)
-            ->where('code_efp', $secteur->code_efp)
-            ->where('id', '!=', $id)
-            ->exists();
-
-        if ($exists) {
-            return back()->with('error', 'Ce nom de secteur existe déjà pour cet établissement')->withInput();
-        }
-
         $secteur->update([
-            'nom_secteur' => $request->nom_secteur,
+            'code' => strtoupper($request->code),
+            'nom' => $request->nom,
         ]);
 
         return redirect()->route('administration.etablissement.secteurs.index')
@@ -240,20 +165,18 @@ class SecteurController extends Controller
     public function destroy(string $id)
     {
         $user = Auth::user();
+        $etablissement = $user->etablissement;
         
-        $secteur = Secteur::findOrFail($id);
+        // Vérifier que le secteur appartient à l'établissement
+        $secteur = Secteur::where('code_efp', $etablissement->code_efp)
+            ->findOrFail($id);
 
-        // Vérifier les permissions
-        if ($user->role === 'directeur_etablissement' && $secteur->code_efp !== $user->etablissement->code_efp) {
-            abort(403, 'Accès non autorisé');
-        }
-
-        if ($user->role === 'directeur_complexe' && $secteur->etablissement->complexe_id !== $user->complexe->id) {
-            abort(403, 'Accès non autorisé');
-        }
-
-        // Vérifier s'il y a des filières associées
-        if ($secteur->filieres()->count() > 0) {
+        // Vérifier s'il y a des filières associées de cet établissement
+        $filieresCount = $secteur->filieres()
+            ->where('code_efp', $etablissement->code_efp)
+            ->count();
+            
+        if ($filieresCount > 0) {
             return back()->with('error', 'Impossible de supprimer ce secteur car il contient des filières');
         }
 

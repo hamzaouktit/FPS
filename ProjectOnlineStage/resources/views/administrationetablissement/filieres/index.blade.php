@@ -3,29 +3,25 @@
 @section('title', 'Gestion des Filières')
 
 @section('content')
-<div class="container-fluid px-4 py-4">
-    <!-- En-tête -->
+<div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-0">Gestion des Filières</h1>
-            <p class="text-muted mb-0">{{ Auth::user()->etablissement->nom_efp }}</p>
-        </div>
+        <h2>Gestion des Filières</h2>
         <a href="{{ route('administration.etablissement.filieres.create') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Nouvelle Filière
+            <i class="bi bi-plus-circle"></i> Nouvelle Filière
         </a>
     </div>
 
     <!-- Messages de succès/erreur -->
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="fas fa-check-circle"></i> {{ session('success') }}
+            <i class="bi bi-check-circle"></i> {{ session('success') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
 
     @if(session('error'))
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
+            <i class="bi bi-exclamation-triangle"></i> {{ session('error') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
@@ -33,87 +29,130 @@
     <!-- Filtres -->
     <div class="card mb-4">
         <div class="card-body">
-            <form method="GET" action="{{ route('administration.etablissement.filieres.index') }}" class="row g-3">
-                <div class="col-md-4">
-                    <label for="search" class="form-label">Rechercher</label>
-                    <input type="text" class="form-control" id="search" name="search" 
-                           value="{{ request('search') }}" 
-                           placeholder="Code ou nom de filière...">
+            <form method="GET" action="{{ route('administration.etablissement.filieres.index') }}">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Recherche</label>
+                        <input type="text" 
+                               name="search" 
+                               class="form-control" 
+                               placeholder="Code ou nom de filière..."
+                               value="{{ request('search') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Secteur</label>
+                        <select name="secteur_id" class="form-select">
+                            <option value="">Tous les secteurs</option>
+                            @foreach($secteurs as $secteur)
+                                <option value="{{ $secteur->id }}" 
+                                        {{ request('secteur_id') == $secteur->id ? 'selected' : '' }}>
+                                    {{ $secteur->nom }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Niveau</label>
+                        <select name="niveau_id" class="form-select">
+                            <option value="">Tous les niveaux</option>
+                            @foreach($niveaux as $niveau)
+                                <option value="{{ $niveau->id }}" 
+                                        {{ request('niveau_id') == $niveau->id ? 'selected' : '' }}>
+                                    {{ $niveau->nom }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-search"></i> Filtrer
+                        </button>
+                    </div>
                 </div>
-                <div class="col-md-4">
-                    <label for="secteur_id" class="form-label">Secteur</label>
-                    <select class="form-select" id="secteur_id" name="secteur_id">
-                        <option value="">Tous les secteurs</option>
-                        @foreach($secteurs as $secteur)
-                            <option value="{{ $secteur->id }}" 
-                                {{ request('secteur_id') == $secteur->id ? 'selected' : '' }}>
-                                {{ $secteur->nom_secteur }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button type="submit" class="btn btn-secondary me-2">
-                        <i class="fas fa-filter"></i> Filtrer
-                    </button>
-                    <a href="{{ route('administration.etablissement.filieres.index') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-redo"></i> Réinitialiser
-                    </a>
-                </div>
+                @if(request()->hasAny(['search', 'secteur_id', 'niveau_id']))
+                    <div class="mt-2">
+                        <a href="{{ route('administration.etablissement.filieres.index') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Réinitialiser les filtres
+                        </a>
+                    </div>
+                @endif
             </form>
         </div>
     </div>
 
-    <!-- Tableau des filières -->
+    <!-- Liste des filières -->
     <div class="card">
         <div class="card-body">
             @if($filieres->count() > 0)
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead class="table-light">
+                        <thead>
                             <tr>
                                 <th>Code</th>
-                                <th>Nom de la Filière</th>
+                                <th>Nom</th>
                                 <th>Secteur</th>
-                                <th>Formations</th>
-                                <th>Date de création</th>
+                                <th>Niveau</th>
+                                <th>Nb Groupes</th>
+                                <th>Nb Modules</th>
                                 <th class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($filieres as $filiere)
-                                <tr>
-                                    <td>
-                                        <span class="badge bg-info">{{ $filiere->code_filiere }}</span>
-                                    </td>
-                                    <td>
-                                        <strong>{{ $filiere->nom_filiere }}</strong>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-secondary">{{ $filiere->secteur->nom_secteur }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-primary">{{ $filiere->formations->count() }} formation(s)</span>
-                                    </td>
-                                    <td>{{ $filiere->created_at->format('d/m/Y') }}</td>
-                                    <td class="text-end">
-                                        <div class="btn-group" role="group">
-                                            <a href="{{ route('administration.etablissement.filieres.show', $filiere->code_filiere) }}" 
-                                               class="btn btn-sm btn-info" title="Voir détails">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            <a href="{{ route('administration.etablissement.filieres.edit', $filiere->code_filiere) }}" 
-                                               class="btn btn-sm btn-warning" title="Modifier">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                            <button type="button" class="btn btn-sm btn-danger" 
-                                                    onclick="confirmDelete('{{ $filiere->code_filiere }}', '{{ $filiere->nom_filiere }}')"
-                                                    title="Supprimer">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
+                            <tr>
+                                <td>
+                                    <strong>{{ $filiere->code }}</strong>
+                                </td>
+                                <td>{{ $filiere->nom }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        {{ $filiere->secteur->nom ?? 'N/A' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">
+                                        {{ $filiere->niveau->nom ?? 'N/A' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">
+                                        {{ $filiere->groupes->count() }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-success">
+                                        {{ $filiere->modules->count() }}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group" role="group">
+                                        <a href="{{ route('administration.etablissement.filieres.show', $filiere->id) }}" 
+                                           class="btn btn-sm btn-outline-primary"
+                                           title="Voir les détails">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="{{ route('administration.etablissement.filieres.edit', $filiere->id) }}" 
+                                           class="btn btn-sm btn-outline-secondary"
+                                           title="Modifier">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-danger"
+                                                onclick="confirmDelete({{ $filiere->id }})"
+                                                title="Supprimer">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+
+                                    <form id="delete-form-{{ $filiere->id }}" 
+                                          action="{{ route('administration.etablissement.filieres.destroy', $filiere->id) }}" 
+                                          method="POST" 
+                                          class="d-none">
+                                        @csrf
+                                        @method('DELETE')
+                                    </form>
+                                </td>
+                            </tr>
                             @endforeach
                         </tbody>
                     </table>
@@ -121,8 +160,9 @@
 
                 <!-- Pagination -->
                 <div class="d-flex justify-content-between align-items-center mt-3">
-                    <div>
-                        Affichage de {{ $filieres->firstItem() }} à {{ $filieres->lastItem() }} sur {{ $filieres->total() }} filières
+                    <div class="text-muted">
+                        Affichage de {{ $filieres->firstItem() }} à {{ $filieres->lastItem() }} 
+                        sur {{ $filieres->total() }} filières
                     </div>
                     <div>
                         {{ $filieres->links() }}
@@ -130,10 +170,10 @@
                 </div>
             @else
                 <div class="text-center py-5">
-                    <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">Aucune filière trouvée</p>
+                    <i class="bi bi-inbox display-1 text-muted"></i>
+                    <p class="text-muted mt-3">Aucune filière trouvée.</p>
                     <a href="{{ route('administration.etablissement.filieres.create') }}" class="btn btn-primary">
-                        <i class="fas fa-plus"></i> Créer votre première filière
+                        <i class="bi bi-plus-circle"></i> Créer la première filière
                     </a>
                 </div>
             @endif
@@ -141,40 +181,32 @@
     </div>
 </div>
 
-<!-- Modal de confirmation de suppression -->
-<div class="modal fade" id="deleteModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirmer la suppression</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Êtes-vous sûr de vouloir supprimer la filière <strong id="filiereNom"></strong> ?</p>
-                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> Cette action est irréversible.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <form id="deleteForm" method="POST" style="display: inline;">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn btn-danger">Supprimer</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
 @push('scripts')
 <script>
-function confirmDelete(codeFiliere, nom) {
-    document.getElementById('filiereNom').textContent = nom;
-    const form = document.getElementById('deleteForm');
-    form.action = "{{ route('administration.etablissement.filieres.index') }}/" + codeFiliere;
-    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    modal.show();
-}
+    function confirmDelete(id) {
+        if (confirm('Êtes-vous sûr de vouloir supprimer cette filière ? Cette action est irréversible.')) {
+            document.getElementById('delete-form-' + id).submit();
+        }
+    }
 </script>
 @endpush
 
+@push('styles')
+<style>
+    .table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        color: #495057;
+    }
+    .badge {
+        font-size: 0.85rem;
+        padding: 0.35em 0.65em;
+    }
+    .btn-group {
+        box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+</style>
+@endpush
 @endsection

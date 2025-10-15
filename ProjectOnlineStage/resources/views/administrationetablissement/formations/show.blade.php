@@ -501,11 +501,12 @@
                                                 <div class="btn-group" role="group">
                                                     <button class="btn btn-outline-primary btn-sm rounded-pill px-3 me-2">
                                                         <i class="fas fa-eye"></i>
-                                                        <span class="d-none d-md-inline">Voir</span>
+                                                        <span class="d-none d-md-inline"><a href="{{ route('administration.etablissement.groupes.show', $groupe) }}" class="">voir<i class=""></i></a>
+</span>
                                                     </button>
                                                     <button class="btn btn-outline-warning btn-sm rounded-pill px-3">
                                                         <i class="fas fa-edit"></i>
-                                                        <span class="d-none d-md-inline">Modifier</span>
+                                                        <span class="d-none d-md-inline"><a href="{{ route('administration.etablissement.groupes.edit', $groupe) }}" class=""><i class="">Modifier</i></a></span>
                                                     </button>
                                                 </div>
                                             </td>

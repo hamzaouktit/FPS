@@ -81,8 +81,8 @@
         </div>
         
         <div class="sidebar-nav-item">
-            <a href="#" 
-               class="sidebar-nav-link">
+            <a href="{{ route('administration.etablissement.groupes.index') }}" 
+               class="sidebar-nav-link {{ request()->routeIs('administration.etablissement.groupes.*') ? 'active' : '' }}">
                 <div class="nav-icon-wrapper">
                     <i class="fas fa-users sidebar-nav-icon"></i>
                 </div>

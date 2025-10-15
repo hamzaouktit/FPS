@@ -10,6 +10,7 @@ use App\Http\Controllers\AdministrationEtablissement\SecteurController;
 use App\Http\Controllers\AdministrationEtablissement\FiliereController;
 use App\Http\Controllers\AdministrationEtablissement\NiveauController; // NOUVEAU
 use App\Http\Controllers\AdministrationEtablissement\FormationController; 
+use App\Http\Controllers\AdministrationEtablissement\GroupeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -99,5 +100,7 @@ Route::middleware(['auth'])->group(function () {
         // CRUD des formations
         Route::resource('formations', FormationController::class)
         ->parameters(['formations' => 'id']);
+        // CRUD des groupes
+        Route::resource('groupes', GroupeController::class);
     });
 });

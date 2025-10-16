@@ -5,7 +5,6 @@ namespace App\Http\Controllers\AdministrationEtablissement;
 use App\Http\Controllers\Controller;
 use App\Models\Filiere;
 use App\Models\Secteur;
-use App\Models\Niveau;
 use App\Models\Groupe;
 use App\Models\Module;
 use App\Models\Formateur;
@@ -28,18 +27,13 @@ class FiliereController extends Controller
         }
 
         // Filtrer uniquement les filières de l'établissement du directeur connecté
-        $query = Filiere::with(['secteur', 'niveau'])
+        $query = Filiere::with(['secteur'])
             ->where('code_efp', $user->etablissement->code_efp);
 
-        // Récupérer les secteurs et niveaux utilisés dans les filières de cet établissement
+        // Récupérer les secteurs utilisés dans les filières de cet établissement
         $secteursUtilises = Filiere::where('code_efp', $user->etablissement->code_efp)
             ->distinct()
             ->pluck('secteur_id')
-            ->toArray();
-
-        $niveauxUtilises = Filiere::where('code_efp', $user->etablissement->code_efp)
-            ->distinct()
-            ->pluck('niveau_id')
             ->toArray();
 
         // Filtres
@@ -47,25 +41,23 @@ class FiliereController extends Controller
             $query->where('secteur_id', $request->secteur_id);
         }
 
-        if ($request->filled('niveau_id')) {
-            $query->where('niveau_id', $request->niveau_id);
-        }
-
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
-                $q->where('nom', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
+                $q->where('nom_filiere', 'like', "%{$search}%")
+                  ->orWhere('code_filiere', 'like', "%{$search}%");
             });
         }
 
-        $filieres = $query->orderBy('nom')->paginate(15);
+        $filieres = $query->orderBy('nom_filiere')->paginate(15);
         
-        // Récupérer uniquement les secteurs et niveaux utilisés dans cet établissement
-        $secteurs = Secteur::whereIn('id', $secteursUtilises)->orderBy('nom')->get();
-        $niveaux = Niveau::whereIn('id', $niveauxUtilises)->orderBy('nom')->get();
+        // Récupérer uniquement les secteurs utilisés dans cet établissement
+        $secteurs = Secteur::whereIn('id', $secteursUtilises)
+            ->where('code_efp', $user->etablissement->code_efp)
+            ->orderBy('nom_secteur')
+            ->get();
 
-        return view('administrationetablissement.filieres.index', compact('filieres', 'secteurs', 'niveaux'));
+        return view('administrationetablissement.filieres.index', compact('filieres', 'secteurs'));
     }
 
     /**
@@ -79,18 +71,12 @@ class FiliereController extends Controller
             abort(403, 'Accès non autorisé');
         }
         
-        // Récupérer tous les secteurs et niveaux disponibles qui ont code_efp NULL ou celui de l'établissement
-        $secteurs = Secteur::where(function($query) use ($user) {
-            $query->whereNull('code_efp')
-                  ->orWhere('code_efp', $user->etablissement->code_efp);
-        })->orderBy('nom')->get();
+        // Récupérer les secteurs de l'établissement
+        $secteurs = Secteur::where('code_efp', $user->etablissement->code_efp)
+            ->orderBy('nom_secteur')
+            ->get();
 
-        $niveaux = Niveau::where(function($query) use ($user) {
-            $query->whereNull('code_efp')
-                  ->orWhere('code_efp', $user->etablissement->code_efp);
-        })->orderBy('nom')->get();
-
-        return view('administrationetablissement.filieres.create', compact('secteurs', 'niveaux'));
+        return view('administrationetablissement.filieres.create', compact('secteurs'));
     }
 
     /**
@@ -105,18 +91,14 @@ class FiliereController extends Controller
         }
 
         $validated = $request->validate([
-            'code' => 'required|string|max:255|unique:filieres,code',
-            'nom' => 'required|string|max:255',
+            'code_filiere' => 'required|string|max:255',
+            'nom_filiere' => 'required|string|max:255',
             'secteur_id' => 'required|exists:secteurs,id',
-            'niveau_id' => 'required|exists:niveaux,id',
         ], [
-            'code.required' => 'Le code de la filière est obligatoire.',
-            'code.unique' => 'Ce code existe déjà.',
-            'nom.required' => 'Le nom de la filière est obligatoire.',
+            'code_filiere.required' => 'Le code de la filière est obligatoire.',
+            'nom_filiere.required' => 'Le nom de la filière est obligatoire.',
             'secteur_id.required' => 'Le secteur est obligatoire.',
             'secteur_id.exists' => 'Le secteur sélectionné n\'existe pas.',
-            'niveau_id.required' => 'Le niveau est obligatoire.',
-            'niveau_id.exists' => 'Le niveau sélectionné n\'existe pas.',
         ]);
 
         // Ajouter automatiquement le code_efp de l'établissement du directeur
@@ -143,7 +125,6 @@ class FiliereController extends Controller
         // Vérifier que la filière appartient à l'établissement du directeur
         $filiere = Filiere::with([
             'secteur',
-            'niveau',
             'groupes.formation',
             'modules'
         ])
@@ -154,30 +135,30 @@ class FiliereController extends Controller
         $stats = [
             'total_groupes' => $filiere->groupes()->count(),
             'groupes_actifs' => $filiere->groupes()->where('statut', 'Actif')->count(),
-            'effectif_total' => $filiere->groupes()->sum('effectif'),
+            'effectif_total' => $filiere->groupes()->sum('effectif_groupe'),
             'total_modules' => $filiere->modules()->count(),
             'modules_regionaux' => $filiere->modules()->where('regional', 'O')->count(),
-            'modules_pie' => $filiere->modules()->where('module_pie', true)->count(),
+            'modules_pie' => $filiere->modules()->where('module_pie', 'O')->count(),
         ];
 
         // 2. GROUPES PAR ANNÉE DE FORMATION
         $groupesParAnnee = $filiere->groupes()
-            ->select('annee_formation', DB::raw('COUNT(*) as total'), DB::raw('SUM(effectif) as effectif_total'))
-            ->groupBy('annee_formation')
-            ->orderBy('annee_formation')
+            ->select('groupes.annee_formation', DB::raw('COUNT(*) as total'), DB::raw('SUM(groupes.effectif_groupe) as effectif_total'))
+            ->groupBy('groupes.annee_formation')
+            ->orderBy('groupes.annee_formation')
             ->get();
 
         // 3. GROUPES PAR TYPE DE FORMATION
         $groupesParType = $filiere->groupes()
             ->join('formations', 'groupes.formation_id', '=', 'formations.id')
-            ->select('formations.type', DB::raw('COUNT(*) as total'), DB::raw('SUM(groupes.effectif) as effectif_total'))
+            ->select('formations.type', DB::raw('COUNT(*) as total'), DB::raw('SUM(groupes.effectif_groupe) as effectif_total'))
             ->groupBy('formations.type')
             ->get();
 
         // 4. GROUPES PAR MODE DE FORMATION
         $groupesParMode = $filiere->groupes()
             ->join('formations', 'groupes.formation_id', '=', 'formations.id')
-            ->select('formations.mode', DB::raw('COUNT(*) as total'), DB::raw('SUM(groupes.effectif) as effectif_total'))
+            ->select('formations.mode', DB::raw('COUNT(*) as total'), DB::raw('SUM(groupes.effectif_groupe) as effectif_total'))
             ->groupBy('formations.mode')
             ->get();
 
@@ -185,12 +166,13 @@ class FiliereController extends Controller
         $groupes = $filiere->groupes()
             ->with(['formation'])
             ->orderBy('annee_formation')
-            ->orderBy('code')
+            ->orderBy('code_groupe')
             ->get();
 
         // 6. MODULES DE LA FILIÈRE
         $modules = $filiere->modules()
-            ->orderBy('code')
+            ->select('modules.id', 'modules.code_module', 'modules.nom_module', 'modules.regional', 'modules.module_pie', 'modules.code_efp')
+            ->orderBy('modules.code_module')
             ->get()
             ->map(function($module) use ($filiere) {
                 $groupeIds = $filiere->groupes()->pluck('id')->toArray();
@@ -205,7 +187,7 @@ class FiliereController extends Controller
         $groupeIds = $filiere->groupes()->pluck('id')->toArray();
         
         $affectations = Affectation::whereIn('groupe_id', $groupeIds)
-            ->with(['module', 'groupe', 'formateurPresentiel', 'formateurSynchrone'])
+            ->with(['module', 'groupe', 'formateurPresentiel', 'formateurSyn'])
             ->get();
 
         $formateurIds = collect();
@@ -245,14 +227,14 @@ class FiliereController extends Controller
                     DB::raw('AVG(avancements.taux_realisation_globale) as taux_moyen'),
                     DB::raw('AVG(avancements.moyenne_absence) as moyenne_absence_globale'),
                     DB::raw('SUM(avancements.nb_cc) as total_cc'),
-                    DB::raw('SUM(CASE WHEN avancements.seance_efm = "Oui" THEN 1 ELSE 0 END) as total_efm_passes'),
+                    DB::raw('SUM(CASE WHEN avancements.seance_efm = "Non" THEN 1 ELSE 0 END) as total_efm_passes'),
                     DB::raw('SUM(CASE WHEN avancements.validation_efm = "oui" THEN 1 ELSE 0 END) as total_efm_valides')
                 )
                 ->first();
         }
 
         // 9. PROGRESSION PAR MODULE
-        $moduleIdsDeLaFiliere = $filiere->modules()->pluck('id')->toArray();
+        $moduleIdsDeLaFiliere = $filiere->modules()->pluck('modules.id')->toArray();
         
         if (count($moduleIdsDeLaFiliere) > 0 && count($groupeIds) > 0) {
             $progressionModules = DB::table('affectations')
@@ -263,14 +245,14 @@ class FiliereController extends Controller
                 ->whereIn('modules.id', $moduleIdsDeLaFiliere)
                 ->select(
                     'modules.id',
-                    'modules.code',
-                    'modules.nom',
+                    'modules.code_module',
+                    'modules.nom_module',
                     DB::raw('COUNT(DISTINCT affectations.groupe_id) as nb_groupes'),
                     DB::raw('AVG(avancements.taux_realisation_globale) as taux_moyen'),
                     DB::raw('SUM(avancements.mh_realisee_globale) as total_mh_realisees'),
                     DB::raw('SUM(affectations.mh_affectee_globale) as total_mh_affectees')
                 )
-                ->groupBy('modules.id', 'modules.code', 'modules.nom')
+                ->groupBy('modules.id', 'modules.code_module', 'modules.nom_module')
                 ->orderByDesc('taux_moyen')
                 ->get();
         } else {
@@ -306,18 +288,12 @@ class FiliereController extends Controller
         $filiere = Filiere::where('code_efp', $user->etablissement->code_efp)
             ->findOrFail($id);
         
-        // Récupérer tous les secteurs et niveaux disponibles
-        $secteurs = Secteur::where(function($query) use ($user) {
-            $query->whereNull('code_efp')
-                  ->orWhere('code_efp', $user->etablissement->code_efp);
-        })->orderBy('nom')->get();
+        // Récupérer les secteurs de l'établissement
+        $secteurs = Secteur::where('code_efp', $user->etablissement->code_efp)
+            ->orderBy('nom_secteur')
+            ->get();
 
-        $niveaux = Niveau::where(function($query) use ($user) {
-            $query->whereNull('code_efp')
-                  ->orWhere('code_efp', $user->etablissement->code_efp);
-        })->orderBy('nom')->get();
-
-        return view('administrationetablissement.filieres.edit', compact('filiere', 'secteurs', 'niveaux'));
+        return view('administrationetablissement.filieres.edit', compact('filiere', 'secteurs'));
     }
 
     /**
@@ -336,18 +312,14 @@ class FiliereController extends Controller
             ->findOrFail($id);
 
         $validated = $request->validate([
-            'code' => 'required|string|max:255|unique:filieres,code,' . $id,
-            'nom' => 'required|string|max:255',
+            'code_filiere' => 'required|string|max:255',
+            'nom_filiere' => 'required|string|max:255',
             'secteur_id' => 'required|exists:secteurs,id',
-            'niveau_id' => 'required|exists:niveaux,id',
         ], [
-            'code.required' => 'Le code de la filière est obligatoire.',
-            'code.unique' => 'Ce code existe déjà.',
-            'nom.required' => 'Le nom de la filière est obligatoire.',
+            'code_filiere.required' => 'Le code de la filière est obligatoire.',
+            'nom_filiere.required' => 'Le nom de la filière est obligatoire.',
             'secteur_id.required' => 'Le secteur est obligatoire.',
             'secteur_id.exists' => 'Le secteur sélectionné n\'existe pas.',
-            'niveau_id.required' => 'Le niveau est obligatoire.',
-            'niveau_id.exists' => 'Le niveau sélectionné n\'existe pas.',
         ]);
 
         // S'assurer que le code_efp ne change pas

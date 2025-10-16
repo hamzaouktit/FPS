@@ -1,101 +1,245 @@
 @extends('layouts.app')
 
-@section('title', 'Créer un Groupe')
+@section('title', 'Nouveau Groupe')
 
 @section('breadcrumb')
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ route('administration.etablissement.dashboard') }}">Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="{{ route('administration.etablissement.groupes.index') }}">Groupes</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Créer</li>
-        </ol>
-    </nav>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+            <a href="{{ route('administration.etablissement.dashboard') }}">
+                <i class="fas fa-home"></i> Tableau de bord
+            </a>
+        </li>
+        <li class="breadcrumb-item">
+            <a href="{{ route('administration.etablissement.groupes.index') }}">
+                <i class="fas fa-users"></i> Groupes
+            </a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">
+            <i class="fas fa-plus-circle"></i> Nouveau Groupe
+        </li>
+    </ol>
+</nav>
 @endsection
 
 @section('content')
-    <h2><i class="fas fa-plus me-2"></i>Créer un Nouveau Groupe</h2>
-
-    <form action="{{ route('administration.etablissement.groupes.store') }}" method="POST">
-        @csrf
-
-        <div class="row">
-            <div class="col-md-6 mb-3">
-                <label for="code" class="form-label">Code</label>
-                <input type="text" class="form-control" id="code" name="code" required>
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-plus-circle me-2"></i>
+                    Ajouter un Nouveau Groupe pour mon Établissement
+                </h4>
             </div>
-            <div class="col-md-6 mb-3">
-                <label for="efp_code" class="form-label">EFP Code</label>
-                <input type="text" class="form-control" id="efp_code" value="{{ $etablissement->code_efp }}" readonly>
-                <input type="hidden" name="efp_code" value="{{ $etablissement->code_efp }}">
-                <small class="form-text text-muted">Rempli automatiquement</small>
+
+            <div class="card-body">
+                <form action="{{ route('administration.etablissement.groupes.store') }}" method="POST">
+                    @csrf
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="code_groupe" class="form-label">
+                                <i class="fas fa-hashtag me-1"></i>
+                                Code du Groupe <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control @error('code_groupe') is-invalid @enderror" 
+                                   id="code_groupe" 
+                                   name="code_groupe" 
+                                   value="{{ old('code_groupe') }}"
+                                   placeholder="Ex: G1, G2, TP1, etc."
+                                   required>
+                            @error('code_groupe')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="sous_groupe" class="form-label">
+                                <i class="fas fa-users me-1"></i>
+                                Sous-groupe <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control @error('sous_groupe') is-invalid @enderror" 
+                                   id="sous_groupe" 
+                                   name="sous_groupe" 
+                                   value="{{ old('sous_groupe') }}"
+                                   placeholder="Ex: SG1, Sous-groupe A, etc."
+                                   required>
+                            @error('sous_groupe')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="effectif_groupe" class="form-label">
+                                <i class="fas fa-user-graduate me-1"></i>
+                                Effectif <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" 
+                                   class="form-control @error('effectif_groupe') is-invalid @enderror" 
+                                   id="effectif_groupe" 
+                                   name="effectif_groupe" 
+                                   value="{{ old('effectif_groupe') }}"
+                                   min="0"
+                                   required>
+                            @error('effectif_groupe')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="annee_formation" class="form-label">
+                                <i class="fas fa-calendar me-1"></i>
+                                Année de Formation <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" 
+                                   class="form-control @error('annee_formation') is-invalid @enderror" 
+                                   id="annee_formation" 
+                                   name="annee_formation" 
+                                   value="{{ old('annee_formation', date('Y')) }}"
+                                   required>
+                            @error('annee_formation')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="statut" class="form-label">
+                                <i class="fas fa-toggle-on me-1"></i>
+                                Statut <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select @error('statut') is-invalid @enderror" 
+                                    id="statut" 
+                                    name="statut" 
+                                    required>
+                                <option value="Actif" {{ old('statut') == 'Actif' ? 'selected' : '' }}>Actif</option>
+                                <option value="Inactif" {{ old('statut') == 'Inactif' ? 'selected' : '' }}>Inactif</option>
+                            </select>
+                            @error('statut')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="statut_sous_groupe" class="form-label">
+                                <i class="fas fa-toggle-on me-1"></i>
+                                Statut Sous-groupe <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select @error('statut_sous_groupe') is-invalid @enderror" 
+                                    id="statut_sous_groupe" 
+                                    name="statut_sous_groupe" 
+                                    required>
+                                <option value="Actif" {{ old('statut_sous_groupe') == 'Actif' ? 'selected' : '' }}>Actif</option>
+                                <option value="Inactif" {{ old('statut_sous_groupe') == 'Inactif' ? 'selected' : '' }}>Inactif</option>
+                            </select>
+                            @error('statut_sous_groupe')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="fusion_groupe" class="form-label">
+                                <i class="fas fa-object-group me-1"></i>
+                                Fusion de Groupe
+                            </label>
+                            <input type="text" 
+                                   class="form-control @error('fusion_groupe') is-invalid @enderror" 
+                                   id="fusion_groupe" 
+                                   name="fusion_groupe" 
+                                   value="{{ old('fusion_groupe') }}"
+                                   placeholder="Ex: Fusion avec G2">
+                            @error('fusion_groupe')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="code_fusion" class="form-label">
+                                <i class="fas fa-code me-1"></i>
+                                Code Fusion
+                            </label>
+                            <input type="text" 
+                                   class="form-control @error('code_fusion') is-invalid @enderror" 
+                                   id="code_fusion" 
+                                   name="code_fusion" 
+                                   value="{{ old('code_fusion') }}"
+                                   placeholder="Ex: FUS-G1-G2">
+                            @error('code_fusion')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="filiere_id" class="form-label">
+                                <i class="fas fa-stream me-1"></i>
+                                Filière <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select @error('filiere_id') is-invalid @enderror" 
+                                    id="filiere_id" 
+                                    name="filiere_id" 
+                                    required>
+                                <option value="">Sélectionnez une filière</option>
+                                @foreach($filieres as $filiere)
+                                    <option value="{{ $filiere->id }}" {{ old('filiere_id') == $filiere->id ? 'selected' : '' }}>
+                                        {{ $filiere->nom_filiere }} ({{ $filiere->code_filiere }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('filiere_id')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="formation_id" class="form-label">
+                                <i class="fas fa-graduation-cap me-1"></i>
+                                Formation <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select @error('formation_id') is-invalid @enderror" 
+                                    id="formation_id" 
+                                    name="formation_id" 
+                                    required>
+                                <option value="">Sélectionnez une formation</option>
+                                @foreach($formations as $formation)
+                                    <option value="{{ $formation->id }}" {{ old('formation_id') == $formation->id ? 'selected' : '' }}>
+                                        {{ $formation->type }} -{{ $formation->filiere->nom_filiere }} - {{ $formation->mode }} ({{ $formation->creneau }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('formation_id')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Information :</strong> Ce groupe sera spécifique à votre établissement.
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{{ route('administration.etablissement.groupes.index') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>
+                            Retour
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>
+                            Enregistrer
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
-
-        <div class="row">
-            <div class="col-md-6 mb-3">
-                <label for="efp_nom" class="form-label">EFP Nom</label>
-                <input type="text" class="form-control" id="efp_nom" value="{{ $etablissement->nom_efp}}" readonly>
-                <input type="hidden" name="efp_nom" value="{{ $etablissement->nom_efp }}">
-                <small class="form-text text-muted">Rempli automatiquement</small>
-            </div>
-            <div class="col-md-6 mb-3">
-                <label for="effectif" class="form-label">Effectif</label>
-                <input type="number" class="form-control" id="effectif" name="effectif" min="0" required>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md-6 mb-3">
-                <label for="statut" class="form-label">Statut</label>
-                <select class="form-select" id="statut" name="statut" required>
-                    <option value="Actif">Actif</option>
-                    <option value="Inactif">Inactif</option>
-                </select>
-            </div>
-            <div class="col-md-6 mb-3">
-                <label for="fusion_groupe" class="form-label">Fusion Groupe</label>
-                <input type="text" class="form-control" id="fusion_groupe" name="fusion_groupe">
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md-6 mb-3">
-                <label for="code_fusion" class="form-label">Code Fusion</label>
-                <input type="text" class="form-control" id="code_fusion" name="code_fusion">
-            </div>
-            <div class="col-md-6 mb-3">
-                <label for="annee_formation" class="form-label">Année Formation</label>
-                <input type="number" class="form-control" id="annee_formation" name="annee_formation" required>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md-6 mb-3">
-                <label for="annee" class="form-label">Année</label>
-                <input type="number" class="form-control" id="annee" name="annee" required value="{{ date('Y') }}">
-            </div>
-            <div class="col-md-6 mb-3">
-                <label for="filiere_id" class="form-label">Filière</label>
-                <select class="form-select" id="filiere_id" name="filiere_id" required>
-                    @foreach ($filieres as $filiere)
-                        <option value="{{ $filiere->id }}">{{ $filiere->nom }}</option>
-                    @endforeach
-                </select>
-            </div>
-        </div>
-
-        <div class="mb-3">
-            <label for="formation_id" class="form-label">Formation</label>
-            <select class="form-select" id="formation_id" name="formation_id" required>
-                @foreach ($formations as $formation)
-                    <option value="{{ $formation->id }}">{{ $formation->type }} - {{ $formation->mode }}</option>
-                @endforeach
-            </select>
-        </div>
-
-        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Créer</button>
-        <a href="{{ route('administration.etablissement.groupes.index') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left me-2"></i>Retour
-        </a>
-    </form>
+    </div>
+</div>
 @endsection

@@ -23,8 +23,16 @@ return new class extends Migration
                   ->onDelete('set null');
             // Formateurs affectés
             $table->string('mle_affecte_presentiel')->nullable();
+            $table->foreign('mle_affecte_presentiel')
+                  ->references('mle')
+                  ->on('formateurs')
+                  ->onDelete('set null');
             $table->string('formateur_affecte_presentiel')->nullable();
             $table->string('mle_affecte_syn')->nullable();
+            $table->foreign('mle_affecte_syn')
+                  ->references('mle')
+                  ->on('formateurs')
+                  ->onDelete('set null');
             $table->string('formateur_affecte_syn')->nullable();
             
             // Masses horaires Semestre 1 DRIF

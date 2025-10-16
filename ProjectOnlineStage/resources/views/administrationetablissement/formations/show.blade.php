@@ -57,6 +57,9 @@
                                 <h1 class="display-4 fw-bold mb-2">Formation #{{ $formation->id }}</h1>
                                 <div class="d-flex flex-wrap gap-3 align-items-center">
                                     <span class="badge bg-white text-primary fs-6 px-4 py-2 rounded-pill shadow-sm">
+                                        <i class="fas fa-calendar me-2"></i>Année {{ $formation->annee }}
+                                    </span>
+                                    <span class="badge bg-light text-success fs-6 px-4 py-2 rounded-pill shadow-sm">
                                         <i class="fas fa-tag me-2"></i>{{ $formation->type }}
                                     </span>
                                     <span class="badge bg-light text-dark fs-6 px-4 py-2 rounded-pill shadow-sm">
@@ -199,6 +202,18 @@
 
                         <div class="info-item d-flex justify-content-between align-items-center py-3 border-bottom">
                             <div class="d-flex align-items-center">
+                                <div class="info-icon bg-dark bg-opacity-10 rounded-circle p-2 me-3">
+                                    <i class="fas fa-calendar text-dark"></i>
+                                </div>
+                                <div>
+                                    <span class="fw-semibold text-dark">Année</span>
+                                </div>
+                            </div>
+                            <span class="badge bg-dark rounded-pill fs-6 px-3 py-2">{{ $formation->annee }}</span>
+                        </div>
+
+                        <div class="info-item d-flex justify-content-between align-items-center py-3 border-bottom">
+                            <div class="d-flex align-items-center">
                                 <div class="info-icon bg-success bg-opacity-10 rounded-circle p-2 me-3">
                                     <i class="fas fa-tag text-success"></i>
                                 </div>
@@ -211,14 +226,14 @@
 
                         <div class="info-item d-flex justify-content-between align-items-center py-3 border-bottom">
                             <div class="d-flex align-items-center">
-                                <div class="info-icon bg-dark bg-opacity-10 rounded-circle p-2 me-3">
-                                    <i class="fas fa-{{ $formation->mode == 'Résidentiel' ? 'school' : 'exchange-alt' }} text-dark"></i>
+                                <div class="info-icon bg-secondary bg-opacity-10 rounded-circle p-2 me-3">
+                                    <i class="fas fa-{{ $formation->mode == 'Résidentiel' ? 'school' : 'exchange-alt' }} text-secondary"></i>
                                 </div>
                                 <div>
                                     <span class="fw-semibold text-dark">Mode</span>
                                 </div>
                             </div>
-                            <span class="badge bg-dark rounded-pill fs-6 px-3 py-2">{{ $formation->mode }}</span>
+                            <span class="badge bg-secondary rounded-pill fs-6 px-3 py-2">{{ $formation->mode }}</span>
                         </div>
 
                         <div class="info-item d-flex justify-content-between align-items-center py-3 border-bottom">
@@ -231,6 +246,33 @@
                                 </div>
                             </div>
                             <span class="badge bg-info rounded-pill fs-6 px-3 py-2">{{ $formation->creneau }}</span>
+                        </div>
+
+                        <div class="info-item d-flex justify-content-between align-items-center py-3 border-bottom">
+                            <div class="d-flex align-items-center">
+                                <div class="info-icon bg-warning bg-opacity-10 rounded-circle p-2 me-3">
+                                    <i class="fas fa-code-branch text-warning"></i>
+                                </div>
+                                <div>
+                                    <span class="fw-semibold text-dark">Filière</span>
+                                </div>
+                            </div>
+                            <span class="text-end">
+                                <div class="fw-semibold">{{ $formation->filiere->code_filiere }}</div>
+                                <small class="text-muted">{{ $formation->filiere->nom_filiere }}</small>
+                            </span>
+                        </div>
+
+                        <div class="info-item d-flex justify-content-between align-items-center py-3 border-bottom">
+                            <div class="d-flex align-items-center">
+                                <div class="info-icon bg-danger bg-opacity-10 rounded-circle p-2 me-3">
+                                    <i class="fas fa-layer-group text-danger"></i>
+                                </div>
+                                <div>
+                                    <span class="fw-semibold text-dark">Niveau</span>
+                                </div>
+                            </div>
+                            <span class="badge bg-danger rounded-pill fs-6 px-3 py-2">{{ $formation->niveau->nom }}</span>
                         </div>
 
                         <div class="info-item d-flex justify-content-between align-items-center py-3 border-bottom">
@@ -438,7 +480,6 @@
                                         <th class="py-3 border-0">Niveau</th>
                                         <th class="py-3 border-0">Effectif</th>
                                         <th class="py-3 border-0">Statut</th>
-                                        <th class="py-3 border-0">Année</th>
                                         <th class="py-3 border-0">Année Formation</th>
                                         <th class="text-end pe-4 py-3 border-0">Actions</th>
                                     </tr>
@@ -452,30 +493,30 @@
                                                         <i class="fas fa-users text-primary"></i>
                                                     </div>
                                                     <div>
-                                                        <div class="fw-bold text-primary">{{ $groupe->code }}</div>
+                                                        <div class="fw-bold text-primary">{{ $groupe->code_groupe }}</div>
                                                         <small class="text-muted">ID: {{ $groupe->id }}</small>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td>
                                                 <div>
-                                                    <div class="fw-semibold">{{ $groupe->filiere->nom ?? 'N/A' }}</div>
+                                                    <div class="fw-semibold">{{ $groupe->filiere->nom_filiere ?? 'N/A' }}</div>
                                                     <small class="text-muted">
                                                         <i class="fas fa-tag me-1"></i>
-                                                        {{ $groupe->filiere->secteur->nom ?? 'N/A' }}
+                                                        {{ $groupe->filiere->secteur->nom_secteur ?? 'N/A' }}
                                                     </small>
                                                 </div>
                                             </td>
                                             <td>
                                                 <span class="badge bg-warning text-dark rounded-pill px-3 py-2">
-                                                    {{ $groupe->filiere->niveau->nom ?? 'N/A' }}
+                                                    {{ $formation->niveau->nom }}
                                                 </span>
                                             </td>
                                             <td>
                                                 <div class="d-flex align-items-center">
                                                     <div class="effectif-display">
-                                                        <span class="fw-bold fs-5 text-{{ $groupe->effectif > 0 ? 'success' : 'secondary' }}">
-                                                            {{ $groupe->effectif }}
+                                                        <span class="fw-bold fs-5 text-{{ $groupe->effectif_groupe > 0 ? 'success' : 'secondary' }}">
+                                                            {{ $groupe->effectif_groupe }}
                                                         </span>
                                                         <small class="text-muted d-block">apprenants</small>
                                                     </div>
@@ -488,26 +529,22 @@
                                                 </span>
                                             </td>
                                             <td>
-                                                <span class="badge bg-dark rounded-pill px-3 py-2">
-                                                    {{ $groupe->annee }}
-                                                </span>
-                                            </td>
-                                            <td>
                                                 <span class="badge bg-info rounded-pill px-3 py-2">
                                                     {{ $groupe->annee_formation }}
                                                 </span>
                                             </td>
                                             <td class="text-end pe-4">
                                                 <div class="btn-group" role="group">
-                                                    <button class="btn btn-outline-primary btn-sm rounded-pill px-3 me-2">
+                                                    <a href="{{ route('administration.etablissement.groupes.show', $groupe->id) }}" 
+                                                       class="btn btn-outline-primary btn-sm rounded-pill px-3 me-2">
                                                         <i class="fas fa-eye"></i>
-                                                        <span class="d-none d-md-inline"><a href="{{ route('administration.etablissement.groupes.show', $groupe) }}" class="">voir<i class=""></i></a>
-</span>
-                                                    </button>
-                                                    <button class="btn btn-outline-warning btn-sm rounded-pill px-3">
+                                                        <span class="d-none d-md-inline">Voir</span>
+                                                    </a>
+                                                    <a href="{{ route('administration.etablissement.groupes.edit', $groupe->id) }}" 
+                                                       class="btn btn-outline-warning btn-sm rounded-pill px-3">
                                                         <i class="fas fa-edit"></i>
-                                                        <span class="d-none d-md-inline"><a href="{{ route('administration.etablissement.groupes.edit', $groupe) }}" class=""><i class="">Modifier</i></a></span>
-                                                    </button>
+                                                        <span class="d-none d-md-inline">Modifier</span>
+                                                    </a>
                                                 </div>
                                             </td>
                                         </tr>
@@ -705,7 +742,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Effet de scintillement sur le header
     const header = document.querySelector('.formation-header');
     setInterval(() => {
-        header.style.background = `linear-gradient(135deg, #667eea 0%, #764ba2 ${Math.random() * 100}%)`;
+        header.style.background = linear-gradient(135deg, #667eea 0%, #764ba2 ${Math.random() * 100}%);
     }, 5000);
 
     // Tooltips Bootstrap

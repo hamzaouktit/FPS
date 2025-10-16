@@ -14,15 +14,16 @@ return new class extends Migration
         // Table Filieres
         Schema::create('filieres', function (Blueprint $table) {
             $table->id();
-            $table->string('code');
-            $table->string('nom');
+            $table->string('code_filiere');
+            $table->string('nom_filiere');
             $table->foreignId('secteur_id')->constrained('secteurs')->onDelete('cascade');
-            $table->foreignId('niveau_id')->constrained('niveaux')->onDelete('cascade');$table->string('code_efp')->nullable();
+            $table->string('code_efp')->nullable();
              $table->foreign('code_efp')
                   ->references('code_efp')
                   ->on('etablissements')
                   ->onDelete('set null');
             $table->timestamps();
+            $table->index('code_filiere');
         });
     }
 

@@ -23,6 +23,7 @@ return new class extends Migration
                   ->on('etablissements')
                   ->onDelete('set null');
             $table->timestamps();
+            $table->index('type');
         });
     }
 

@@ -12,15 +12,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Secteur extends Model
 {
-    use HasFactory;
+    protected $fillable = ['nom_secteur', 'code_efp'];
 
-    protected $fillable = [
-        'code',
-        'nom',
-        'code_efp'
-    ];
-
-    // Relations
     public function etablissement()
     {
         return $this->belongsTo(Etablissement::class, 'code_efp', 'code_efp');

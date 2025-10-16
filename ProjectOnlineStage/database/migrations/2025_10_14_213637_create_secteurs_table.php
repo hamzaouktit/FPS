@@ -14,8 +14,7 @@ return new class extends Migration
         // Table Secteurs
         Schema::create('secteurs', function (Blueprint $table) {
             $table->id();
-            $table->string('code');
-            $table->string('nom');
+            $table->string('nom_secteur');
             $table->string('code_efp')->nullable();
              $table->foreign('code_efp')
                   ->references('code_efp')

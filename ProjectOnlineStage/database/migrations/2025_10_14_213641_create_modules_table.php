@@ -14,12 +14,11 @@ return new class extends Migration
         // Table Modules
         Schema::create('modules', function (Blueprint $table) {
             $table->id();
-            $table->string('code');
-            $table->string('nom');
-            $table->string('regional')->default('N'); // O=Oui, N=Non
-            $table->boolean('module_pie')->default(false);
+            $table->string('code_module');
+            $table->string('nom_module');
+            $table->enum('regional', ['O', 'N']); // O=Oui, N=Non
             $table->string('efp_pie')->nullable();
-            $table->foreignId('filiere_id')->nullable()->constrained('filieres')->onDelete('set null');
+            $table->enum('module_pie', ['O', 'N'])->default('N'); // O=Oui, N=Non 
             $table->string('code_efp')->nullable();
              $table->foreign('code_efp')
                   ->references('code_efp')

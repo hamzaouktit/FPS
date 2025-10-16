@@ -1,180 +1,70 @@
 @extends('layouts.app')
 
-@section('title', 'Gestion des Secteurs')
-
 @section('content')
-<div class="container-fluid py-4">
-    <!-- En-tête -->
+<div class="container-fluid">
     <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h2 class="mb-1">Gestion des Secteurs</h2>
-                    <p class="text-muted mb-0">
-                        <i class="fas fa-industry me-2"></i>Secteurs de {{ $etablissement->nom_efp }}
-                    </p>
-                </div>
-                <div>
-                    <a href="{{ route('administration.etablissement.secteurs.create') }}" class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i>Nouveau Secteur
-                    </a>
-                </div>
-            </div>
+        <div class="col-md-8">
+            <h1 class="h3 d-inline-block fw-bold">Gestion des Secteurs</h1>
+            <p class="text-muted">{{ $etablissement->nom_efp }}</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ route('administration.etablissement.secteurs.create') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Ajouter un Secteur
+            </a>
         </div>
     </div>
 
-    <!-- Messages de succès/erreur -->
-    @if(session('success'))
+    @if ($message = Session::get('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="fas fa-check-circle me-2"></i>{{ session('success') }}
+            <i class="fas fa-check-circle"></i> {{ $message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
 
-    @if(session('error'))
+    @if ($message = Session::get('error'))
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-circle me-2"></i>{{ session('error') }}
+            <i class="fas fa-exclamation-circle"></i> {{ $message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
 
-    <!-- Carte d'information établissement -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card shadow-sm border-start border-info border-4">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="me-3">
-                            <i class="fas fa-building fa-3x text-info"></i>
-                        </div>
-                        <div>
-                            <h5 class="mb-1">{{ $etablissement->nom_efp }}</h5>
-                            <p class="text-muted mb-0">
-                                <i class="fas fa-tag me-2"></i>Code: <code>{{ $etablissement->code_efp }}</code>
-                                <span class="mx-2">|</span>
-                                <i class="fas fa-map-marker-alt me-2"></i>{{ $etablissement->ville }}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Statistiques -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card shadow-sm border-start border-primary border-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">Total Secteurs</h6>
-                            <h3 class="mb-0">{{ $secteurs->total() }}</h3>
-                        </div>
-                        <div class="text-primary">
-                            <i class="fas fa-industry fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm border-start border-success border-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">Avec Filières</h6>
-                            <h3 class="mb-0">{{ $secteurs->where('filieres_count', '>', 0)->count() }}</h3>
-                        </div>
-                        <div class="text-success">
-                            <i class="fas fa-check-circle fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm border-start border-info border-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">Total Filières</h6>
-                            <h3 class="mb-0">{{ $secteurs->sum('filieres_count') }}</h3>
-                        </div>
-                        <div class="text-info">
-                            <i class="fas fa-stream fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Table des secteurs -->
     <div class="card shadow-sm">
-        <div class="card-header bg-light">
-            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Liste des Secteurs</h5>
-        </div>
         <div class="card-body">
             @if($secteurs->count() > 0)
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th>#</th>
-                                <th>Code</th>
-                                <th>Nom du Secteur</th>
-                                <th class="text-center">Filières</th>
-                                <th>Date de Création</th>
-                                <th class="text-center">Actions</th>
+                                <th width="5%">#</th>
+                                <th width="45%">Nom du Secteur</th>
+                                <th width="20%">Nombre de Filières</th>
+                                <th width="30%">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($secteurs as $index => $secteur)
+                            @foreach($secteurs as $secteur)
                                 <tr>
-                                    <td>{{ $secteurs->firstItem() + $index }}</td>
-                                    <td><code>{{ $secteur->code }}</code></td>
+                                    <td class="fw-bold text-primary">{{ $secteur->id }}</td>
+                                    <td>{{ $secteur->nom_secteur }}</td>
                                     <td>
-                                        <strong>{{ $secteur->nom }}</strong>
-                                    </td>
-                                    <td class="text-center">
-                                        @if($secteur->filieres_count > 0)
-                                            <span class="badge bg-success">{{ $secteur->filieres_count }}</span>
-                                        @else
-                                            <span class="badge bg-secondary">0</span>
-                                        @endif
+                                        <span class="badge bg-info">{{ $secteur->filieres_count }}</span>
                                     </td>
                                     <td>
-                                        <small class="text-muted">
-                                            <i class="far fa-calendar-alt me-1"></i>
-                                            {{ $secteur->created_at->format('d/m/Y') }}
-                                        </small>
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="btn-group" role="group">
-                                            <a href="{{ route('administration.etablissement.secteurs.show', $secteur->id) }}" 
-                                               class="btn btn-sm btn-info" 
-                                               title="Voir détails">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            <a href="{{ route('administration.etablissement.secteurs.edit', $secteur->id) }}" 
-                                               class="btn btn-sm btn-warning" 
-                                               title="Modifier">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-danger" 
-                                                    onclick="confirmDelete({{ $secteur->id }})" 
-                                                    title="Supprimer"
-                                                    @if($secteur->filieres_count > 0) disabled @endif>
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                        
+                                        <a href="{{ route('administration.etablissement.secteurs.show', $secteur->id) }}" 
+                                           class="btn btn-sm btn-info" title="Voir">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ route('administration.etablissement.secteurs.edit', $secteur->id) }}" 
+                                           class="btn btn-sm btn-warning" title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-danger" 
+                                                onclick="confirmDelete({{ $secteur->id }})" title="Supprimer">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
                                         <form id="delete-form-{{ $secteur->id }}" 
                                               action="{{ route('administration.etablissement.secteurs.destroy', $secteur->id) }}" 
-                                              method="POST" 
-                                              class="d-none">
+                                              method="POST" style="display:none;">
                                             @csrf
                                             @method('DELETE')
                                         </form>
@@ -185,31 +75,23 @@
                     </table>
                 </div>
 
-                <!-- Pagination -->
-                <div class="d-flex justify-content-center mt-4">
-                    {{ $secteurs->links() }}
+                <div class="d-flex justify-content-center">
+                    {{ $secteurs->links('pagination::bootstrap-4') }}
                 </div>
             @else
-                <div class="text-center py-5">
-                    <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
-                    <h5 class="text-muted">Aucun secteur trouvé</h5>
-                    <p class="text-muted">Commencez par créer un nouveau secteur pour votre établissement</p>
-                    <a href="{{ route('administration.etablissement.secteurs.create') }}" class="btn btn-primary mt-3">
-                        <i class="fas fa-plus me-2"></i>Créer un Secteur
-                    </a>
+                <div class="alert alert-info text-center" role="alert">
+                    <i class="fas fa-info-circle"></i> Aucun secteur trouvé
                 </div>
             @endif
         </div>
     </div>
 </div>
 
-@push('scripts')
 <script>
-function confirmDelete(id) {
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce secteur ?\n\nCette action est irréversible.')) {
-        document.getElementById('delete-form-' + id).submit();
+    function confirmDelete(id) {
+        if (confirm('Êtes-vous sûr de vouloir supprimer ce secteur ?')) {
+            document.getElementById('delete-form-' + id).submit();
+        }
     }
-}
 </script>
-@endpush
 @endsection

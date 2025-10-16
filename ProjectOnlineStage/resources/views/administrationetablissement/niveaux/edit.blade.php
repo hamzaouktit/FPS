@@ -34,7 +34,7 @@
             </div>
 
             <div class="card-body">
-                <form action="{{ route('administration.etablissement.niveaux.update', $niveauData->code) }}" method="POST">
+                <form action="{{ route('administration.etablissement.niveaux.update', $niveauData->id) }}" method="POST">
                     @csrf
                     @method('PUT')
 
@@ -54,7 +54,7 @@
                         @enderror
                         <small class="form-text text-muted">
                             <i class="fas fa-info-circle me-1"></i>
-                            Code actuel : <strong>{{ $niveauData->code }}</strong> (sera mis à jour automatiquement)
+                            ID : <strong>{{ $niveauData->id }}</strong>
                         </small>
                     </div>
 
@@ -64,7 +64,7 @@
                         <strong>Attention :</strong> Ce niveau contient des données dans votre établissement. 
                         Les modifications peuvent impacter :
                         <ul class="mb-0 mt-2">
-                            <li>{{ $niveauData->formations_count }} filière(s)</li>
+                            <li>{{ $niveauData->formations_count }} formation(s)</li>
                             <li>{{ $niveauData->groupes_count }} groupe(s)</li>
                         </ul>
                     </div>
@@ -82,7 +82,7 @@
                                     <div class="p-2">
                                         <i class="fas fa-graduation-cap fa-2x text-primary mb-2"></i>
                                         <h5>{{ $niveauData->formations_count }}</h5>
-                                        <small class="text-muted">Filières</small>
+                                        <small class="text-muted">Formations</small>
                                     </div>
                                 </div>
                                 <div class="col-4">

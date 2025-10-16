@@ -10,33 +10,24 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+
 class Module extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
-        'code',
-        'nom',
-        'regional',
-        'module_pie',
-        'efp_pie',
-        'filiere_id',
-        'code_efp'
+        'code_module', 'nom_module', 'regional', 'module_pie',
+        'efp_pie', 'code_efp'
     ];
 
-    protected $casts = [
-        'module_pie' => 'boolean'
-    ];
+    // ✅ RELATION MANY-TO-MANY avec Filiere
+    public function filieres()
+    {
+        return $this->belongsToMany(Filiere::class, 'filiere_module')
+                    ->withTimestamps();
+    }
 
-    // Relations
     public function etablissement()
     {
         return $this->belongsTo(Etablissement::class, 'code_efp', 'code_efp');
-    }
-
-    public function filiere()
-    {
-        return $this->belongsTo(Filiere::class);
     }
 
     public function affectations()
@@ -46,16 +37,7 @@ class Module extends Model
 
     public function formateurs()
     {
-        return $this->belongsToMany(Formateur::class, 'formateur_module');
-    }
-
-    public function scopeRegional($query)
-    {
-        return $query->where('regional', 'O');
-    }
-
-    public function scopePie($query)
-    {
-        return $query->where('module_pie', true);
+        return $this->belongsToMany(Formateur::class, 'formateur_module')
+                    ->withTimestamps();
     }
 }

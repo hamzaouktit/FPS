@@ -27,7 +27,18 @@
                 </div>
             </a>
         </div>
-        
+        <div class="sidebar-nav-item">
+            <a href="{{ route('administration.etablissement.niveaux.index') }}" 
+               class="sidebar-nav-link {{ request()->routeIs('administration.etablissement.niveaux.*') ? 'active' : '' }}">
+                <div class="nav-icon-wrapper">
+                    <i class="fas fa-layer-group sidebar-nav-icon"></i>
+                </div>
+                <span>Niveaux</span>
+                <div class="nav-arrow">
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </a>
+        </div>
         <div class="sidebar-nav-item">
             <a href="{{ route('administration.etablissement.secteurs.index') }}" 
                class="sidebar-nav-link {{ request()->routeIs('administration.etablissement.secteurs.*') ? 'active' : '' }}">
@@ -52,21 +63,7 @@
                     <i class="fas fa-chevron-right"></i>
                 </div>
             </a>
-        </div>
-        
-        <div class="sidebar-nav-item">
-            <a href="{{ route('administration.etablissement.niveaux.index') }}" 
-               class="sidebar-nav-link {{ request()->routeIs('administration.etablissement.niveaux.*') ? 'active' : '' }}">
-                <div class="nav-icon-wrapper">
-                    <i class="fas fa-layer-group sidebar-nav-icon"></i>
-                </div>
-                <span>Niveaux</span>
-                <div class="nav-arrow">
-                    <i class="fas fa-chevron-right"></i>
-                </div>
-            </a>
-        </div>
-        
+        </div>        
         <div class="sidebar-nav-item">
             <a href="{{ route('administration.etablissement.formations.index') }}" 
                class="sidebar-nav-link {{ request()->routeIs('administration.etablissement.formations.*') ? 'active' : '' }}">
@@ -94,8 +91,8 @@
         </div>
         
         <div class="sidebar-nav-item">
-            <a href="#" 
-               class="sidebar-nav-link">
+            <a href="{{ route('administration.etablissement.modules.index') }}" 
+               class="sidebar-nav-link {{ request()->routeIs('administration.etablissement.modules.*') ? 'active' : '' }}">
                 <div class="nav-icon-wrapper">
                     <i class="fas fa-book sidebar-nav-icon"></i>
                 </div>
@@ -107,8 +104,8 @@
         </div>
         
         <div class="sidebar-nav-item">
-            <a href="#" 
-               class="sidebar-nav-link">
+            <a href="{{ route('administration.etablissement.formateurs.index') }}" 
+               class="sidebar-nav-link {{ request()->routeIs('administration.etablissement.formateurs.*') ? 'active' : '' }}">
                 <div class="nav-icon-wrapper">
                     <i class="fas fa-chalkboard-teacher sidebar-nav-icon"></i>
                 </div>
@@ -120,8 +117,8 @@
         </div>
         
         <div class="sidebar-nav-item">
-            <a href="#" 
-               class="sidebar-nav-link">
+            <a href="{{ route('administration.etablissement.affectations.index') }}" 
+               class="sidebar-nav-link {{ request()->routeIs('administration.etablissement.affectations.*') ? 'active' : '' }}">
                 <div class="nav-icon-wrapper">
                     <i class="fas fa-tasks sidebar-nav-icon"></i>
                 </div>
@@ -133,8 +130,8 @@
         </div>
         
         <div class="sidebar-nav-item">
-            <a href="#" 
-               class="sidebar-nav-link">
+            <a href="{{ route('administration.etablissement.avancements.index') }}" 
+               class="sidebar-nav-link {{ request()->routeIs('administration.etablissement.avancements.*') ? 'active' : '' }}">
                 <div class="nav-icon-wrapper">
                     <i class="fas fa-chart-line sidebar-nav-icon"></i>
                 </div>

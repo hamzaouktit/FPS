@@ -13,16 +13,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Formateur extends Model
 {
-    use HasFactory;
+    protected $fillable = ['mle', 'nom_complet', 'type', 'code_efp'];
 
-    protected $fillable = [
-        'mle',
-        'nom_complet',
-        'type',
-        'code_efp'
-    ];
-
-    // Relations
     public function etablissement()
     {
         return $this->belongsTo(Etablissement::class, 'code_efp', 'code_efp');
@@ -43,26 +35,8 @@ class Formateur extends Model
         return $this->hasMany(Affectation::class, 'mle_affecte_presentiel', 'mle');
     }
 
-    public function affectationsSynchrone()
+    public function affectationsSyn()
     {
         return $this->hasMany(Affectation::class, 'mle_affecte_syn', 'mle');
     }
-
-    public function affectations()
-    {
-        return Affectation::where('mle_affecte_presentiel', $this->mle)
-            ->orWhere('mle_affecte_syn', $this->mle)
-            ->get();
-    }
-
-    public function scopePermanent($query)
-    {
-        return $query->where('type', 'permanent');
-    }
-
-    public function scopeVacataire($query)
-    {
-        return $query->where('type', 'vacataire');
-    }
 }
-

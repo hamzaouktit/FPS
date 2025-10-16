@@ -14,15 +14,14 @@ return new class extends Migration
         // Table Groupes
         Schema::create('groupes', function (Blueprint $table) {
             $table->id();
-            $table->string('code');
-            $table->string('efp_code');
-            $table->string('efp_nom');
-            $table->integer('effectif')->default(0);
+            $table->string('code_groupe');
+            $table->integer('effectif_groupe')->default(0);
             $table->string('statut')->default('Actif'); // Actif, Inactif
+            $table->string('sous_groupe'); 
+            $table->string('statut_sous_groupe')->default('Actif'); // Actif, Inactif
             $table->string('fusion_groupe')->nullable();
             $table->string('code_fusion')->nullable();
             $table->integer('annee_formation');
-            $table->integer('annee')->default(2025);
             $table->foreignId('filiere_id')->constrained('filieres')->onDelete('cascade');
             $table->foreignId('formation_id')->constrained('formations')->onDelete('cascade');
             $table->string('code_efp')->nullable();
@@ -31,6 +30,10 @@ return new class extends Migration
                   ->on('etablissements')
                   ->onDelete('set null');
             $table->timestamps();
+            // Index
+            $table->index('code_groupe');
+            $table->index('statut');
+            $table->index('annee_formation');
         });
     }
 

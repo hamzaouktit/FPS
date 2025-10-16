@@ -45,9 +45,9 @@
                 <table class="table table-hover table-bordered align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th><i class="fas fa-hashtag me-1"></i> Code</th>
+                            <th><i class="fas fa-hashtag me-1"></i> ID</th>
                             <th><i class="fas fa-layer-group me-1"></i> Niveau</th>
-                            <th><i class="fas fa-graduation-cap me-1"></i> Filières</th>
+                            <th><i class="fas fa-graduation-cap me-1"></i> Formations</th>
                             <th><i class="fas fa-users me-1"></i> Groupes</th>
                             <th><i class="fas fa-calendar me-1"></i> Date de création</th>
                             <th class="text-center"><i class="fas fa-cogs me-1"></i> Actions</th>
@@ -57,7 +57,7 @@
                         @foreach($niveaux as $niveau)
                         <tr>
                             <td>
-                                <span class="badge bg-secondary">{{ $niveau->code }}</span>
+                                <span class="badge bg-secondary">#{{ $niveau->id }}</span>
                             </td>
                             <td>
                                 <strong>
@@ -67,7 +67,7 @@
                             </td>
                             <td>
                                 <span class="badge bg-info">
-                                    {{ $niveau->filieres_count }} filière(s)
+                                    {{ $niveau->formations_count }} formation(s)
                                 </span>
                             </td>
                             <td>
@@ -81,19 +81,19 @@
                             </td>
                             <td class="text-center">
                                 <div class="btn-group" role="group">
-                                    <a href="{{ route('administration.etablissement.niveaux.show', $niveau->code) }}" 
+                                    <a href="{{ route('administration.etablissement.niveaux.show', $niveau->id) }}" 
                                        class="btn btn-sm btn-info" 
                                        title="Voir les détails">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <a href="{{ route('administration.etablissement.niveaux.edit', $niveau->code) }}" 
+                                    <a href="{{ route('administration.etablissement.niveaux.edit', $niveau->id) }}" 
                                        class="btn btn-sm btn-warning" 
                                        title="Modifier">
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     <button type="button" 
                                             class="btn btn-sm btn-danger" 
-                                            onclick="confirmDelete('{{ $niveau->code }}', '{{ $niveau->nom }}')"
+                                            onclick="confirmDelete('{{ $niveau->id }}', '{{ $niveau->nom }}')"
                                             title="Supprimer">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -149,10 +149,10 @@
 
 @push('scripts')
 <script>
-    function confirmDelete(niveauCode, niveauName) {
+    function confirmDelete(niveauId, niveauName) {
         document.getElementById('niveauNameToDelete').textContent = niveauName;
         document.getElementById('deleteForm').action = 
-            "{{ route('administration.etablissement.niveaux.destroy', ':niveau') }}".replace(':niveau', niveauCode);
+            "{{ route('administration.etablissement.niveaux.destroy', ':niveau') }}".replace(':niveau', niveauId);
         
         var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
         deleteModal.show();

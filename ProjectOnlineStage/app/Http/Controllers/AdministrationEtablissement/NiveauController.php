@@ -9,6 +9,7 @@ use App\Models\Secteur;
 use App\Models\Module;
 use App\Models\Formateur;
 use App\Models\Groupe;
+use App\Models\Formation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -37,27 +38,24 @@ class NiveauController extends Controller
     {
         $code_efp = $this->getCodeEfp();
         
-        // Récupérer uniquement les niveaux de cet établissement avec leurs relations
+        // Récupérer uniquement les niveaux de cet établissement
         $niveaux = Niveau::where('code_efp', $code_efp)
-            ->with(['filieres' => function($query) use ($code_efp) {
+            ->with(['formations' => function($query) use ($code_efp) {
                 $query->where('code_efp', $code_efp);
             }])
             ->get()
             ->map(function($niveau) use ($code_efp) {
-                // Compter les filières uniques de cet établissement
-                $niveau->filieres_count = Filiere::where('niveau_id', $niveau->id)
+                // Compter les formations de cet établissement
+                $niveau->formations_count = Formation::where('niveau_id', $niveau->id)
                     ->where('code_efp', $code_efp)
                     ->count();
                 
                 // Compter les groupes de cet établissement pour ce niveau
                 $niveau->groupes_count = Groupe::where('code_efp', $code_efp)
-                    ->whereHas('filiere', function($q) use ($niveau) {
+                    ->whereHas('formation', function($q) use ($niveau) {
                         $q->where('niveau_id', $niveau->id);
                     })
                     ->count();
-                
-                // Adapter le nom pour la vue (formations_count = filieres_count)
-                $niveau->formations_count = $niveau->filieres_count;
                 
                 return $niveau;
             })
@@ -111,7 +109,6 @@ class NiveauController extends Controller
         ]);
 
         Niveau::create([
-            'code' => strtoupper(substr($validated['niveau'], 0, 3)),
             'nom' => $validated['niveau'],
             'code_efp' => $code_efp
         ]);
@@ -123,57 +120,50 @@ class NiveauController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $code)
+    public function show(string $id)
     {
         $code_efp = $this->getCodeEfp();
 
         // Récupérer le niveau de cet établissement avec ses relations
         $niveauData = Niveau::where('code_efp', $code_efp)
-            ->where(function($query) use ($code) {
-                $query->where('code', $code)->orWhere('nom', $code);
-            })
+            ->where('id', $id)
             ->with('etablissement')
             ->firstOrFail();
 
-        // Récupérer toutes les filières de ce niveau dans cet établissement
-        $filieres = Filiere::where('niveau_id', $niveauData->id)
+        // Récupérer toutes les formations de ce niveau dans cet établissement
+        $formations = Formation::where('niveau_id', $niveauData->id)
             ->where('code_efp', $code_efp)
-            ->with(['secteur', 'groupes' => function($q) use ($code_efp) {
-                $q->where('code_efp', $code_efp)
-                  ->with('formation');
-            }])
+            ->with(['filiere.secteur', 'groupes'])
             ->get();
 
         // Récupérer tous les groupes de cet établissement pour ce niveau
         $groupesEtablissement = Groupe::where('code_efp', $code_efp)
-            ->whereHas('filiere', function($q) use ($niveauData) {
+            ->whereHas('formation', function($q) use ($niveauData) {
                 $q->where('niveau_id', $niveauData->id);
             })
-            ->with(['filiere.secteur', 'formation'])
+            ->with(['formation.filiere.secteur', 'filiere'])
             ->get();
 
         $groupeIds = $groupesEtablissement->pluck('id')->toArray();
 
         // Statistiques détaillées
         $stats = [
-            'total_formations' => $filieres->count(),
+            'total_formations' => $formations->count(),
             'total_groupes' => $groupesEtablissement->count(),
-            'effectif_total' => $groupesEtablissement->sum('effectif'),
-            'formations_par_filiere' => $filieres->mapWithKeys(function($filiere) {
-                return [$filiere->nom => $filiere->groupes->count()];
-            })->toArray(),
-            'formations_par_type' => $groupesEtablissement
-                ->groupBy('formation.type')
+            'effectif_total' => $groupesEtablissement->sum('effectif_groupe'),
+            'formations_par_filiere' => $formations->groupBy('filiere.nom')
                 ->map->count()
                 ->toArray(),
-            'formations_par_annee' => $groupesEtablissement
-                ->groupBy('annee_formation')
+            'formations_par_type' => $formations->groupBy('type')
+                ->map->count()
+                ->toArray(),
+            'formations_par_annee' => $formations->groupBy('annee')
                 ->map->count()
                 ->toArray(),
         ];
 
         // Secteurs concernés
-        $secteurs = Secteur::whereHas('filieres', function($q) use ($niveauData, $code_efp) {
+        $secteurs = Secteur::whereHas('filieres.formations', function($q) use ($niveauData, $code_efp) {
             $q->where('niveau_id', $niveauData->id)
               ->where('code_efp', $code_efp);
         })->get();
@@ -185,11 +175,7 @@ class NiveauController extends Controller
         ->withCount(['affectations' => function($q) use ($groupeIds) {
             $q->whereIn('groupe_id', $groupeIds);
         }])
-        ->get()
-        ->map(function($module) {
-            $module->avancements_count = $module->affectations_count;
-            return $module;
-        });
+        ->get();
 
         // Formateurs intervenant dans ce niveau
         $formateurs = Formateur::where('code_efp', $code_efp)
@@ -212,26 +198,21 @@ class NiveauController extends Controller
         // Préparer les données structurées pour la vue
         $niveauData->groupes = $groupesEtablissement;
         
-        // Structurer les formations par filière et année
-        $niveauData->formations = $filieres->flatMap(function($filiere) {
-            return $filiere->groupes->map(function($groupe) use ($filiere) {
-                return (object)[
-                    'annee' => $groupe->annee_formation,
-                    'filiere' => $filiere,
-                    'secteur' => $filiere->secteur,
-                    'type_formation' => $groupe->formation->type ?? 'N/A',
-                    'mode' => $groupe->formation->mode ?? 'N/A',
-                    'creneau' => $groupe->formation->creneau ?? 'N/A',
-                    'groupe' => $groupe,
-                    'effectif' => $groupe->effectif
-                ];
-            });
-        })->sortByDesc('annee');
+        // Structurer les formations avec leurs groupes
+        $niveauData->formations_structured = $formations->map(function($formation) {
+            return (object)[
+                'formation' => $formation,
+                'filiere' => $formation->filiere,
+                'secteur' => $formation->filiere->secteur,
+                'groupes' => $formation->groupes,
+                'total_effectif' => $formation->groupes->sum('effectif_groupe')
+            ];
+        });
 
         return view('administrationetablissement.niveaux.show', compact(
             'niveauData',
             'stats',
-            'filieres',
+            'formations',
             'secteurs',
             'modules',
             'formateurs'
@@ -241,34 +222,32 @@ class NiveauController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $code)
+    public function edit(string $id)
     {
         $code_efp = $this->getCodeEfp();
 
         // Récupérer le niveau de cet établissement uniquement
         $niveauData = Niveau::where('code_efp', $code_efp)
-            ->where(function($query) use ($code) {
-                $query->where('code', $code)->orWhere('nom', $code);
-            })
+            ->where('id', $id)
             ->firstOrFail();
 
-        // Compter les filières et groupes
-        $niveauData->formations_count = Filiere::where('niveau_id', $niveauData->id)
+        // Compter les formations et groupes
+        $niveauData->formations_count = Formation::where('niveau_id', $niveauData->id)
             ->where('code_efp', $code_efp)
             ->count();
 
         $niveauData->groupes_count = Groupe::where('code_efp', $code_efp)
-            ->whereHas('filiere', function($q) use ($niveauData) {
+            ->whereHas('formation', function($q) use ($niveauData) {
                 $q->where('niveau_id', $niveauData->id);
             })
             ->count();
 
         // Calculer l'effectif total
         $niveauData->effectif_total = Groupe::where('code_efp', $code_efp)
-            ->whereHas('filiere', function($q) use ($niveauData) {
+            ->whereHas('formation', function($q) use ($niveauData) {
                 $q->where('niveau_id', $niveauData->id);
             })
-            ->sum('effectif');
+            ->sum('effectif_groupe');
 
         return view('administrationetablissement.niveaux.edit', compact('niveauData'));
     }
@@ -276,15 +255,13 @@ class NiveauController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $code)
+    public function update(Request $request, string $id)
     {
         $code_efp = $this->getCodeEfp();
 
         // Récupérer le niveau de cet établissement uniquement
         $niveauData = Niveau::where('code_efp', $code_efp)
-            ->where(function($query) use ($code) {
-                $query->where('code', $code)->orWhere('nom', $code);
-            })
+            ->where('id', $id)
             ->firstOrFail();
 
         $validated = $request->validate([
@@ -305,8 +282,7 @@ class NiveauController extends Controller
         ]);
 
         $niveauData->update([
-            'nom' => $validated['niveau'],
-            'code' => strtoupper(substr($validated['niveau'], 0, 3))
+            'nom' => $validated['niveau']
         ]);
 
         return redirect()->route('administration.etablissement.niveaux.index')
@@ -316,20 +292,18 @@ class NiveauController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $code)
+    public function destroy(string $id)
     {
         $code_efp = $this->getCodeEfp();
 
         // Récupérer le niveau de cet établissement uniquement
         $niveauData = Niveau::where('code_efp', $code_efp)
-            ->where(function($query) use ($code) {
-                $query->where('code', $code)->orWhere('nom', $code);
-            })
+            ->where('id', $id)
             ->firstOrFail();
 
         // Vérifier s'il y a des groupes dans cet établissement
         $hasGroupes = Groupe::where('code_efp', $code_efp)
-            ->whereHas('filiere', function($q) use ($niveauData) {
+            ->whereHas('formation', function($q) use ($niveauData) {
                 $q->where('niveau_id', $niveauData->id);
             })
             ->exists();
@@ -339,14 +313,14 @@ class NiveauController extends Controller
                 ->with('error', 'Impossible de supprimer ce niveau car il contient des groupes.');
         }
 
-        // Vérifier s'il y a des filières liées dans cet établissement
-        $hasFilieres = Filiere::where('niveau_id', $niveauData->id)
+        // Vérifier s'il y a des formations liées dans cet établissement
+        $hasFormations = Formation::where('niveau_id', $niveauData->id)
             ->where('code_efp', $code_efp)
             ->exists();
 
-        if ($hasFilieres) {
+        if ($hasFormations) {
             return redirect()->route('administration.etablissement.niveaux.index')
-                ->with('error', 'Impossible de supprimer ce niveau car il contient des filières.');
+                ->with('error', 'Impossible de supprimer ce niveau car il contient des formations.');
         }
 
         // Supprimer le niveau

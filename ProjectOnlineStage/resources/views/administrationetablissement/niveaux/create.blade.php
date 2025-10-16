@@ -54,7 +54,7 @@
                         @enderror
                         <small class="form-text text-muted">
                             <i class="fas fa-info-circle me-1"></i>
-                            Le code sera généré automatiquement à partir des 3 premières lettres
+                            Le niveau sera spécifique à votre établissement
                         </small>
                     </div>
 
@@ -72,22 +72,22 @@
                             </h6>
                             <div class="d-flex flex-wrap gap-2">
                                 <button type="button" class="btn btn-sm btn-outline-primary" onclick="setNiveau('Technicien')">
-                                    Technicien (T)
+                                    Technicien
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-primary" onclick="setNiveau('Technicien Spécialisé')">
-                                    Technicien Spécialisé (TS)
+                                    Technicien Spécialisé
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-primary" onclick="setNiveau('Qualification')">
-                                    Qualification (Q)
+                                    Qualification
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-primary" onclick="setNiveau('Spécialisation')">
-                                    Spécialisation (S)
+                                    Spécialisation
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-primary" onclick="setNiveau('Brevet Professionnel')">
-                                    Brevet Professionnel (BP)
+                                    Brevet Professionnel
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-primary" onclick="setNiveau('Formation Qualifiante')">
-                                    Formation Qualifiante (FQ)
+                                    Formation Qualifiante
                                 </button>
                             </div>
                         </div>

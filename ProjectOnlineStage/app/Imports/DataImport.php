@@ -31,7 +31,6 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
 
     public function __construct()
     {
-        // Si vous avez un système d'authentification avec établissement
         if (Auth::check() && Auth::user()->etablissement) {
             $this->codeEfp = Auth::user()->etablissement->code_efp;
             $this->efpNom = Auth::user()->etablissement->nom_efp;
@@ -77,11 +76,8 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             if (!empty($nomSecteur)) {
                 $secteur = Secteur::updateOrCreate(
                     [
-                        'nom' => $nomSecteur,
+                        'nom_secteur' => $nomSecteur,
                         'code_efp' => $codeEfp
-                    ],
-                    [
-                        'code' => $this->generateCode($nomSecteur)
                     ]
                 );
             }
@@ -93,11 +89,8 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                 $niveauNom = $this->getNiveauNom($niveauCode);
                 $niveau = Niveau::updateOrCreate(
                     [
-                        'code' => $niveauCode,
+                        'nom' => $niveauNom,
                         'code_efp' => $codeEfp
-                    ],
-                    [
-                        'nom' => $niveauNom
                     ]
                 );
             }
@@ -107,33 +100,39 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             $nomFiliere = trim($row['filiere'] ?? '');
             $filiere = null;
             
-            if (!empty($codeFiliere) && !empty($nomFiliere) && $secteur && $niveau) {
+            if (!empty($codeFiliere) && !empty($nomFiliere) && $secteur) {
                 $filiere = Filiere::updateOrCreate(
                     [
-                        'code' => $codeFiliere,
+                        'code_filiere' => $codeFiliere,
                         'code_efp' => $codeEfp
                     ],
                     [
-                        'nom' => $nomFiliere,
-                        'secteur_id' => $secteur->id,
-                        'niveau_id' => $niveau->id
+                        'nom_filiere' => $nomFiliere,
+                        'secteur_id' => $secteur->id
                     ]
                 );
             }
 
             // 4. Traiter la FORMATION avec code_efp
+            $annee = intval($row['annee'] ?? date('Y'));
             $typeFormation = trim($row['type_de_formation'] ?? 'Diplômante');
             $mode = trim($row['mode'] ?? 'Résidentiel');
             $creneau = trim($row['creneau'] ?? 'CDJ');
 
-            $formation = Formation::updateOrCreate(
-                [
-                    'type' => $typeFormation,
-                    'mode' => $mode,
-                    'creneau' => $creneau,
-                    'code_efp' => $codeEfp
-                ]
-            );
+            $formation = null;
+            if ($filiere && $niveau) {
+                $formation = Formation::updateOrCreate(
+                    [
+                        'annee' => $annee,
+                        'filiere_id' => $filiere->id,
+                        'niveau_id' => $niveau->id,
+                        'type' => $typeFormation,
+                        'mode' => $mode,
+                        'creneau' => $creneau,
+                        'code_efp' => $codeEfp
+                    ]
+                );
+            }
 
             // 5. Traiter le GROUPE avec code_efp
             $nomGroupe = trim($row['groupe'] ?? '');
@@ -143,24 +142,22 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             $fusionGroupe = trim($row['fusiongroupe'] ?? '');
             $codeFusion = trim($row['code_fusion'] ?? '');
             $anneeFormation = intval($row['annee_de_formation'] ?? 1);
-            $annee = intval($row['annee'] ?? date('Y'));
 
             $groupe = null;
             if (!empty($nomGroupe) && $filiere && $formation) {
                 $groupe = Groupe::updateOrCreate(
                     [
-                        'code' => $nomGroupe,
+                        'code_groupe' => $nomGroupe,
                         'code_efp' => $codeEfp
                     ],
                     [
-                        'efp_code' => $codeEfp,
-                        'efp_nom' => $efpNom,
-                        'effectif' => $effectifGroupe,
+                        'effectif_groupe' => $effectifGroupe,
                         'statut' => $statutSousGroupe,
+                        'sous_groupe' => $sousGroupe,
+                        'statut_sous_groupe' => $statutSousGroupe,
                         'fusion_groupe' => $fusionGroupe,
                         'code_fusion' => $codeFusion,
                         'annee_formation' => $anneeFormation,
-                        'annee' => $annee,
                         'filiere_id' => $filiere->id,
                         'formation_id' => $formation->id
                     ]
@@ -176,41 +173,42 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
 
             $module = null;
             if (!empty($codeModule) && !empty($nomModule)) {
-                // Chercher le module par CODE + NOM + FILIERE + CODE_EFP
-                $searchCriteria = [
-                    'code' => $codeModule,
-                    'nom' => $nomModule,
+                // Chercher le module par CODE + NOM + CODE_EFP
+                $module = Module::where([
+                    'code_module' => $codeModule,
+                    'nom_module' => $nomModule,
                     'code_efp' => $codeEfp
-                ];
-                
-                // Si on a une filière, on l'ajoute aux critères de recherche
-                if ($filiere) {
-                    $searchCriteria['filiere_id'] = $filiere->id;
-                }
-                
-                // Recherche avec tous les critères
-                $module = Module::where($searchCriteria)->first();
+                ])->first();
                 
                 // Si le module n'existe pas, on le crée
                 if (!$module) {
                     $module = Module::create([
-                        'code' => $codeModule,
-                        'nom' => $nomModule,
+                        'code_module' => $codeModule,
+                        'nom_module' => $nomModule,
                         'regional' => $regional,
-                        'module_pie' => !empty($modulePie) && strtolower($modulePie) === 'o',
+                        'module_pie' => !empty($modulePie) && strtoupper($modulePie) === 'O' ? 'O' : 'N',
                         'efp_pie' => $efpPie,
-                        'filiere_id' => $filiere ? $filiere->id : null,
                         'code_efp' => $codeEfp
                     ]);
                     
+                    // Associer le module à la filière via la table pivot
+                    if ($filiere) {
+                        $module->filieres()->syncWithoutDetaching([$filiere->id]);
+                    }
+                    
                     Log::info("Nouveau module créé: {$codeModule} - {$nomModule} (EFP: {$codeEfp})");
                 } else {
-                    // Mettre à jour les informations du module si nécessaire
+                    // Mettre à jour les informations du module
                     $module->update([
                         'regional' => $regional,
-                        'module_pie' => !empty($modulePie) && strtolower($modulePie) === 'o',
+                        'module_pie' => !empty($modulePie) && strtoupper($modulePie) === 'O' ? 'O' : 'N',
                         'efp_pie' => $efpPie,
                     ]);
+                    
+                    // S'assurer que la relation avec la filière existe
+                    if ($filiere) {
+                        $module->filieres()->syncWithoutDetaching([$filiere->id]);
+                    }
                     
                     Log::debug("Module existant trouvé: {$codeModule} - {$nomModule} (ID: {$module->id})");
                 }
@@ -233,7 +231,7 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                     ]
                 );
                 
-                // Associer le formateur au secteur et module si nécessaire
+                // Associer le formateur au secteur et module
                 if ($secteur) {
                     $formateurPresentielObj->secteurs()->syncWithoutDetaching([$secteur->id]);
                 }
@@ -253,7 +251,7 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                     ]
                 );
                 
-                // Associer le formateur au secteur et module si nécessaire
+                // Associer le formateur au secteur et module
                 if ($secteur) {
                     $formateurSynObj->secteurs()->syncWithoutDetaching([$secteur->id]);
                 }
@@ -410,16 +408,6 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
     }
 
     /**
-     * Générer un code à partir d'un nom
-     */
-    protected function generateCode($nom)
-    {
-        $code = strtoupper(substr($nom, 0, 3));
-        $code = preg_replace('/[^A-Z]/', '', $code);
-        return $code ?: 'XXX';
-    }
-
-    /**
      * Obtenir le nom complet du niveau
      */
     protected function getNiveauNom($code)
@@ -442,8 +430,8 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
      */
     protected function determineTypeFormateur($mle)
     {
-        // Les matricules commençant par EE, Y, H, E sont souvent des vacataires
-        if (preg_match('/^(EE|Y|H|E)\d+/', $mle)) {
+        // Les matricules commençant par EE, Y, H, E, PB sont souvent des vacataires
+        if (preg_match('/^(EE|Y|H|E|PB)\d+/', $mle)) {
             return 'vacataire';
         }
         

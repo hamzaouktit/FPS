@@ -30,10 +30,10 @@
             <h4 class="mb-0">
                 <i class="fas fa-layer-group me-2"></i>
                 {{ $niveauData->nom }}
-                <span class="badge bg-light text-dark ms-2">{{ $niveauData->code }}</span>
+                <span class="badge bg-light text-dark ms-2">ID: {{ $niveauData->id }}</span>
             </h4>
             <div>
-                <a href="{{ route('administration.etablissement.niveaux.edit', $niveauData->code) }}" 
+                <a href="{{ route('administration.etablissement.niveaux.edit', $niveauData->id) }}" 
                    class="btn btn-warning btn-sm">
                     <i class="fas fa-edit me-1"></i> Modifier
                 </a>
@@ -73,7 +73,7 @@
             <div class="card-body">
                 <i class="fas fa-graduation-cap fa-3x text-primary mb-3"></i>
                 <h3 class="mb-0">{{ $stats['total_formations'] ?? 0 }}</h3>
-                <p class="text-muted mb-0">Filières</p>
+                <p class="text-muted mb-0">Formations</p>
             </div>
         </div>
     </div>
@@ -121,12 +121,6 @@
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" id="filieres-tab" data-bs-toggle="tab" 
-                data-bs-target="#filieres" type="button" role="tab">
-            <i class="fas fa-stream me-1"></i> Filières ({{ $filieres->count() ?? 0 }})
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
         <button class="nav-link" id="secteurs-tab" data-bs-toggle="tab" 
                 data-bs-target="#secteurs" type="button" role="tab">
             <i class="fas fa-industry me-1"></i> Secteurs ({{ $secteurs->count() ?? 0 }})
@@ -164,7 +158,7 @@
                 </h5>
             </div>
             <div class="card-body">
-                @if($niveauData->formations && $niveauData->formations->count() > 0)
+                @if($formations && $formations->count() > 0)
                     <div class="table-responsive">
                         <table class="table table-hover table-bordered align-middle">
                             <thead class="table-light">
@@ -175,26 +169,27 @@
                                     <th><i class="fas fa-certificate me-1"></i>Type</th>
                                     <th><i class="fas fa-clock me-1"></i>Mode</th>
                                     <th><i class="fas fa-sun me-1"></i>Créneau</th>
-                                    <th><i class="fas fa-users me-1"></i>Effectif</th>
+                                    <th><i class="fas fa-users me-1"></i>Groupes</th>
+                                    <th><i class="fas fa-user-graduate me-1"></i>Effectif Total</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($niveauData->formations as $formation)
+                                @foreach($formations as $formation)
                                 <tr>
                                     <td>
                                         <span class="badge bg-primary">{{ $formation->annee ?? 'N/A' }}</span>
                                     </td>
                                     <td>
-                                        <strong>{{ $formation->filiere->nom ?? 'N/A' }}</strong>
+                                        <strong>{{ $formation->filiere->nom_filiere ?? 'N/A' }}</strong>
                                         <br>
                                         <small class="text-muted">
-                                            {{ $formation->filiere->code ?? 'N/A' }}
+                                            {{ $formation->filiere->code_filiere ?? 'N/A' }}
                                         </small>
                                     </td>
-                                    <td>{{ $formation->secteur->nom ?? $formation->filiere->secteur->nom ?? 'N/A' }}</td>
+                                    <td>{{ $formation->filiere->secteur->nom_secteur ?? 'N/A' }}</td>
                                     <td>
                                         <span class="badge bg-info">
-                                            {{ $formation->type_formation }}
+                                            {{ $formation->type }}
                                         </span>
                                     </td>
                                     <td>{{ $formation->mode }}</td>
@@ -205,7 +200,12 @@
                                     </td>
                                     <td>
                                         <span class="badge bg-success">
-                                            {{ $formation->effectif ?? 0 }} stagiaire(s)
+                                            {{ $formation->groupes->count() }} groupe(s)
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">
+                                            {{ $formation->groupes->sum('effectif_groupe') }} stagiaire(s)
                                         </span>
                                     </td>
                                 </tr>
@@ -250,13 +250,13 @@
                                 @foreach($niveauData->groupes as $groupe)
                                 <tr>
                                     <td>
-                                        <strong>{{ $groupe->code }}</strong>
+                                        <strong>{{ $groupe->code_groupe }}</strong>
                                     </td>
                                     <td>
-                                        {{ $groupe->filiere->nom ?? 'N/A' }}
+                                        {{ $groupe->filiere->nom_filiere ?? 'N/A' }}
                                         <br>
                                         <small class="text-muted">
-                                            {{ $groupe->filiere->secteur->nom ?? 'N/A' }}
+                                            {{ $groupe->filiere->secteur->nom_secteur ?? 'N/A' }}
                                         </small>
                                     </td>
                                     <td>
@@ -268,7 +268,7 @@
                                     </td>
                                     <td>
                                         <span class="badge bg-success">
-                                            {{ $groupe->effectif }} stagiaire(s)
+                                            {{ $groupe->effectif_groupe }} stagiaire(s)
                                         </span>
                                     </td>
                                     <td>
@@ -298,51 +298,6 @@
         </div>
     </div>
 
-    <!-- Onglet Filières -->
-    <div class="tab-pane fade" id="filieres" role="tabpanel">
-        <div class="card shadow-sm">
-            <div class="card-header bg-light">
-                <h5 class="mb-0">
-                    <i class="fas fa-stream me-2"></i>
-                    Filières du Niveau {{ $niveauData->nom }}
-                </h5>
-            </div>
-            <div class="card-body">
-                @if($filieres && $filieres->count() > 0)
-                    <div class="row">
-                        @foreach($filieres as $filiere)
-                        <div class="col-md-6 mb-3">
-                            <div class="card border-primary">
-                                <div class="card-body">
-                                    <h6 class="card-title">
-                                        <i class="fas fa-stream text-primary me-2"></i>
-                                        {{ $filiere->nom }}
-                                    </h6>
-                                    <p class="card-text mb-1">
-                                        <strong>Code :</strong> {{ $filiere->code }}
-                                    </p>
-                                    <p class="card-text mb-1">
-                                        <strong>Secteur :</strong> {{ $filiere->secteur->nom ?? 'N/A' }}
-                                    </p>
-                                    <p class="card-text mb-0">
-                                        <strong>Groupes :</strong> 
-                                        <span class="badge bg-success">{{ $filiere->groupes->count() ?? 0 }}</span>
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        @endforeach
-                    </div>
-                @else
-                    <div class="alert alert-info text-center">
-                        <i class="fas fa-info-circle fa-2x mb-2"></i>
-                        <p class="mb-0">Aucune filière pour ce niveau.</p>
-                    </div>
-                @endif
-            </div>
-        </div>
-    </div>
-
     <!-- Onglet Secteurs -->
     <div class="tab-pane fade" id="secteurs" role="tabpanel">
         <div class="card shadow-sm">
@@ -360,9 +315,9 @@
                             <div class="card border-info">
                                 <div class="card-body text-center">
                                     <i class="fas fa-industry fa-2x text-info mb-2"></i>
-                                    <h6 class="card-title">{{ $secteur->nom }}</h6>
+                                    <h6 class="card-title">{{ $secteur->nom_secteur }}</h6>
                                     <p class="card-text">
-                                        <small class="text-muted">Code: {{ $secteur->code }}</small>
+                                        <small class="text-muted">Code: {{ $secteur->code ?? 'N/A' }}</small>
                                     </p>
                                 </div>
                             </div>
@@ -403,8 +358,8 @@
                             <tbody>
                                 @foreach($modules as $module)
                                 <tr>
-                                    <td><code>{{ $module->code }}</code></td>
-                                    <td>{{ $module->nom }}</td>
+                                    <td><code>{{ $module->code_module }}</code></td>
+                                    <td>{{ $module->nom_module }}</td>
                                     <td>
                                         @if($module->regional === 'O')
                                             <span class="badge bg-success">Oui</span>
@@ -414,7 +369,7 @@
                                     </td>
                                     <td>
                                         <span class="badge bg-primary">
-                                            {{ $module->avancements_count ?? 0 }}
+                                            {{ $module->affectations_count ?? 0 }}
                                         </span>
                                     </td>
                                 </tr>
@@ -482,21 +437,21 @@
     <!-- Onglet Statistiques -->
     <div class="tab-pane fade" id="stats-content" role="tabpanel">
         <div class="row">
-            <!-- Formations par Filière -->
+            <!-- Formations par Type -->
             <div class="col-md-6 mb-4">
                 <div class="card shadow-sm">
                     <div class="card-header bg-light">
                         <h6 class="mb-0">
                             <i class="fas fa-chart-pie me-2"></i>
-                            Groupes par Filière
+                            Formations par Type
                         </h6>
                     </div>
                     <div class="card-body">
-                        @if(isset($stats['formations_par_filiere']) && count($stats['formations_par_filiere']) > 0)
+                        @if(isset($stats['formations_par_type']) && count($stats['formations_par_type']) > 0)
                             <ul class="list-group list-group-flush">
-                                @foreach($stats['formations_par_filiere'] as $filiere => $count)
+                                @foreach($stats['formations_par_type'] as $type => $count)
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    {{ $filiere }}
+                                    {{ $type }}
                                     <span class="badge bg-primary rounded-pill">{{ $count }}</span>
                                 </li>
                                 @endforeach
@@ -508,46 +463,20 @@
                 </div>
             </div>
 
-            <!-- Formations par Type -->
+            <!-- Formations par Année -->
             <div class="col-md-6 mb-4">
                 <div class="card shadow-sm">
                     <div class="card-header bg-light">
                         <h6 class="mb-0">
-                            <i class="fas fa-chart-bar me-2"></i>
-                            Groupes par Type de Formation
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        @if(isset($stats['formations_par_type']) && count($stats['formations_par_type']) > 0)
-                            <ul class="list-group list-group-flush">
-                                @foreach($stats['formations_par_type'] as $type => $count)
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    {{ $type }}
-                                    <span class="badge bg-success rounded-pill">{{ $count }}</span>
-                                </li>
-                                @endforeach
-                            </ul>
-                        @else
-                            <p class="text-muted text-center mb-0">Aucune donnée disponible</p>
-                        @endif
-                    </div>
-                </div>
-            </div>
-
-            <!-- Formations par Année -->
-            <div class="col-md-12 mb-4">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-light">
-                        <h6 class="mb-0">
                             <i class="fas fa-calendar-alt me-2"></i>
-                            Groupes par Année de Formation
+                            Formations par Année
                         </h6>
                     </div>
                     <div class="card-body">
                         @if(isset($stats['formations_par_annee']) && count($stats['formations_par_annee']) > 0)
                             <div class="row">
                                 @foreach($stats['formations_par_annee'] as $annee => $count)
-                                <div class="col-md-3 mb-2">
+                                <div class="col-md-6 mb-2">
                                     <div class="card bg-light">
                                         <div class="card-body text-center">
                                             <h5 class="mb-0">{{ $count }}</h5>
@@ -578,4 +507,4 @@
         });
     });
 </script>
-@endpush**
+@endpush

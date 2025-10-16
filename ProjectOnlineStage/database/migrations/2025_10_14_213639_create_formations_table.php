@@ -14,6 +14,9 @@ return new class extends Migration
        // Table Formations
         Schema::create('formations', function (Blueprint $table) {
             $table->id();
+            $table->integer('annee');
+            $table->foreignId('filiere_id')->constrained('filieres')->onDelete('cascade');
+            $table->foreignId('niveau_id')->constrained('niveaux')->onDelete('cascade');
             $table->string('type'); // Diplômante, Qualifiante, PP
             $table->string('mode'); // Résidentiel, Alterné
             $table->string('creneau'); // CDJ, CDS
@@ -23,6 +26,8 @@ return new class extends Migration
                   ->on('etablissements')
                   ->onDelete('set null');
             $table->timestamps();
+            $table->index('annee');
+            $table->index('type');
         });
     }
 

@@ -11,6 +11,10 @@ use App\Http\Controllers\AdministrationEtablissement\FiliereController;
 use App\Http\Controllers\AdministrationEtablissement\NiveauController; // NOUVEAU
 use App\Http\Controllers\AdministrationEtablissement\FormationController; 
 use App\Http\Controllers\AdministrationEtablissement\GroupeController;
+use App\Http\Controllers\AdministrationEtablissement\FormateurController;
+use App\Http\Controllers\AdministrationEtablissement\ModuleController;
+use App\Http\Controllers\AdministrationEtablissement\AffectationController;
+use App\Http\Controllers\AdministrationEtablissement\AvancementController; // À FAIRE
 
 /*
 |--------------------------------------------------------------------------
@@ -102,5 +106,13 @@ Route::middleware(['auth'])->group(function () {
         ->parameters(['formations' => 'id']);
         // CRUD des groupes
         Route::resource('groupes', GroupeController::class);
+        // CRUD des modules
+        Route::resource('modules', ModuleController::class);
+        // CRUD des formateurs
+        Route::resource('formateurs', FormateurController::class);
+        // CRUD des affectations - À FAIRE
+        Route::resource('affectations', AffectationController::class);
+        // CRUD des avancements - À FAIRE
+        Route::resource('avancements', AvancementController::class);
     });
 });

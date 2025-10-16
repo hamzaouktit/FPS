@@ -164,7 +164,7 @@
                                 <option value="">Toutes</option>
                                 @foreach($filterOptions['filieres'] as $filiere)
                                     <option value="{{ $filiere->id }}" {{ $filters['filiere'] == $filiere->id ? 'selected' : '' }}>
-                                        {{ $filiere->nom }}
+                                        {{ $filiere->nom_filiere }}
                                     </option>
                                 @endforeach
                             </select>
@@ -186,7 +186,7 @@
                                 <option value="">Tous</option>
                                 @foreach($filterOptions['groupes'] as $groupe)
                                     <option value="{{ $groupe->id }}" {{ $filters['groupe'] == $groupe->id ? 'selected' : '' }}>
-                                        {{ $groupe->code }}
+                                        {{ $groupe->code_groupe }}
                                     </option>
                                 @endforeach
                             </select>
@@ -197,7 +197,7 @@
                                 <option value="">Tous</option>
                                 @foreach($filterOptions['modules'] as $module)
                                     <option value="{{ $module->id }}" {{ $filters['module'] == $module->id ? 'selected' : '' }}>
-                                        {{ Str::limit($module->nom, 20) }}
+                                        {{ Str::limit($module->nom_module, 20) }}
                                     </option>
                                 @endforeach
                             </select>

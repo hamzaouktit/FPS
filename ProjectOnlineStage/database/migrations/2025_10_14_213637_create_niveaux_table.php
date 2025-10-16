@@ -14,7 +14,6 @@ return new class extends Migration
         // Table Niveaux
         Schema::create('niveaux', function (Blueprint $table) {
             $table->id();
-            $table->string('code'); // TS, T, S, Q, BP, FQ
             $table->string('nom');
              $table->string('code_efp')->nullable();
              $table->foreign('code_efp')

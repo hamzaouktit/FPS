@@ -49,6 +49,62 @@
                         @csrf
                         @method('PUT')
 
+                        <!-- Année -->
+                        <div class="mb-4">
+                            <label for="annee" class="form-label">Année de Formation <span class="text-danger">*</span></label>
+                            <input type="number" name="annee" id="annee" 
+                                   class="form-control @error('annee') is-invalid @enderror" 
+                                   value="{{ old('annee', $formation->annee) }}" 
+                                   min="2020" max="2030" required>
+                            @error('annee')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Année académique de la formation
+                            </div>
+                        </div>
+
+                        <!-- Filière -->
+                        <div class="mb-4">
+                            <label for="filiere_id" class="form-label">Filière <span class="text-danger">*</span></label>
+                            <select name="filiere_id" id="filiere_id" class="form-select @error('filiere_id') is-invalid @enderror" required>
+                                <option value="">-- Sélectionnez une filière --</option>
+                                @foreach($filieres as $filiere)
+                                    <option value="{{ $filiere->id }}" {{ old('filiere_id', $formation->filiere_id) == $filiere->id ? 'selected' : '' }}>
+                                        {{ $filiere->code_filiere }} - {{ $filiere->nom_filiere }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('filiere_id')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Filière de formation
+                            </div>
+                        </div>
+
+                        <!-- Niveau -->
+                        <div class="mb-4">
+                            <label for="niveau_id" class="form-label">Niveau <span class="text-danger">*</span></label>
+                            <select name="niveau_id" id="niveau_id" class="form-select @error('niveau_id') is-invalid @enderror" required>
+                                <option value="">-- Sélectionnez un niveau --</option>
+                                @foreach($niveaux as $niveau)
+                                    <option value="{{ $niveau->id }}" {{ old('niveau_id', $formation->niveau_id) == $niveau->id ? 'selected' : '' }}>
+                                        {{ $niveau->nom }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('niveau_id')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Niveau de la formation
+                            </div>
+                        </div>
+
                         <!-- Type de formation -->
                         <div class="mb-4">
                             <label for="type" class="form-label">Type de Formation <span class="text-danger">*</span></label>
@@ -200,6 +256,18 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-2">
+                        <small class="text-muted">Année :</small>
+                        <div id="preview-annee" class="font-weight-bold">{{ $formation->annee }}</div>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Filière :</small>
+                        <div id="preview-filiere" class="font-weight-bold">{{ $formation->filiere->code_filiere }} - {{ $formation->filiere->nom_filiere }}</div>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Niveau :</small>
+                        <div id="preview-niveau" class="font-weight-bold">{{ $formation->niveau->nom }}</div>
+                    </div>
+                    <div class="mb-2">
                         <small class="text-muted">Type :</small>
                         <div id="preview-type" class="font-weight-bold">{{ $formation->type }}</div>
                     </div>
@@ -220,32 +288,47 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const anneeInput = document.getElementById('annee');
+    const filiereSelect = document.getElementById('filiere_id');
+    const niveauSelect = document.getElementById('niveau_id');
     const typeSelect = document.getElementById('type');
     const modeSelect = document.getElementById('mode');
     const creneauSelect = document.getElementById('creneau');
+    const previewAnnee = document.getElementById('preview-annee');
+    const previewFiliere = document.getElementById('preview-filiere');
+    const previewNiveau = document.getElementById('preview-niveau');
     const previewType = document.getElementById('preview-type');
     const previewMode = document.getElementById('preview-mode');
     const previewCreneau = document.getElementById('preview-creneau');
 
     // Fonction pour mettre à jour l'aperçu
     function updatePreview() {
+        previewAnnee.textContent = anneeInput.value || '-';
+        previewFiliere.textContent = filiereSelect.options[filiereSelect.selectedIndex]?.text || '-';
+        previewNiveau.textContent = niveauSelect.options[niveauSelect.selectedIndex]?.text || '-';
         previewType.textContent = typeSelect.value || '-';
         previewMode.textContent = modeSelect.value || '-';
         previewCreneau.textContent = creneauSelect.value || '-';
     }
 
     // Écouter les changements
+    anneeInput.addEventListener('input', updatePreview);
+    filiereSelect.addEventListener('change', updatePreview);
+    niveauSelect.addEventListener('change', updatePreview);
     typeSelect.addEventListener('change', updatePreview);
     modeSelect.addEventListener('change', updatePreview);
     creneauSelect.addEventListener('change', updatePreview);
 
     // Validation du formulaire
     document.getElementById('formationForm').addEventListener('submit', function(e) {
+        const annee = anneeInput.value;
+        const filiere = filiereSelect.value;
+        const niveau = niveauSelect.value;
         const type = typeSelect.value;
         const mode = modeSelect.value;
         const creneau = creneauSelect.value;
 
-        if (!type || !mode || !creneau) {
+        if (!annee || !filiere || !niveau || !type || !mode || !creneau) {
             e.preventDefault();
             Swal.fire({
                 title: 'Champs requis',

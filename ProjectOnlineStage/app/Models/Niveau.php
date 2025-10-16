@@ -10,24 +10,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class Niveau extends Model
 {
-    use HasFactory;
+    protected $fillable = ['nom', 'code_efp'];
 
-    protected $table = 'niveaux';
-
-    protected $fillable = [
-        'code',
-        'nom',
-        'code_efp'
-    ];
-
-    // Relations
     public function etablissement()
     {
         return $this->belongsTo(Etablissement::class, 'code_efp', 'code_efp');
     }
 
-    public function filieres()
+    public function formations()
     {
-        return $this->hasMany(Filiere::class);
+        return $this->hasMany(Formation::class);
     }
 }

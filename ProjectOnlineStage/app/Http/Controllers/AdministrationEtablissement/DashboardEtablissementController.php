@@ -38,11 +38,11 @@ class DashboardEtablissementController extends Controller
             'formateur' => $request->input('formateur'),
             'niveau' => $request->input('niveau'),
             'filiere' => $request->input('filiere'),
-            'annee' => $request->input('annee', date('Y')),
+            'annee' => $request->input('annee'),
         ];
 
         // Récupérer tous les groupes de l'établissement
-        $groupesQuery = Groupe::where('efp_code', $etablissement->code_efp);
+        $groupesQuery = Groupe::where('code_efp', $etablissement->code_efp);
         
         // Application des filtres sur les groupes
         if ($filters['groupe']) {
@@ -52,7 +52,7 @@ class DashboardEtablissementController extends Controller
             $groupesQuery->where('filiere_id', $filters['filiere']);
         }
         if ($filters['annee']) {
-            $groupesQuery->where('annee', $filters['annee']);
+            $groupesQuery->where('annee_formation', $filters['annee']);
         }
         
         $groupes = $groupesQuery->get();
@@ -62,11 +62,11 @@ class DashboardEtablissementController extends Controller
         $affectationsQuery = Affectation::whereIn('groupe_id', $groupeIds)
             ->with([
                 'groupe.filiere.secteur',
-                'groupe.filiere.niveau',
+                'groupe.formation.niveau',
                 'groupe.formation',
                 'module',
                 'formateurPresentiel',
-                'formateurSynchrone',
+                'formateurSyn',
                 'avancement'
             ]);
 
@@ -81,7 +81,7 @@ class DashboardEtablissementController extends Controller
             });
         }
         if ($filters['niveau']) {
-            $affectationsQuery->whereHas('groupe.filiere', function($query) use ($filters) {
+            $affectationsQuery->whereHas('groupe.formation', function($query) use ($filters) {
                 $query->where('niveau_id', $filters['niveau']);
             });
         }
@@ -115,18 +115,26 @@ class DashboardEtablissementController extends Controller
         // Options pour les filtres
         $filterOptions = $this->getFilterOptions($etablissement);
 
-        // Modules non affectés
+        // ✅ CORRECTION : Modules non affectés (vérification complète)
         $affectationsNonAffectes = $affectations->filter(function ($affectation) {
-            return is_null($affectation->mle_affecte_presentiel) && is_null($affectation->mle_affecte_syn);
+            // Un module est considéré non affecté si :
+            // 1. Aucun formateur présentiel ET synchrone n'est affecté
+            // OU
+            // 2. Les heures affectées sont à 0 alors que les heures requises sont > 0
+            $aucunFormateur = is_null($affectation->mle_affecte_presentiel) && is_null($affectation->mle_affecte_syn);
+            $heuresNonAffectees = ($affectation->mh_affectee_globale == 0 || is_null($affectation->mh_affectee_globale)) 
+                                  && $affectation->mh_totale_drif > 0;
+            
+            return $aucunFormateur || $heuresNonAffectees;
         });
 
         // Par module
         $nonAffectesParModule = $affectationsNonAffectes->groupBy('module_id')->map(function ($group) {
             $firstAffectation = $group->first();
             return [
-                'code_module' => $firstAffectation->module ? $firstAffectation->module->code : 'N/A',
-                'nom_module' => $firstAffectation->module ? $firstAffectation->module->nom : 'N/A',
-                'groupes' => $group->pluck('groupe.code')->unique()->implode(', '),
+                'code_module' => $firstAffectation->module ? $firstAffectation->module->code_module : 'N/A',
+                'nom_module' => $firstAffectation->module ? $firstAffectation->module->nom_module : 'N/A',
+                'groupes' => $group->pluck('groupe.code_groupe')->unique()->implode(', '),
                 'masse_horaire' => $group->sum('mh_totale_drif'),
                 'formateur' => 'Non affecté',
             ];
@@ -142,12 +150,12 @@ class DashboardEtablissementController extends Controller
             $filiere = ($firstAffectation->groupe && $firstAffectation->groupe->filiere) ? $firstAffectation->groupe->filiere : null;
             
             $modules = $group->groupBy('module_id')->map(function ($moduleGroup) {
-                return $moduleGroup->first()->module ? $moduleGroup->first()->module->nom : 'N/A';
+                return $moduleGroup->first()->module ? $moduleGroup->first()->module->nom_module : 'N/A';
             })->implode(', ');
             
             return [
-                'code_filiere' => $filiere ? $filiere->code : 'N/A',
-                'nom_filiere' => $filiere ? $filiere->nom : 'N/A',
+                'code_filiere' => $filiere ? $filiere->code_filiere : 'N/A',
+                'nom_filiere' => $filiere ? $filiere->nom_filiere : 'N/A',
                 'modules' => $modules,
                 'masse_horaire' => $group->sum('mh_totale_drif'),
             ];
@@ -206,10 +214,10 @@ class DashboardEtablissementController extends Controller
     private function calculateStatistics($affectations, $etablissement, $filters = [])
     {
         // Récupérer les groupes de l'établissement
-        $groupesQuery = Groupe::where('efp_code', $etablissement->code_efp);
+        $groupesQuery = Groupe::where('code_efp', $etablissement->code_efp);
         
         if (!empty($filters['annee'])) {
-            $groupesQuery->where('annee', $filters['annee']);
+            $groupesQuery->where('annee_formation', $filters['annee']);
         }
         if (!empty($filters['filiere'])) {
             $groupesQuery->where('filiere_id', $filters['filiere']);
@@ -220,11 +228,11 @@ class DashboardEtablissementController extends Controller
         
         // Compter les formations uniques
         $formationsIds = $groupes->pluck('formation_id')->unique();
-        $totalFormations = Formation::whereIn('id', $formationsIds)->count();
+        $totalFormations = $formationsIds->count();
         
         // Compter les modules uniques
         $modulesIds = $affectations->pluck('module_id')->unique();
-        $totalModules = Module::whereIn('id', $modulesIds)->count();
+        $totalModules = $modulesIds->count();
         
         // Compter les formateurs uniques
         $formateursIds = $affectations->map(function($affectation) {
@@ -234,15 +242,20 @@ class DashboardEtablissementController extends Controller
         
         // Compter les filières uniques
         $filieresIds = $groupes->pluck('filiere_id')->unique();
-        $totalFilieres = Filiere::whereIn('id', $filieresIds)->count();
+        $totalFilieres = $filieresIds->count();
         
         // Compter les secteurs via filières
         $secteursIds = Filiere::whereIn('id', $filieresIds)->pluck('secteur_id')->unique();
-        $totalSecteurs = Secteur::whereIn('id', $secteursIds)->count();
+        $totalSecteurs = $secteursIds->count();
         
         // Heures (basé sur les affectations)
         $heuresRequisesTotal = $affectations->sum('mh_totale_drif') ?: 0;
-        $heuresAffecteesTotal = $affectations->sum('mh_affectee_globale') ?: 0;
+        
+        // ✅ CORRECTION : Calcul correct des heures affectées
+        // On compte uniquement les heures où au moins un formateur est affecté
+        $heuresAffecteesTotal = $affectations->filter(function($affectation) {
+            return !is_null($affectation->mle_affecte_presentiel) || !is_null($affectation->mle_affecte_syn);
+        })->sum('mh_affectee_globale') ?: 0;
         
         // Heures réalisées depuis les avancements
         $heuresRealiseesTotal = $affectations->sum(function($affectation) {
@@ -250,6 +263,8 @@ class DashboardEtablissementController extends Controller
         });
         
         $tauxRealisationGlobal = $heuresRequisesTotal > 0 ? ($heuresRealiseesTotal / $heuresRequisesTotal) * 100 : 0;
+        
+        // ✅ CORRECTION : Taux d'affectation basé sur les heures réellement affectées
         $tauxAffectation = $heuresRequisesTotal > 0 ? ($heuresAffecteesTotal / $heuresRequisesTotal) * 100 : 0;
         
         // Taux par mode
@@ -303,7 +318,12 @@ class DashboardEtablissementController extends Controller
     private function calculateHeuresData($affectations)
     {
         $heuresRequises = $affectations->sum('mh_totale_drif') ?: 0;
-        $heuresAffectees = $affectations->sum('mh_affectee_globale') ?: 0;
+        
+        // ✅ CORRECTION : Heures affectées uniquement si formateur présent
+        $heuresAffectees = $affectations->filter(function($affectation) {
+            return !is_null($affectation->mle_affecte_presentiel) || !is_null($affectation->mle_affecte_syn);
+        })->sum('mh_affectee_globale') ?: 0;
+        
         $heuresRealisees = $affectations->sum(function($affectation) {
             return $affectation->avancement ? $affectation->avancement->mh_realisee_globale : 0;
         });
@@ -337,19 +357,32 @@ class DashboardEtablissementController extends Controller
             return $affectation->avancement ? $affectation->avancement->mh_realisee_globale : 0;
         });
 
+        // ✅ CORRECTION : Heures affectées avec vérification formateur
+        $heuresAffecteesPresentiel = $affectations->filter(function($affectation) {
+            return !is_null($affectation->mle_affecte_presentiel);
+        })->sum('mh_affectee_presentiel') ?: 0;
+        
+        $heuresAffecteesSync = $affectations->filter(function($affectation) {
+            return !is_null($affectation->mle_affecte_syn);
+        })->sum('mh_affectee_sync') ?: 0;
+        
+        $heuresAffecteesGlobale = $affectations->filter(function($affectation) {
+            return !is_null($affectation->mle_affecte_presentiel) || !is_null($affectation->mle_affecte_syn);
+        })->sum('mh_affectee_globale') ?: 0;
+
         return [
             'presentiel' => [
                 's1' => round($affectations->sum('mhp_s1_drif'), 2),
                 's2' => round($affectations->sum('mhp_s2_drif'), 2),
                 'total' => round($affectations->sum('mhp_totale_drif'), 2),
-                'affectee' => round($affectations->sum('mh_affectee_presentiel'), 2),
+                'affectee' => round($heuresAffecteesPresentiel, 2),
                 'realisee' => round($heuresRealiseesPresentiel, 2),
             ],
             'synchrone' => [
                 's1' => round($affectations->sum('mhsyn_s1_drif'), 2),
                 's2' => round($affectations->sum('mhsyn_s2_drif'), 2),
                 'total' => round($affectations->sum('mhsyn_totale_drif'), 2),
-                'affectee' => round($affectations->sum('mh_affectee_sync'), 2),
+                'affectee' => round($heuresAffecteesSync, 2),
                 'realisee' => round($heuresRealiseesSynchrone, 2),
             ],
             'asynchrone' => [
@@ -361,7 +394,7 @@ class DashboardEtablissementController extends Controller
                 's1' => round($affectations->sum('mh_totale_s1_drif'), 2),
                 's2' => round($affectations->sum('mh_totale_s2_drif'), 2),
                 'total' => round($affectations->sum('mh_totale_drif'), 2),
-                'affectee' => round($affectations->sum('mh_affectee_globale'), 2),
+                'affectee' => round($heuresAffecteesGlobale, 2),
                 'realisee' => round($heuresRealiseesGlobale, 2),
             ],
         ];
@@ -370,7 +403,12 @@ class DashboardEtablissementController extends Controller
     private function getTauxChartData($affectations)
     {
         $heuresRequises = $affectations->sum('mh_totale_drif') ?: 0;
-        $heuresAffectees = $affectations->sum('mh_affectee_globale') ?: 0;
+        
+        // ✅ CORRECTION
+        $heuresAffectees = $affectations->filter(function($affectation) {
+            return !is_null($affectation->mle_affecte_presentiel) || !is_null($affectation->mle_affecte_syn);
+        })->sum('mh_affectee_globale') ?: 0;
+        
         $heuresRealisees = $affectations->sum(function($affectation) {
             return $affectation->avancement ? $affectation->avancement->mh_realisee_globale : 0;
         });
@@ -393,19 +431,20 @@ class DashboardEtablissementController extends Controller
         return $affectations->map(function($affectation) {
             $groupe = $affectation->groupe;
             $filiere = $groupe ? $groupe->filiere : null;
-            $niveau = $filiere ? $filiere->niveau : null;
+            $formation = $groupe ? $groupe->formation : null;
+            $niveau = $formation ? $formation->niveau : null;
             $avancement = $affectation->avancement;
             
             return [
-                'groupe' => $groupe ? $groupe->code : 'N/A',
+                'groupe' => $groupe ? $groupe->code_groupe : 'N/A',
                 'groupe_info' => $groupe,
-                'module' => $affectation->module ? $affectation->module->code : 'N/A',
-                'module_nom' => $affectation->module ? $affectation->module->nom : 'N/A',
-                'formation' => $filiere ? $filiere->nom : 'N/A',
+                'module' => $affectation->module ? $affectation->module->code_module : 'N/A',
+                'module_nom' => $affectation->module ? $affectation->module->nom_module : 'N/A',
+                'formation' => $filiere ? $filiere->nom_filiere : 'N/A',
                 'niveau' => $niveau ? $niveau->nom : 'N/A',
-                'annee' => $groupe ? $groupe->annee : 'N/A',
+                'annee' => $groupe ? $groupe->annee_formation : 'N/A',
                 'formateur_presentiel' => $affectation->formateurPresentiel ? $affectation->formateurPresentiel->nom_complet : 'N/A',
-                'formateur_synchrone' => $affectation->formateurSynchrone ? $affectation->formateurSynchrone->nom_complet : 'N/A',
+                'formateur_synchrone' => $affectation->formateurSyn ? $affectation->formateurSyn->nom_complet : 'N/A',
                 'heures_affectees' => round($affectation->mh_affectee_globale, 2),
                 'heures_realisees' => $avancement ? round($avancement->mh_realisee_globale, 2) : 0,
                 'taux_realisation' => $avancement ? round($avancement->taux_realisation_globale, 2) : 0,
@@ -430,8 +469,8 @@ class DashboardEtablissementController extends Controller
                 });
                 $tauxMoyen = $heuresRequises > 0 ? ($heuresRealisees / $heuresRequises) * 100 : 0;
                 return [
-                    'code_module' => $module ? $module->code : 'N/A',
-                    'nom_module' => $module ? $module->nom : 'N/A',
+                    'code_module' => $module ? $module->code_module : 'N/A',
+                    'nom_module' => $module ? $module->nom_module : 'N/A',
                     'taux_moyen' => round($tauxMoyen, 2),
                     'heures_realisees' => round($heuresRealisees, 2),
                     'heures_affectees' => round($moduleAffectations->sum('mh_affectee_globale'), 2),
@@ -472,7 +511,7 @@ class DashboardEtablissementController extends Controller
         $tauxParFiliere = $affectations->groupBy(function($affectation) {
             $groupe = $affectation->groupe;
             if ($groupe && $groupe->filiere) {
-                return $groupe->filiere->nom;
+                return $groupe->filiere->nom_filiere;
             }
             return 'N/A';
         })->map(function($group) {
@@ -518,7 +557,7 @@ class DashboardEtablissementController extends Controller
         $formateursSynchrone = $affectations->where('mle_affecte_syn', '!=', null)
             ->groupBy('mle_affecte_syn')
             ->map(function($group) {
-                $formateur = $group->first()->formateurSynchrone;
+                $formateur = $group->first()->formateurSyn;
                 $heuresRequises = $group->sum('mhsyn_totale_drif') ?: 0;
                 $heuresRealisees = $group->sum(function($affectation) {
                     return $affectation->avancement ? $affectation->avancement->mh_realisee_sync : 0;
@@ -544,7 +583,7 @@ class DashboardEtablissementController extends Controller
     private function getFilterOptions($etablissement)
     {
         // Récupérer tous les groupes de l'établissement
-        $groupes = Groupe::where('efp_code', $etablissement->code_efp)->get();
+        $groupes = Groupe::where('code_efp', $etablissement->code_efp)->get();
         $groupeIds = $groupes->pluck('id');
         
         // Récupérer les modules liés aux affectations de ces groupes
@@ -560,13 +599,17 @@ class DashboardEtablissementController extends Controller
         
         $formateurs = Formateur::whereIn('mle', $formateursIds)->get();
 
-        // Récupérer les niveaux via les filières des groupes
+        // Récupérer les niveaux via les formations des groupes
+        $formationsIds = $groupes->pluck('formation_id')->unique();
+        $formations = Formation::whereIn('id', $formationsIds)->get();
+        $niveaux = Niveau::whereIn('id', $formations->pluck('niveau_id'))->get();
+        
+        // Récupérer les filières
         $filieresIds = $groupes->pluck('filiere_id')->unique();
         $filieres = Filiere::whereIn('id', $filieresIds)->get();
-        $niveaux = Niveau::whereIn('id', $filieres->pluck('niveau_id'))->get();
         
         // Récupérer les années disponibles
-        $annees = $groupes->pluck('annee')->unique()->sort()->values();
+        $annees = $groupes->pluck('annee_formation')->unique()->sort()->values();
 
         return [
             'groupes' => $groupes,

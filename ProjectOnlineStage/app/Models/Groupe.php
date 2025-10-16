@@ -8,36 +8,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+
 class Groupe extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
-        'code',
-        'efp_code',
-        'efp_nom',
-        'effectif',
-        'statut',
-        'fusion_groupe',
-        'code_fusion',
-        'annee_formation',
-        'annee',
-        'filiere_id',
-        'formation_id',
-        'code_efp'
+        'code_groupe', 'effectif_groupe', 'statut', 'sous_groupe',
+        'statut_sous_groupe', 'fusion_groupe', 'code_fusion',
+        'annee_formation', 'filiere_id', 'formation_id', 'code_efp'
     ];
-
-    protected $casts = [
-        'effectif' => 'integer',
-        'annee_formation' => 'integer',
-        'annee' => 'integer'
-    ];
-
-    // Relations
-    public function etablissement()
-    {
-        return $this->belongsTo(Etablissement::class, 'code_efp', 'code_efp');
-    }
 
     public function filiere()
     {
@@ -49,19 +27,13 @@ class Groupe extends Model
         return $this->belongsTo(Formation::class);
     }
 
+    public function etablissement()
+    {
+        return $this->belongsTo(Etablissement::class, 'code_efp', 'code_efp');
+    }
+
     public function affectations()
     {
         return $this->hasMany(Affectation::class);
     }
-
-    public function getSecteurAttribute()
-    {
-        return $this->filiere->secteur;
-    }
-
-    public function getNiveauAttribute()
-    {
-        return $this->filiere->niveau;
-    }
 }
-

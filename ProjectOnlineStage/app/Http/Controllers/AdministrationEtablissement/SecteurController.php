@@ -48,23 +48,13 @@ class SecteurController extends Controller
         $etablissement = $user->etablissement;
 
         $request->validate([
-            'code' => [
-                'required',
-                'string',
-                'max:50',
-                // Le code doit être unique pour cet établissement uniquement
-                'unique:secteurs,code,NULL,id,code_efp,' . $etablissement->code_efp
-            ],
-            'nom' => 'required|string|max:255',
+            'nom_secteur' => 'required|string|max:255',
         ], [
-            'code.required' => 'Le code du secteur est obligatoire',
-            'code.unique' => 'Ce code de secteur existe déjà dans votre établissement',
-            'nom.required' => 'Le nom du secteur est obligatoire',
+            'nom_secteur.required' => 'Le nom du secteur est obligatoire',
         ]);
 
         Secteur::create([
-            'code' => strtoupper($request->code),
-            'nom' => $request->nom,
+            'nom_secteur' => $request->nom_secteur,
             'code_efp' => $etablissement->code_efp,
         ]);
 
@@ -85,11 +75,9 @@ class SecteurController extends Controller
             'filieres' => function($query) use ($etablissement) {
                 $query->where('code_efp', $etablissement->code_efp);
             },
-            'filieres.niveau',
             'filieres.groupes' => function($query) use ($etablissement) {
                 $query->where('code_efp', $etablissement->code_efp);
-            },
-            'filieres.groupes.formation'
+            }
         ])
         ->where('code_efp', $etablissement->code_efp)
         ->findOrFail($id);
@@ -101,7 +89,7 @@ class SecteurController extends Controller
                 return $filiere->groupes->count();
             }),
             'total_stagiaires' => $secteur->filieres->sum(function ($filiere) {
-                return $filiere->groupes->sum('effectif');
+                return $filiere->groupes->sum('effectif_groupe');
             }),
         ];
 
@@ -136,23 +124,13 @@ class SecteurController extends Controller
             ->findOrFail($id);
 
         $request->validate([
-            'code' => [
-                'required',
-                'string',
-                'max:50',
-                // Le code doit être unique pour cet établissement uniquement
-                'unique:secteurs,code,' . $id . ',id,code_efp,' . $etablissement->code_efp
-            ],
-            'nom' => 'required|string|max:255',
+            'nom_secteur' => 'required|string|max:255',
         ], [
-            'code.required' => 'Le code du secteur est obligatoire',
-            'code.unique' => 'Ce code de secteur existe déjà dans votre établissement',
-            'nom.required' => 'Le nom du secteur est obligatoire',
+            'nom_secteur.required' => 'Le nom du secteur est obligatoire',
         ]);
 
         $secteur->update([
-            'code' => strtoupper($request->code),
-            'nom' => $request->nom,
+            'nom_secteur' => $request->nom_secteur,
         ]);
 
         return redirect()->route('administration.etablissement.secteurs.index')

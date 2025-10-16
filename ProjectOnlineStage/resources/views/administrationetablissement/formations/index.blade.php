@@ -105,7 +105,43 @@
         <div class="card-body">
             <form method="GET" action="{{ route('administration.etablissement.formations.index') }}" id="filterForm">
                 <div class="row">
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
+                        <label for="annee" class="form-label">Année</label>
+                        <select name="annee" id="annee" class="form-select">
+                            <option value="">Toutes les années</option>
+                            @foreach($stats['annees'] as $annee)
+                                <option value="{{ $annee }}" {{ request('annee') == $annee ? 'selected' : '' }}>
+                                    {{ $annee }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-md-2 mb-3">
+                        <label for="filiere_id" class="form-label">Filière</label>
+                        <select name="filiere_id" id="filiere_id" class="form-select">
+                            <option value="">Toutes les filières</option>
+                            @foreach($filieres as $filiere)
+                                <option value="{{ $filiere->id }}" {{ request('filiere_id') == $filiere->id ? 'selected' : '' }}>
+                                    {{ $filiere->code_filiere }} - {{ $filiere->nom_filiere }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-md-2 mb-3">
+                        <label for="niveau_id" class="form-label">Niveau</label>
+                        <select name="niveau_id" id="niveau_id" class="form-select">
+                            <option value="">Tous les niveaux</option>
+                            @foreach($niveaux as $niveau)
+                                <option value="{{ $niveau->id }}" {{ request('niveau_id') == $niveau->id ? 'selected' : '' }}>
+                                    {{ $niveau->nom }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-md-2 mb-3">
                         <label for="type" class="form-label">Type</label>
                         <select name="type" id="type" class="form-select">
                             <option value="">Tous les types</option>
@@ -115,7 +151,7 @@
                         </select>
                     </div>
 
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
                         <label for="mode" class="form-label">Mode</label>
                         <select name="mode" id="mode" class="form-select">
                             <option value="">Tous les modes</option>
@@ -124,7 +160,7 @@
                         </select>
                     </div>
 
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
                         <label for="creneau" class="form-label">Créneau</label>
                         <select name="creneau" id="creneau" class="form-select">
                             <option value="">Tous les créneaux</option>
@@ -132,21 +168,24 @@
                             <option value="CDS" {{ request('creneau') == 'CDS' ? 'selected' : '' }}>CDS (Cours du Soir)</option>
                         </select>
                     </div>
-
-                    <div class="col-md-3 mb-3">
-                        <label for="search" class="form-label">Recherche</label>
-                        <input type="text" name="search" id="search" class="form-control" 
-                               placeholder="Rechercher..." value="{{ request('search') }}">
-                    </div>
                 </div>
 
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-search me-2"></i>Filtrer
-                    </button>
-                    <a href="{{ route('administration.etablissement.formations.index') }}" class="btn btn-secondary">
-                        <i class="fas fa-redo me-2"></i>Réinitialiser
-                    </a>
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label for="search" class="form-label">Recherche</label>
+                        <input type="text" name="search" id="search" class="form-control" 
+                               placeholder="Rechercher par année, filière, niveau, type..." value="{{ request('search') }}">
+                    </div>
+                    <div class="col-md-4 mb-3 d-flex align-items-end">
+                        <div class="d-flex gap-2 w-100">
+                            <button type="submit" class="btn btn-primary flex-fill">
+                                <i class="fas fa-search me-2"></i>Filtrer
+                            </button>
+                            <a href="{{ route('administration.etablissement.formations.index') }}" class="btn btn-secondary">
+                                <i class="fas fa-redo me-2"></i>Réinitialiser
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
@@ -164,11 +203,14 @@
                         <thead class="table-light">
                             <tr>
                                 <th>ID</th>
+                                <th>Année</th>
+                                <th>Filière</th>
+                                <th>Niveau</th>
                                 <th>Type</th>
                                 <th>Mode</th>
                                 <th>Créneau</th>
-                                <th>Groupes Associés</th>
-                                <th>Date de création</th>
+                                <th>Groupes</th>
+                                <th>Date création</th>
                                 <th class="text-center">Actions</th>
                             </tr>
                         </thead>
@@ -176,6 +218,19 @@
                             @foreach($formations as $formation)
                             <tr>
                                 <td>{{ $formation->id }}</td>
+                                <td>
+                                    <span class="badge bg-dark">{{ $formation->annee }}</span>
+                                </td>
+                                <td>
+                                    <div>
+                                        <strong>{{ $formation->filiere->code_filiere }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ $formation->filiere->nom_filiere }}</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ $formation->niveau->nom }}</span>
+                                </td>
                                 <td>
                                     @if($formation->type == 'Diplômante')
                                         <span class="badge bg-success">{{ $formation->type }}</span>
@@ -196,7 +251,7 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <span class="badge bg-secondary">{{ $formation->groupes->count() }} groupe(s)</span>
+                                    <span class="badge bg-secondary">{{ $formation->groupes_count ?? $formation->groupes->count() }} groupe(s)</span>
                                 </td>
                                 <td>{{ $formation->created_at->format('d/m/Y H:i') }}</td>
                                 <td class="text-center">
@@ -212,9 +267,9 @@
                                         <button type="button" 
                                                 class="btn btn-sm btn-danger delete-btn" 
                                                 data-id="{{ $formation->id }}"
-                                                data-type="{{ $formation->type }}"
-                                                data-mode="{{ $formation->mode }}"
-                                                data-creneau="{{ $formation->creneau }}"
+                                                data-annee="{{ $formation->annee }}"
+                                                data-filiere="{{ $formation->filiere->nom_filiere }}"
+                                                data-niveau="{{ $formation->niveau->nom }}"
                                                 title="Supprimer">
                                             <i class="fas fa-trash"></i>
                                         </button>
@@ -253,13 +308,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.delete-btn').forEach(button => {
         button.addEventListener('click', function() {
             const formationId = this.dataset.id;
-            const type = this.dataset.type;
-            const mode = this.dataset.mode;
-            const creneau = this.dataset.creneau;
+            const annee = this.dataset.annee;
+            const filiere = this.dataset.filiere;
+            const niveau = this.dataset.niveau;
             
             Swal.fire({
                 title: 'Confirmer la suppression ?',
-                html: `Voulez-vous vraiment supprimer la formation :<br><strong>${type} - ${mode} - ${creneau}</strong> ?`,
+                html: `Voulez-vous vraiment supprimer la formation :<br>
+                      <strong>Année ${annee} - ${filiere} - ${niveau}</strong> ?`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#d33',
@@ -278,7 +334,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
 
                     // Envoyer la requête de suppression
-                    fetch(`{{ route('administration.etablissement.formations.index') }}/${formationId}`, {
+                    fetch({{ route('administration.etablissement.formations.index') }}/${formationId}, {
                         method: 'DELETE',
                         headers: {
                             'X-CSRF-TOKEN': '{{ csrf_token() }}',

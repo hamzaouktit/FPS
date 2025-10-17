@@ -73,7 +73,7 @@
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="formateurs-tab" data-bs-toggle="tab" data-bs-target="#formateurs" type="button">
-                <i class="fas fa-chalkboard-user"></i> Formateurs
+                <i class="fas fa-chalkboard-user"></i> Formateurs ({{ $formateurs->count() }})
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -221,11 +221,64 @@
             </div>
         </div>
 
-        <!-- TAB GROUPES -->
+        <!-- TAB GROUPES AVEC FILTRES -->
         <div class="tab-pane fade" id="groupes" role="tabpanel">
+            <div class="card shadow-sm mb-3">
+                <div class="card-body">
+                    <form method="GET" class="row g-3" id="filter-form-groupes">
+                        <input type="hidden" name="tab" value="groupes">
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">Rechercher</label>
+                            <input type="text" name="search_groupe" class="form-control" 
+                                   placeholder="Code groupe..." value="{{ request('search_groupe') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Année</label>
+                            <select name="annee_formation" class="form-select">
+                                <option value="">Toutes</option>
+                                @foreach($anneesFormation as $annee)
+                                    <option value="{{ $annee }}" {{ request('annee_formation') == $annee ? 'selected' : '' }}>
+                                        {{ $annee }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Statut</label>
+                            <select name="statut_groupe" class="form-select">
+                                <option value="">Tous</option>
+                                <option value="Actif" {{ request('statut_groupe') == 'Actif' ? 'selected' : '' }}>Actif</option>
+                                <option value="Inactif" {{ request('statut_groupe') == 'Inactif' ? 'selected' : '' }}>Inactif</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">Type Formation</label>
+                            <select name="type_formation" class="form-select">
+                                <option value="">Tous</option>
+                                @foreach($typesFormation as $type)
+                                    <option value="{{ $type }}" {{ request('type_formation') == $type ? 'selected' : '' }}>
+                                        {{ $type }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-filter"></i> Filtrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <div class="card shadow-sm">
-                <div class="card-header bg-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fw-bold">Liste des Groupes</h5>
+                    @if(request()->hasAny(['search_groupe', 'annee_formation', 'statut_groupe', 'type_formation']))
+                        <a href="{{ route('administration.etablissement.filieres.show', $filiere->id) }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-times"></i> Réinitialiser
+                        </a>
+                    @endif
                 </div>
                 <div class="card-body">
                     @if($groupes->count() > 0)
@@ -263,18 +316,50 @@
                         </div>
                     @else
                         <div class="alert alert-info text-center">
-                            <i class="fas fa-info-circle"></i> Aucun groupe associé
+                            <i class="fas fa-info-circle"></i> Aucun groupe trouvé avec ces critères
                         </div>
                     @endif
                 </div>
             </div>
         </div>
 
-        <!-- TAB MODULES -->
+        <!-- TAB MODULES AVEC FILTRES -->
         <div class="tab-pane fade" id="modules" role="tabpanel">
+            <div class="card shadow-sm mb-3">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <input type="hidden" name="tab" value="modules">
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold">Rechercher</label>
+                            <input type="text" name="search_module" class="form-control" 
+                                   placeholder="Code ou nom du module..." value="{{ request('search_module') }}">
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold">Type de Module</label>
+                            <select name="type_module" class="form-select">
+                                <option value="">Tous les types</option>
+                                <option value="regional" {{ request('type_module') == 'regional' ? 'selected' : '' }}>Régional</option>
+                                <option value="pie" {{ request('type_module') == 'pie' ? 'selected' : '' }}>PIE</option>
+                                <option value="normal" {{ request('type_module') == 'normal' ? 'selected' : '' }}>Normal</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-filter"></i> Filtrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <div class="card shadow-sm">
-                <div class="card-header bg-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fw-bold">Modules de la Filière</h5>
+                    @if(request()->hasAny(['search_module', 'type_module']))
+                        <a href="{{ route('administration.etablissement.filieres.show', $filiere->id) }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-times"></i> Réinitialiser
+                        </a>
+                    @endif
                 </div>
                 <div class="card-body">
                     @if($modules->count() > 0)
@@ -300,8 +385,11 @@
                                                 @if($module->module_pie === 'O')
                                                     <span class="badge bg-info">PIE</span>
                                                 @endif
+                                                @if($module->regional === 'N' && $module->module_pie === 'N')
+                                                    <span class="badge bg-secondary">Normal</span>
+                                                @endif
                                             </td>
-                                            <td><span class="badge bg-secondary">{{ $module->nb_affectations }}</span></td>
+                                            <td><span class="badge bg-primary">{{ $module->nb_affectations }}</span></td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -309,18 +397,49 @@
                         </div>
                     @else
                         <div class="alert alert-info text-center">
-                            <i class="fas fa-info-circle"></i> Aucun module associé
+                            <i class="fas fa-info-circle"></i> Aucun module trouvé avec ces critères
                         </div>
                     @endif
                 </div>
             </div>
         </div>
 
-        <!-- TAB FORMATEURS -->
+        <!-- TAB FORMATEURS AVEC FILTRES -->
         <div class="tab-pane fade" id="formateurs" role="tabpanel">
+            <div class="card shadow-sm mb-3">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <input type="hidden" name="tab" value="formateurs">
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold">Rechercher</label>
+                            <input type="text" name="search_formateur" class="form-control" 
+                                   placeholder="Nom ou matricule..." value="{{ request('search_formateur') }}">
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold">Type de Formateur</label>
+                            <select name="type_formateur" class="form-select">
+                                <option value="">Tous les types</option>
+                                <option value="permanent" {{ request('type_formateur') == 'permanent' ? 'selected' : '' }}>Permanent</option>
+                                <option value="vacataire" {{ request('type_formateur') == 'vacataire' ? 'selected' : '' }}>Vacataire</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-filter"></i> Filtrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <div class="card shadow-sm">
-                <div class="card-header bg-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fw-bold">Formateurs Intervenant</h5>
+                    @if(request()->hasAny(['search_formateur', 'type_formateur']))
+                        <a href="{{ route('administration.etablissement.filieres.show', $filiere->id) }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-times"></i> Réinitialiser
+                        </a>
+                    @endif
                 </div>
                 <div class="card-body">
                     @if($formateurs->count() > 0)
@@ -346,7 +465,7 @@
                                                     <span class="badge bg-warning">Vacataire</span>
                                                 @endif
                                             </td>
-                                            <td><span class="badge bg-secondary">{{ $formateur->nb_affectations }}</span></td>
+                                            <td><span class="badge bg-primary">{{ $formateur->nb_affectations }}</span></td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -354,14 +473,14 @@
                         </div>
                     @else
                         <div class="alert alert-info text-center">
-                            <i class="fas fa-info-circle"></i> Aucun formateur associé
+                            <i class="fas fa-info-circle"></i> Aucun formateur trouvé avec ces critères
                         </div>
                     @endif
                 </div>
             </div>
         </div>
 
-        <!-- TAB PROGRESSION -->
+        <!-- TAB PROGRESSION AVEC FILTRES -->
         <div class="tab-pane fade" id="progression" role="tabpanel">
             <div class="row">
                 @if($avancementStats)
@@ -407,9 +526,42 @@
                 @endif
 
                 <div class="col-md-12">
+                    <div class="card shadow-sm mb-3">
+                        <div class="card-body">
+                            <form method="GET" class="row g-3">
+                                <input type="hidden" name="tab" value="progression">
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold">Rechercher Module</label>
+                                    <input type="text" name="search_progression" class="form-control" 
+                                           placeholder="Code ou nom..." value="{{ request('search_progression') }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold">Taux Minimum (%)</label>
+                                    <input type="number" name="taux_min" class="form-control" 
+                                           placeholder="Ex: 0" min="0" max="100" value="{{ request('taux_min') }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold">Taux Maximum (%)</label>
+                                    <input type="number" name="taux_max" class="form-control" 
+                                           placeholder="Ex: 100" min="0" max="100" value="{{ request('taux_max') }}">
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-filter"></i> Filtrer
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
                     <div class="card shadow-sm">
-                        <div class="card-header bg-light">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
                             <h5 class="mb-0 fw-bold">Progression par Module</h5>
+                            @if(request()->hasAny(['search_progression', 'taux_min', 'taux_max']))
+                                <a href="{{ route('administration.etablissement.filieres.show', $filiere->id) }}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-times"></i> Réinitialiser
+                                </a>
+                            @endif
                         </div>
                         <div class="card-body">
                             @if($progressionModules->count() > 0)
@@ -433,9 +585,16 @@
                                                     <td><span class="badge bg-secondary">{{ $module->nb_groupes }}</span></td>
                                                     <td>
                                                         <div class="progress" style="height: 20px;">
-                                                            <div class="progress-bar" role="progressbar" 
-                                                                 style="width: {{ $module->taux_moyen ?? 0 }}%">
-                                                                {{ $module->taux_moyen ? number_format($module->taux_moyen, 1) : '0' }}%
+                                                            @php
+                                                                $taux = $module->taux_moyen ?? 0;
+                                                                $bgColor = 'bg-danger';
+                                                                if ($taux >= 75) $bgColor = 'bg-success';
+                                                                elseif ($taux >= 50) $bgColor = 'bg-warning';
+                                                                elseif ($taux >= 25) $bgColor = 'bg-info';
+                                                            @endphp
+                                                            <div class="progress-bar {{ $bgColor }}" role="progressbar" 
+                                                                 style="width: {{ $taux }}%">
+                                                                {{ number_format($taux, 1) }}%
                                                             </div>
                                                         </div>
                                                     </td>
@@ -448,7 +607,7 @@
                                 </div>
                             @else
                                 <div class="alert alert-info text-center">
-                                    <i class="fas fa-info-circle"></i> Aucune donnée de progression disponible
+                                    <i class="fas fa-info-circle"></i> Aucune donnée de progression trouvée avec ces critères
                                 </div>
                             @endif
                         </div>
@@ -473,9 +632,77 @@
 
 <script>
     function confirmDelete(id) {
-        if (confirm('Êtes-vous sûr de vouloir supprimer cette filière ? Cette action est irréversible.')) {
+        if (confirm('⚠️ Êtes-vous sûr de vouloir supprimer cette filière ? Cette action est irréversible et supprimera toutes les données associées.')) {
             document.getElementById('delete-form-' + id).submit();
         }
     }
+
+    // Activer l'onglet correspondant après filtrage
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabParam = urlParams.get('tab');
+        
+        if (tabParam) {
+            const tabButton = document.getElementById(tabParam + '-tab');
+            if (tabButton) {
+                const tab = new bootstrap.Tab(tabButton);
+                tab.show();
+            }
+        }
+    });
 </script>
+
+<style>
+    .nav-tabs .nav-link {
+        color: #6c757d;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: #0d6efd;
+        border-color: #dee2e6 #dee2e6 #fff;
+    }
+
+    .nav-tabs .nav-link.active {
+        color: #0d6efd;
+        font-weight: 600;
+    }
+
+    .card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .badge {
+        font-weight: 500;
+        padding: 0.35em 0.65em;
+    }
+
+    .progress {
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .form-label.small {
+        margin-bottom: 0.25rem;
+        color: #6c757d;
+    }
+
+    .btn-outline-secondary {
+        transition: all 0.2s ease;
+    }
+
+    .btn-outline-secondary:hover {
+        transform: translateY(-2px);
+    }
+</style>
 @endsection

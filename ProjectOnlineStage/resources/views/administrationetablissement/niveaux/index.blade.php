@@ -31,6 +31,98 @@
     </div>
 
     <div class="card-body">
+        <!-- Filtres -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">
+                    <i class="fas fa-filter me-2"></i>Filtrer les niveaux
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="GET" action="{{ route('administration.etablissement.niveaux.index') }}" id="filterForm">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Recherche</label>
+                            <input type="text" name="search" class="form-control form-control-sm" 
+                                   placeholder="Nom du niveau..." value="{{ request('search') }}">
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label">Formations (min)</label>
+                            <select name="formations_min" class="form-select form-select-sm">
+                                <option value="">-- Toutes --</option>
+                                <option value="0" {{ request('formations_min') == '0' ? 'selected' : '' }}>0+</option>
+                                <option value="1" {{ request('formations_min') == '1' ? 'selected' : '' }}>1+</option>
+                                <option value="2" {{ request('formations_min') == '2' ? 'selected' : '' }}>2+</option>
+                                <option value="5" {{ request('formations_min') == '5' ? 'selected' : '' }}>5+</option>
+                                <option value="10" {{ request('formations_min') == '10' ? 'selected' : '' }}>10+</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label">Groupes (min)</label>
+                            <select name="groupes_min" class="form-select form-select-sm">
+                                <option value="">-- Tous --</option>
+                                <option value="0" {{ request('groupes_min') == '0' ? 'selected' : '' }}>0+</option>
+                                <option value="1" {{ request('groupes_min') == '1' ? 'selected' : '' }}>1+</option>
+                                <option value="2" {{ request('groupes_min') == '2' ? 'selected' : '' }}>2+</option>
+                                <option value="5" {{ request('groupes_min') == '5' ? 'selected' : '' }}>5+</option>
+                                <option value="10" {{ request('groupes_min') == '10' ? 'selected' : '' }}>10+</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label">Tri par</label>
+                            <select name="sort_by" class="form-select form-select-sm">
+                                <option value="created_at" {{ request('sort_by') == 'created_at' ? 'selected' : '' }}>
+                                    Date de création
+                                </option>
+                                <option value="nom" {{ request('sort_by') == 'nom' ? 'selected' : '' }}>
+                                    Nom (A-Z)
+                                </option>
+                                <option value="id" {{ request('sort_by') == 'id' ? 'selected' : '' }}>
+                                    ID
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label">Ordre</label>
+                            <select name="sort_order" class="form-select form-select-sm">
+                                <option value="asc" {{ request('sort_order') == 'asc' ? 'selected' : '' }}>
+                                    <i class="fas fa-arrow-up"></i> Croissant
+                                </option>
+                                <option value="desc" {{ request('sort_order') == 'desc' || !request('sort_order') ? 'selected' : '' }}>
+                                    <i class="fas fa-arrow-down"></i> Décroissant
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-12">
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-search me-1"></i>Filtrer
+                                </button>
+                                <a href="{{ route('administration.etablissement.niveaux.index') }}" class="btn btn-secondary btn-sm">
+                                    <i class="fas fa-redo me-1"></i>Réinitialiser
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Statistiques des filtres -->
+        @if(request()->filled('search') || request()->filled('formations_min') || request()->filled('groupes_min'))
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Résultats filtrés :</strong> {{ $stats['total_niveaux'] }} niveau(x) trouvé(s) 
+            | {{ $stats['total_formations'] }} formations | {{ $stats['total_groupes'] }} groupes 
+            | {{ $stats['effectif_total'] }} stagiaires
+        </div>
+        @endif
+
         @if($niveaux->isEmpty())
             <div class="alert alert-info text-center">
                 <i class="fas fa-info-circle fa-2x mb-3"></i>
@@ -49,6 +141,7 @@
                             <th><i class="fas fa-layer-group me-1"></i> Niveau</th>
                             <th><i class="fas fa-graduation-cap me-1"></i> Formations</th>
                             <th><i class="fas fa-users me-1"></i> Groupes</th>
+                            <th><i class="fas fa-user-graduate me-1"></i> Effectif</th>
                             <th><i class="fas fa-calendar me-1"></i> Date de création</th>
                             <th class="text-center"><i class="fas fa-cogs me-1"></i> Actions</th>
                         </tr>
@@ -73,6 +166,11 @@
                             <td>
                                 <span class="badge bg-success">
                                     {{ $niveau->groupes_count }} groupe(s)
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">
+                                    {{ $niveau->effectif_total }} stagiaire(s)
                                 </span>
                             </td>
                             <td>

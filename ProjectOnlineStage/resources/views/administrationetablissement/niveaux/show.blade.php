@@ -23,6 +23,7 @@
 @endsection
 
 @section('content')
+
 <!-- En-tête avec informations principales -->
 <div class="card shadow-sm mb-4">
     <div class="card-header bg-primary text-white">
@@ -150,6 +151,77 @@
 <div class="tab-content" id="niveauTabsContent">
     <!-- Onglet Formations -->
     <div class="tab-pane fade show active" id="formations" role="tabpanel">
+        <!-- Filtres Formations -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">
+                    <i class="fas fa-filter me-2"></i>Filtrer les formations
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="GET" action="{{ route('administration.etablissement.niveaux.show', $niveauData->id) }}" id="formationsFilterForm">
+                    <div class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Année</label>
+                            <select name="annee" class="form-select form-select-sm">
+                                <option value="">Toutes</option>
+                                @foreach($filterData['annees'] as $annee)
+                                    <option value="{{ $annee }}" {{ request('annee') == $annee ? 'selected' : '' }}>
+                                        {{ $annee }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Type</label>
+                            <select name="type" class="form-select form-select-sm">
+                                <option value="">Tous</option>
+                                @foreach($filterData['types'] as $type)
+                                    <option value="{{ $type }}" {{ request('type') == $type ? 'selected' : '' }}>
+                                        {{ $type }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Mode</label>
+                            <select name="mode" class="form-select form-select-sm">
+                                <option value="">Tous</option>
+                                @foreach($filterData['modes'] as $mode)
+                                    <option value="{{ $mode }}" {{ request('mode') == $mode ? 'selected' : '' }}>
+                                        {{ $mode }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Créneau</label>
+                            <select name="creneau" class="form-select form-select-sm">
+                                <option value="">Tous</option>
+                                @foreach($filterData['creneaux'] as $creneau)
+                                    <option value="{{ $creneau }}" {{ request('creneau') == $creneau ? 'selected' : '' }}>
+                                        {{ $creneau }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-search me-1"></i>Filtrer
+                                </button>
+                                <a href="{{ route('administration.etablissement.niveaux.show', $niveauData->id) }}" class="btn btn-secondary btn-sm">
+                                    <i class="fas fa-redo me-1"></i>Réinitialiser
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tableau Formations -->
         <div class="card shadow-sm">
             <div class="card-header bg-light">
                 <h5 class="mb-0">
@@ -225,6 +297,71 @@
 
     <!-- Onglet Groupes -->
     <div class="tab-pane fade" id="groupes" role="tabpanel">
+        <!-- Filtres Groupes -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">
+                    <i class="fas fa-filter me-2"></i>Filtrer les groupes
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="GET" action="{{ route('administration.etablissement.niveaux.show', $niveauData->id) }}" id="groupesFilterForm">
+                    <div class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Recherche</label>
+                            <input type="text" name="groupe_search" class="form-control form-control-sm" 
+                                   placeholder="Code..." value="{{ request('groupe_search') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Statut</label>
+                            <select name="groupe_statut" class="form-select form-select-sm">
+                                <option value="">Tous</option>
+                                @foreach($filterData['statuts'] as $statut)
+                                    <option value="{{ $statut }}" {{ request('groupe_statut') == $statut ? 'selected' : '' }}>
+                                        {{ $statut }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Année</label>
+                            <select name="groupe_annee" class="form-select form-select-sm">
+                                <option value="">Toutes</option>
+                                @foreach($filterData['annees'] as $annee)
+                                    <option value="{{ $annee }}" {{ request('groupe_annee') == $annee ? 'selected' : '' }}>
+                                        {{ $annee }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Filière</label>
+                            <select name="groupe_filiere" class="form-select form-select-sm">
+                                <option value="">Toutes</option>
+                                @foreach($filieres as $filiere)
+                                    <option value="{{ $filiere->id }}" {{ request('groupe_filiere') == $filiere->id ? 'selected' : '' }}>
+                                        {{ $filiere->nom_filiere }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-search me-1"></i>Filtrer
+                                </button>
+                                <a href="{{ route('administration.etablissement.niveaux.show', $niveauData->id) }}" class="btn btn-secondary btn-sm">
+                                    <i class="fas fa-redo me-1"></i>Réinitialiser
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tableau Groupes -->
         <div class="card shadow-sm">
             <div class="card-header bg-light">
                 <h5 class="mb-0">
@@ -336,6 +473,38 @@
 
     <!-- Onglet Modules -->
     <div class="tab-pane fade" id="modules" role="tabpanel">
+        <!-- Filtres Modules -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">
+                    <i class="fas fa-filter me-2"></i>Filtrer les modules
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="GET" action="{{ route('administration.etablissement.niveaux.show', $niveauData->id) }}" id="modulesFilterForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Recherche</label>
+                            <input type="text" name="module_search" class="form-control form-control-sm" 
+                                   placeholder="Code ou nom..." value="{{ request('module_search') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-search me-1"></i>Filtrer
+                                </button>
+                                <a href="{{ route('administration.etablissement.niveaux.show', $niveauData->id) }}" class="btn btn-secondary btn-sm">
+                                    <i class="fas fa-redo me-1"></i>Réinitialiser
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tableau Modules -->
         <div class="card shadow-sm">
             <div class="card-header bg-light">
                 <h5 class="mb-0">
@@ -389,6 +558,46 @@
 
     <!-- Onglet Formateurs -->
     <div class="tab-pane fade" id="formateurs-content" role="tabpanel">
+        <!-- Filtres Formateurs -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">
+                    <i class="fas fa-filter me-2"></i>Filtrer les formateurs
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="GET" action="{{ route('administration.etablissement.niveaux.show', $niveauData->id) }}" id="formateursFilterForm">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Recherche</label>
+                            <input type="text" name="formateur_search" class="form-control form-control-sm" 
+                                   placeholder="Nom..." value="{{ request('formateur_search') }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Type</label>
+                            <select name="formateur_type" class="form-select form-select-sm">
+                                <option value="">Tous</option>
+                                <option value="permanent" {{ request('formateur_type') == 'permanent' ? 'selected' : '' }}>Permanent</option>
+                                <option value="vacataire" {{ request('formateur_type') == 'vacataire' ? 'selected' : '' }}>Vacataire</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-search me-1"></i>Filtrer
+                                </button>
+                                <a href="{{ route('administration.etablissement.niveaux.show', $niveauData->id) }}" class="btn btn-secondary btn-sm">
+                                    <i class="fas fa-redo me-1"></i>Réinitialiser
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tableau Formateurs -->
         <div class="card shadow-sm">
             <div class="card-header bg-light">
                 <h5 class="mb-0">

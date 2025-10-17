@@ -220,6 +220,7 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             $mleAffecteSyn = trim($row['mle_affecte_syn_actif'] ?? '');
             $formateurSyn = trim($row['formateur_affecte_syn_actif'] ?? '');
 
+            // Créer le formateur présentiel s'il existe
             $formateurPresentielObj = null;
             if (!empty($mleAffectePresentiel) && !empty($formateurPresentiel)) {
                 $formateurPresentielObj = Formateur::updateOrCreate(
@@ -238,8 +239,12 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                 if ($module) {
                     $formateurPresentielObj->modules()->syncWithoutDetaching([$module->id]);
                 }
+            } else {
+                // Si le formateur présentiel n'existe pas, mettre à null
+                $mleAffectePresentiel = null;
             }
 
+            // Créer le formateur synchrone s'il existe et différent du présentiel
             $formateurSynObj = null;
             if (!empty($mleAffecteSyn) && !empty($formateurSyn) && $mleAffecteSyn !== $mleAffectePresentiel) {
                 $formateurSynObj = Formateur::updateOrCreate(
@@ -258,6 +263,9 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                 if ($module) {
                     $formateurSynObj->modules()->syncWithoutDetaching([$module->id]);
                 }
+            } else {
+                // Si le formateur synchrone n'existe pas ou est identique, mettre à null
+                $mleAffecteSyn = null;
             }
 
             // 8. Créer/Mettre à jour l'AFFECTATION avec code_efp
@@ -271,7 +279,7 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                     // Code EFP
                     'code_efp' => $codeEfp,
                     
-                    // Formateurs
+                    // Formateurs (maintenant garantis d'exister ou NULL)
                     'mle_affecte_presentiel' => $mleAffectePresentiel,
                     'formateur_affecte_presentiel' => $formateurPresentiel,
                     'mle_affecte_syn' => $mleAffecteSyn,

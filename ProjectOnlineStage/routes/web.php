@@ -116,3 +116,39 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('avancements', AvancementController::class);
     });
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+|--------------------------------------------------------------------------
+| Routes d'authentification (accessibles par tous)
+|--------------------------------------------------------------------------
+*/
+Route::controller(AuthController::class)->group(function () {
+    Route::get('/login', 'showLoginForm')->name('login');
+    Route::post('/login', 'login');
+    Route::post('/logout', 'logout')->name('logout');
+    Route::get('/check-auth', 'checkAuth')->name('check.auth');
+    
+    // 👇 AJOUTER CES ROUTES 👇
+    // Routes pour la réinitialisation du mot de passe
+    Route::get('/forgot-password', 'showForgotPasswordForm')->name('password.request');
+    Route::post('/forgot-password', 'sendResetLinkEmail')->name('password.email');
+    Route::get('/reset-password/{token}', 'showResetPasswordForm')->name('password.reset');
+    Route::post('/reset-password', 'resetPassword')->name('password.update');
+});

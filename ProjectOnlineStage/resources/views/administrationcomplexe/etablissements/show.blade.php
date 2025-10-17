@@ -46,6 +46,11 @@
         background-color: #0d6efd;
         border-color: #0d6efd;
     }
+
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
 </style>
 @endpush
 
@@ -60,14 +65,14 @@
                 Complexe: {{ $complexe->nom }}
             </p>
         </div>
-        <a href="{{ route('administration.complexe.dashboard') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Retour au tableau de bord
-        </a>
-        <a href="{{ route('administration.complexe.etablissements.index') }}" class="btn btn-secondary">
-                                <i class="bi bi-x-lg"></i> retour au liste
-        </a>
-
-        
+        <div>
+            <a href="{{ route('administration.complexe.dashboard') }}" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left"></i> Tableau de bord
+            </a>
+            <a href="{{ route('administration.complexe.etablissements.index') }}" class="btn btn-secondary">
+                <i class="bi bi-x-lg"></i> Retour à la liste
+            </a>
+        </div>
     </div>
 
     {{-- Cartes de statistiques --}}
@@ -211,6 +216,141 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Tableau des modules non affectés par filière --}}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom">
+            <h5 class="mb-0">
+                <i class="bi bi-exclamation-triangle text-warning"></i> Modules non affectés par filière
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-wrapper" style="max-height: 400px; overflow: auto;">
+                <table class="table table-sm table-hover table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Filière</th>
+                            <th>Code Module</th>
+                            <th>Module</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($modulesNonAffectesParFiliere as $filiere => $modules)
+                            @foreach($modules as $module)
+                            <tr>
+                                <td>{{ $filiere }}</td>
+                                <td>{{ $module->code_module }}</td>
+                                <td>{{ $module->nom_module }}</td>
+                            </tr>
+                            @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="3" class="text-center py-3 text-muted">
+                                    <i class="bi bi-check-circle text-success fs-4 d-block mb-2"></i>
+                                    Tous les modules sont affectés
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {{-- Tableau des modules non affectés par groupe --}}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom">
+            <h5 class="mb-0">
+                <i class="bi bi-exclamation-triangle text-warning"></i> Modules non affectés par groupe
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-wrapper" style="max-height: 400px; overflow: auto;">
+                <table class="table table-sm table-hover table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Groupe</th>
+                            <th>Filière</th>
+                            <th>Code Module</th>
+                            <th>Module</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($modulesNonAffectesParGroupe as $groupe => $modules)
+                            @foreach($modules as $module)
+                            <tr>
+                                <td>{{ $groupe }}</td>
+                                <td>{{ $module->nom_filiere }}</td>
+                                <td>{{ $module->code_module }}</td>
+                                <td>{{ $module->nom_module }}</td>
+                            </tr>
+                            @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="4" class="text-center py-3 text-muted">
+                                    <i class="bi bi-check-circle text-success fs-4 d-block mb-2"></i>
+                                    Tous les modules sont affectés
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {{-- Tableau des statistiques des formateurs (SIMPLIFIÉ) --}}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom">
+            <h5 class="mb-0">
+                <i class="bi bi-person-badge text-primary"></i> Statistiques des formateurs
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-wrapper" style="max-height: 500px; overflow: auto;">
+                <table class="table table-sm table-hover table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>MLE</th>
+                            <th>Nom complet</th>
+                            <th>Type</th>
+                            <th class="text-end">Heures requises</th>
+                            <th class="text-end">Heures affectées</th>
+                            <th class="text-end">Heures manquantes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($formateursStats['formateurs'] as $formateur)
+                        <tr>
+                            <td>{{ $formateur['mle'] }}</td>
+                            <td>{{ $formateur['nom_complet'] }}</td>
+                            <td>
+                                <span class="badge bg-{{ $formateur['type'] == 'permanent' ? 'success' : 'warning' }}">
+                                    {{ ucfirst($formateur['type']) }}
+                                </span>
+                            </td>
+                            <td class="text-end">{{ number_format($formateur['heures_requises'], 2) }}h</td>
+                            <td class="text-end">{{ number_format($formateur['heures_affectees'], 2) }}h</td>
+                            <td class="text-end {{ $formateur['heures_manquantes'] > 0 ? 'text-danger fw-bold' : 'text-success' }}">
+                                {{ number_format($formateur['heures_manquantes'], 2) }}h
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <th colspan="3" class="text-end">TOTAUX:</th>
+                            <th class="text-end">{{ number_format($formateursStats['totaux']['heures_requises'], 2) }}h</th>
+                            <th class="text-end">{{ number_format($formateursStats['totaux']['heures_affectees'], 2) }}h</th>
+                            <th class="text-end {{ $formateursStats['totaux']['heures_manquantes'] > 0 ? 'text-danger fw-bold' : 'text-success' }}">
+                                {{ number_format($formateursStats['totaux']['heures_manquantes'], 2) }}h
+                            </th>
+                        </tr>
+                    </tfoot>
+                </table>
             </div>
         </div>
     </div>

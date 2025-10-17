@@ -69,7 +69,6 @@
         100% { background-position: 0 0; }
     }
     
-    /* Styles de pagination personnalisés */
     .pagination {
         margin: 0;
     }
@@ -176,7 +175,7 @@
                                 <option value="">Tous les formateurs</option>
                                 @foreach($filterOptions['formateurs'] as $formateur)
                                     <option value="{{ $formateur->mle }}" {{ $filters['formateur'] == $formateur->mle ? 'selected' : '' }}>
-                                        {{ $formateur->nom_formateur }}
+                                        {{ $formateur->nom_complet }}
                                     </option>
                                 @endforeach
                             </select>
@@ -197,8 +196,8 @@
                             <select name="groupe" id="groupe" class="form-select">
                                 <option value="">Tous les groupes</option>
                                 @foreach($filterOptions['groupes'] as $groupe)
-                                    <option value="{{ $groupe->groupe }}" {{ $filters['groupe'] == $groupe->groupe ? 'selected' : '' }}>
-                                        {{ $groupe->groupe }}
+                                    <option value="{{ $groupe->code_groupe }}" {{ $filters['groupe'] == $groupe->code_groupe ? 'selected' : '' }}>
+                                        {{ $groupe->code_groupe }}
                                     </option>
                                 @endforeach
                             </select>
@@ -557,7 +556,7 @@
     </div>
 </div>
 
-<!-- Tableau Détaillé avec Pagination Corrigée -->
+<!-- Tableau Détaillé avec Pagination -->
 <div class="row">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
@@ -574,10 +573,13 @@
                                 <th>EFP</th>
                                 <th>Secteur</th>
                                 <th>Filière</th>
+                                <th>Niveau</th>
                                 <th>Groupe</th>
                                 <th>Effectif</th>
                                 <th>Module</th>
-                                <th>Formateur</th>
+                                <th>Formateur Présentiel</th>
+                                <th>Formateur Synchrone</th>
+                                <th>Type</th>
                                 <th>Mode</th>
                                 <th>MH Total</th>
                                 <th>MH Aff.</th>
@@ -599,7 +601,8 @@
                                     {{ $row->filiere }}
                                     <br><small class="text-muted">{{ $row->code_filiere }}</small>
                                 </td>
-                                <td><span class="badge bg-info">{{ $row->groupe }}</span></td>
+                                <td><span class="badge bg-info">{{ $row->niveau }}</span></td>
+                                <td><span class="badge bg-dark">{{ $row->groupe }}</span></td>
                                 <td><strong>{{ $row->effectif_groupe }}</strong></td>
                                 <td>
                                     {{ $row->module }}
@@ -608,15 +611,30 @@
                                 <td>
                                     @if($row->formateur_presentiel)
                                         <i class="fas fa-chalkboard-teacher text-primary me-1"></i>{{ $row->formateur_presentiel }}
-                                    @endif
-                                    @if($row->formateur_syn)
-                                        <br><i class="fas fa-video text-info me-1"></i>{{ $row->formateur_syn }}
+                                    @else
+                                        <span class="text-muted">-</span>
                                     @endif
                                 </td>
                                 <td>
-                                    @if($row->mode == 'Présentiel')
+                                    @if($row->formateur_syn)
+                                        <i class="fas fa-video text-info me-1"></i>{{ $row->formateur_syn }}
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($row->type == 'Diplômante')
+                                        <span class="badge bg-success">{{ $row->type }}</span>
+                                    @elseif($row->type == 'Qualifiante')
+                                        <span class="badge bg-warning">{{ $row->type }}</span>
+                                    @else
+                                        <span class="badge bg-secondary">{{ $row->type }}</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($row->mode == 'Résidentiel')
                                         <span class="badge bg-primary">{{ $row->mode }}</span>
-                                    @elseif($row->mode == 'Synchrone')
+                                    @elseif($row->mode == 'Alterné')
                                         <span class="badge bg-info">{{ $row->mode }}</span>
                                     @else
                                         <span class="badge bg-secondary">{{ $row->mode }}</span>
@@ -634,13 +652,13 @@
                                         @elseif($taux >= 50) bg-warning 
                                         @else bg-danger 
                                         @endif">
-                                        {{ $taux }}%
+                                        {{ number_format($taux, 2) }}%
                                     </span>
                                 </td>
                                 <td>
-                                    @if($row->validation_efm == 'Oui' || $row->validation_efm == 'OUI')
+                                    @if(strtolower($row->validation_efm) == 'oui')
                                         <span class="badge bg-success"><i class="fas fa-check me-1"></i>Validé</span>
-                                    @elseif($row->validation_efm == 'Non' || $row->validation_efm == 'NON')
+                                    @elseif(strtolower($row->validation_efm) == 'non')
                                         <span class="badge bg-danger"><i class="fas fa-times me-1"></i>Non validé</span>
                                     @else
                                         <span class="badge bg-secondary">-</span>
@@ -649,7 +667,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="14" class="text-center py-4">
+                                <td colspan="17" class="text-center py-4">
                                     <i class="fas fa-inbox fa-3x text-muted mb-3 d-block"></i>
                                     <p class="text-muted mb-0">Aucune donnée disponible</p>
                                 </td>
@@ -794,7 +812,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Graphique Heures par Semestre - Style comme l'image de référence
+    // Graphique Heures par Semestre
     const ctx3 = document.getElementById('heuresSemestreChart');
     if (ctx3 && chartData.heures_par_semestre) {
         new Chart(ctx3, {
@@ -856,17 +874,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             label: function(context) {
                                 return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + 'h';
                             }
-                        }
-                    },
-                    datalabels: {
-                        anchor: 'end',
-                        align: 'top',
-                        font: {
-                            size: 11,
-                            weight: 'bold'
-                        },
-                        formatter: function(value) {
-                            return value.toFixed(2);
                         }
                     }
                 }

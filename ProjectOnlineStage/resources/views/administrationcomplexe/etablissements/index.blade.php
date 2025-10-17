@@ -75,7 +75,7 @@
                                     @if($etablissement->user)
                                         <div class="d-flex align-items-center">
                                             <i class="bi bi-person-circle text-primary me-2"></i>
-                                            <span>{{ $etablissement->user->name }}</span>
+                                            <span>{{ $etablissement->user->nom }}</span>
                                         </div>
                                     @else
                                         <span class="text-muted fst-italic">Non assigné</span>

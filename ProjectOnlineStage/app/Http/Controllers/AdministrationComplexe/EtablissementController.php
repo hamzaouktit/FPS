@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Models\{Etablissement, Formateur, Formation, Module, Groupe, Filiere, Secteur, Avancement, User};
+use App\Models\{Etablissement, Formateur, Formation, Module, Groupe, Filiere, Secteur, Affectation, Avancement, User};
 
 class EtablissementController extends Controller
 {
@@ -161,6 +161,11 @@ class EtablissementController extends Controller
         // Récupérer les options de filtrage
         $filterOptions = $this->getFilterOptions($code_efp);
 
+        // Nouveaux tableaux ajoutés
+        $modulesNonAffectesParFiliere = $this->getModulesNonAffectesParFiliere($code_efp);
+        $modulesNonAffectesParGroupe = $this->getModulesNonAffectesParGroupe($code_efp);
+        $formateursStats = $this->getFormateursStats($code_efp);
+
         return view('administrationcomplexe.etablissements.show', compact(
             'user', 
             'complexe', 
@@ -169,7 +174,10 @@ class EtablissementController extends Controller
             'statistics', 
             'chartData', 
             'filterOptions',
-            'filters'
+            'filters',
+            'modulesNonAffectesParFiliere',
+            'modulesNonAffectesParGroupe',
+            'formateursStats'
         ));
     }
 
@@ -281,25 +289,175 @@ class EtablissementController extends Controller
             ->with('success', 'Établissement supprimé avec succès.');
     }
 
-    // ========== Méthodes privées existantes ==========
+    // ========== METHODES PRIVEES ==========
+
+    /**
+     * Récupère les modules non affectés par filière (CORRIGÉ)
+     */
+    private function getModulesNonAffectesParFiliere($code_efp)
+    {
+        // Récupérer toutes les filières de cet établissement
+        $filieres = Filiere::where('code_efp', $code_efp)->get();
+        
+        $result = collect();
+        
+        foreach ($filieres as $filiere) {
+            // Récupérer tous les modules de cette filière
+            $modulesFiliere = DB::table('filiere_module')
+                ->join('modules', 'filiere_module.module_id', '=', 'modules.id')
+                ->where('filiere_module.filiere_id', $filiere->id)
+                ->select('modules.id', 'modules.code_module', 'modules.nom_module')
+                ->get();
+            
+            // Récupérer tous les groupes de cette filière dans cet établissement
+            $groupesIds = Groupe::where('filiere_id', $filiere->id)
+                ->where('code_efp', $code_efp)
+                ->pluck('id');
+            
+            // Pour chaque module, vérifier s'il est affecté à au moins un groupe de cette filière
+            foreach ($modulesFiliere as $module) {
+                $estAffecte = Affectation::where('module_id', $module->id)
+                    ->where('code_efp', $code_efp)
+                    ->whereIn('groupe_id', $groupesIds)
+                    ->exists();
+                
+                if (!$estAffecte) {
+                    $result->push((object)[
+                        'code_filiere' => $filiere->code_filiere,
+                        'nom_filiere' => $filiere->nom_filiere,
+                        'code_module' => $module->code_module,
+                        'nom_module' => $module->nom_module
+                    ]);
+                }
+            }
+        }
+        
+        return $result->groupBy('nom_filiere');
+    }
+
+    /**
+     * Récupère les modules non affectés par groupe (CORRIGÉ)
+     */
+    private function getModulesNonAffectesParGroupe($code_efp)
+    {
+        // Récupérer tous les groupes de cet établissement
+        $groupes = Groupe::where('code_efp', $code_efp)
+            ->with('filiere')
+            ->get();
+        
+        $result = collect();
+        
+        foreach ($groupes as $groupe) {
+            // Récupérer tous les modules de la filière de ce groupe
+            $modulesFiliere = DB::table('filiere_module')
+                ->join('modules', 'filiere_module.module_id', '=', 'modules.id')
+                ->where('filiere_module.filiere_id', $groupe->filiere_id)
+                ->select('modules.id', 'modules.code_module', 'modules.nom_module')
+                ->get();
+            
+            // Pour chaque module, vérifier s'il est affecté à ce groupe
+            foreach ($modulesFiliere as $module) {
+                $estAffecte = Affectation::where('module_id', $module->id)
+                    ->where('groupe_id', $groupe->id)
+                    ->where('code_efp', $code_efp)
+                    ->exists();
+                
+                if (!$estAffecte) {
+                    $result->push((object)[
+                        'code_groupe' => $groupe->code_groupe,
+                        'code_filiere' => $groupe->filiere->code_filiere,
+                        'nom_filiere' => $groupe->filiere->nom_filiere,
+                        'code_module' => $module->code_module,
+                        'nom_module' => $module->nom_module
+                    ]);
+                }
+            }
+        }
+        
+        return $result->groupBy('code_groupe');
+    }
+
+    /**
+     * Récupère les statistiques des formateurs (SIMPLIFIÉ)
+     */
+    private function getFormateursStats($code_efp)
+    {
+        $formateurs = Formateur::where('code_efp', $code_efp)
+            ->with(['affectationsPresentiel', 'affectationsSyn'])
+            ->get();
+
+        $stats = [];
+
+        foreach ($formateurs as $formateur) {
+            // Heures requises (somme des heures DRIF des affectations)
+            $heuresRequisesPresentiel = $formateur->affectationsPresentiel
+                ->where('code_efp', $code_efp)
+                ->sum('mhp_totale_drif');
+            $heuresRequisesSyn = $formateur->affectationsSyn
+                ->where('code_efp', $code_efp)
+                ->sum('mhsyn_totale_drif');
+            $heuresRequisesTotal = $heuresRequisesPresentiel + $heuresRequisesSyn;
+
+            // Heures affectées
+            $heuresAffecteesPresentiel = $formateur->affectationsPresentiel
+                ->where('code_efp', $code_efp)
+                ->sum('mh_affectee_presentiel');
+            $heuresAffecteesSyn = $formateur->affectationsSyn
+                ->where('code_efp', $code_efp)
+                ->sum('mh_affectee_sync');
+            $heuresAffecteesTotal = $heuresAffecteesPresentiel + $heuresAffecteesSyn;
+
+            // Heures manquantes
+            $heuresManquantes = max(0, $heuresRequisesTotal - $heuresAffecteesTotal);
+
+            $stats[] = [
+                'mle' => $formateur->mle,
+                'nom_complet' => $formateur->nom_complet,
+                'type' => $formateur->type,
+                'heures_requises' => $heuresRequisesTotal,
+                'heures_affectees' => $heuresAffecteesTotal,
+                'heures_manquantes' => $heuresManquantes,
+            ];
+        }
+
+        // Calcul des totaux
+        $totaux = [
+            'heures_requises' => collect($stats)->sum('heures_requises'),
+            'heures_affectees' => collect($stats)->sum('heures_affectees'),
+            'heures_manquantes' => collect($stats)->sum('heures_manquantes'),
+        ];
+
+        return [
+            'formateurs' => $stats,
+            'totaux' => $totaux,
+        ];
+    }
 
     private function getEtablissementStats($code_efp)
     {
-        $query = Avancement::query()
-            ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
-            ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-            ->where('formations.code_efp', $code_efp);
+        $affectations = Affectation::query()
+            ->join('groupes', 'affectations.groupe_id', '=', 'groupes.id')
+            ->join('formations', 'groupes.formation_id', '=', 'formations.id')
+            ->leftJoin('avancements', 'affectations.id', '=', 'avancements.affectation_id')
+            ->where('affectations.code_efp', $code_efp)
+            ->select(
+                'groupes.id as groupe_id',
+                'groupes.effectif_groupe',
+                'affectations.mh_totale_drif',
+                'avancements.mh_realisee_globale'
+            )
+            ->get();
 
-        $avancements = $query->get();
-
-        $nbGroupes = $avancements->pluck('groupe')->unique()->count();
-        $groupesUniques = $avancements->groupBy('groupe')->map(function($items) {
+        $nbGroupes = $affectations->pluck('groupe_id')->unique()->count();
+        $groupesUniques = $affectations->groupBy('groupe_id')->map(function($items) {
             return $items->first()->effectif_groupe ?? 0;
         });
         $nbApprenants = $groupesUniques->sum();
 
-        $heuresRequises = $avancements->sum('mh_totale_drif') ?: 0;
-        $heuresRealisees = $avancements->sum('mh_realisee_globale') ?: 0;
+        $heuresRequises = $affectations->sum('mh_totale_drif') ?: 0;
+        $heuresRealisees = $affectations->sum(function($item) {
+            return $item->mh_realisee_globale ?? 0;
+        });
         $tauxRealisation = $heuresRequises > 0 ? ($heuresRealisees / $heuresRequises) * 100 : 0;
 
         return [
@@ -311,28 +469,31 @@ class EtablissementController extends Controller
 
     private function buildDetailedQuery($code_efp, $filters)
     {
-        $query = Avancement::query()
-            ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
-            ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-            ->join('etablissements', 'formations.code_efp', '=', 'etablissements.code_efp')
-            ->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
-            ->join('secteurs', 'filieres.nom_secteur', '=', 'secteurs.nom_secteur')
-            ->join('modules', 'avancements.code_module', '=', 'modules.code_module')
-            ->leftJoin('formateurs as f_presentiel', 'avancements.mle_presentiel', '=', 'f_presentiel.mle')
-            ->leftJoin('formateurs as f_syn', 'avancements.mle_syn', '=', 'f_syn.mle')
+        $query = Affectation::query()
+            ->join('groupes', 'affectations.groupe_id', '=', 'groupes.id')
+            ->join('modules', 'affectations.module_id', '=', 'modules.id')
+            ->join('formations', 'groupes.formation_id', '=', 'formations.id')
+            ->join('filieres', 'groupes.filiere_id', '=', 'filieres.id')
+            ->join('secteurs', 'filieres.secteur_id', '=', 'secteurs.id')
+            ->join('niveaux', 'formations.niveau_id', '=', 'niveaux.id')
+            ->join('etablissements', 'affectations.code_efp', '=', 'etablissements.code_efp')
+            ->leftJoin('avancements', 'affectations.id', '=', 'avancements.affectation_id')
+            ->leftJoin('formateurs as f_presentiel', 'affectations.mle_affecte_presentiel', '=', 'f_presentiel.mle')
+            ->leftJoin('formateurs as f_syn', 'affectations.mle_affecte_syn', '=', 'f_syn.mle')
             ->where('etablissements.code_efp', $code_efp)
             ->select(
-                'avancements.*',
+                'affectations.id as affectation_id',
                 'etablissements.code_efp',
                 'etablissements.nom_efp as efp',
-                'formations.niveau',
                 'formations.annee',
-                'formations.type_formation',
+                'formations.type as type_formation',
+                'formations.mode',
                 'formations.creneau',
+                'niveaux.nom as niveau',
                 'secteurs.nom_secteur as secteur',
                 'filieres.code_filiere',
                 'filieres.nom_filiere as filiere',
-                'groupes.groupe',
+                'groupes.code_groupe as groupe',
                 'groupes.effectif_groupe',
                 'groupes.sous_groupe',
                 'groupes.statut_sous_groupe',
@@ -342,8 +503,44 @@ class EtablissementController extends Controller
                 'modules.code_module',
                 'modules.nom_module as module',
                 'modules.regional',
-                'f_presentiel.nom_formateur as formateur_presentiel',
-                'f_syn.nom_formateur as formateur_syn'
+                'modules.module_pie',
+                'modules.efp_pie',
+                'affectations.mle_affecte_presentiel as mle_presentiel',
+                'affectations.mle_affecte_syn as mle_syn',
+                'f_presentiel.nom_complet as formateur_presentiel',
+                'f_syn.nom_complet as formateur_syn',
+                // Masses horaires DRIF
+                'affectations.mhp_s1_drif',
+                'affectations.mhsyn_s1_drif',
+                'affectations.mhasyn_s1_drif',
+                'affectations.mh_totale_s1_drif',
+                'affectations.mhp_s2_drif',
+                'affectations.mhsyn_s2_drif',
+                'affectations.mhasyn_s2_drif',
+                'affectations.mh_totale_s2_drif',
+                'affectations.mhp_totale_drif',
+                'affectations.mhsyn_totale_drif',
+                'affectations.mhasyn_totale_drif',
+                'affectations.mh_totale_drif',
+                // Masses horaires affectées
+                'affectations.mh_affectee_presentiel',
+                'affectations.mh_affectee_sync',
+                'affectations.mh_affectee_globale',
+                // Masses horaires réalisées (depuis avancements)
+                DB::raw('COALESCE(avancements.mh_realisee_presentiel, 0) as mh_realisee_presentiel'),
+                DB::raw('COALESCE(avancements.mh_realisee_sync, 0) as mh_realisee_sync'),
+                DB::raw('COALESCE(avancements.mh_realisee_globale, 0) as mh_realisee_globale'),
+                // Taux de réalisation
+                DB::raw('COALESCE(avancements.taux_realisation_presentiel, 0) as taux_realisation_presentiel'),
+                DB::raw('COALESCE(avancements.taux_realisation_syn, 0) as taux_realisation_syn'),
+                DB::raw('COALESCE(avancements.taux_realisation_globale, 0) as taux_realisation_global'),
+                // Autres infos avancements
+                DB::raw('COALESCE(avancements.moyenne_absence, 0) as moy_absence'),
+                DB::raw('COALESCE(avancements.nb_cc, 0) as nb_cc'),
+                DB::raw('COALESCE(avancements.seance_efm, "Non") as seance_efm'),
+                DB::raw('COALESCE(avancements.validation_efm, "non") as validation_efm'),
+                'avancements.classe_teams',
+                'avancements.date_maj'
             );
 
         // Appliquer les filtres
@@ -355,28 +552,31 @@ class EtablissementController extends Controller
         }
         if (!empty($filters['formateur'])) {
             $query->where(function($q) use ($filters) {
-                $q->where('avancements.mle_presentiel', $filters['formateur'])
-                  ->orWhere('avancements.mle_syn', $filters['formateur']);
+                $q->where('affectations.mle_affecte_presentiel', $filters['formateur'])
+                  ->orWhere('affectations.mle_affecte_syn', $filters['formateur']);
             });
         }
         if (!empty($filters['module'])) {
-            $query->where('avancements.code_module', $filters['module']);
+            $query->where('modules.code_module', $filters['module']);
         }
         if (!empty($filters['groupe'])) {
-            $query->where('groupes.groupe', $filters['groupe']);
+            $query->where('groupes.code_groupe', $filters['groupe']);
         }
 
-        return $query->orderBy('avancements.date_maj', 'desc');
+        return $query->orderBy('avancements.date_maj', 'desc')
+                     ->orderBy('groupes.code_groupe', 'asc');
     }
 
     private function calculateStatistics($code_efp, $filters)
     {
-        $query = Avancement::query()
-            ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
-            ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-            ->join('etablissements', 'formations.code_efp', '=', 'etablissements.code_efp')
-            ->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
-            ->join('secteurs', 'filieres.nom_secteur', '=', 'secteurs.nom_secteur')
+        $query = Affectation::query()
+            ->join('groupes', 'affectations.groupe_id', '=', 'groupes.id')
+            ->join('modules', 'affectations.module_id', '=', 'modules.id')
+            ->join('formations', 'groupes.formation_id', '=', 'formations.id')
+            ->join('filieres', 'groupes.filiere_id', '=', 'filieres.id')
+            ->join('secteurs', 'filieres.secteur_id', '=', 'secteurs.id')
+            ->join('etablissements', 'affectations.code_efp', '=', 'etablissements.code_efp')
+            ->leftJoin('avancements', 'affectations.id', '=', 'avancements.affectation_id')
             ->where('etablissements.code_efp', $code_efp);
 
         // Appliquer les filtres
@@ -388,42 +588,56 @@ class EtablissementController extends Controller
         }
         if (!empty($filters['formateur'])) {
             $query->where(function($q) use ($filters) {
-                $q->where('avancements.mle_presentiel', $filters['formateur'])
-                  ->orWhere('avancements.mle_syn', $filters['formateur']);
+                $q->where('affectations.mle_affecte_presentiel', $filters['formateur'])
+                  ->orWhere('affectations.mle_affecte_syn', $filters['formateur']);
             });
         }
         if (!empty($filters['module'])) {
-            $query->where('avancements.code_module', $filters['module']);
+            $query->where('modules.code_module', $filters['module']);
         }
         if (!empty($filters['groupe'])) {
-            $query->where('groupes.groupe', $filters['groupe']);
+            $query->where('groupes.code_groupe', $filters['groupe']);
         }
 
-        $avancements = $query->get();
+        $affectations = $query->select(
+            'affectations.mh_totale_drif',
+            'affectations.mh_affectee_globale',
+            'avancements.mh_realisee_globale',
+            'groupes.id as groupe_id',
+            'groupes.effectif_groupe',
+            'formations.id as formation_id',
+            'filieres.id as filiere_id',
+            'secteurs.id as secteur_id',
+            'modules.id as module_id',
+            'affectations.mle_affecte_presentiel',
+            'affectations.mle_affecte_syn'
+        )->get();
 
         // Calculer les statistiques
-        $heuresRequises = $avancements->sum('mh_totale_drif') ?: 0;
-        $heuresAffectees = $avancements->sum('mh_affectee_globale') ?: 0;
-        $heuresRealisees = $avancements->sum('mh_realisee_globale') ?: 0;
+        $heuresRequises = $affectations->sum('mh_totale_drif') ?: 0;
+        $heuresAffectees = $affectations->sum('mh_affectee_globale') ?: 0;
+        $heuresRealisees = $affectations->sum(function($item) {
+            return $item->mh_realisee_globale ?? 0;
+        });
         $difference = $heuresRequises - $heuresRealisees;
 
         $tauxRealisation = $heuresRequises > 0 ? ($heuresRealisees / $heuresRequises) * 100 : 0;
         $tauxAffectation = $heuresRequises > 0 ? ($heuresAffectees / $heuresRequises) * 100 : 0;
 
         // Compter les entités uniques
-        $nbFormations = $avancements->pluck('id_formation')->unique()->count();
-        $nbFilieres = $avancements->pluck('code_filiere')->unique()->count();
-        $nbSecteurs = $avancements->pluck('secteur')->unique()->count();
-        $nbGroupes = $avancements->pluck('groupe')->unique()->count();
-        $nbModules = $avancements->pluck('code_module')->unique()->count();
+        $nbFormations = $affectations->pluck('formation_id')->unique()->filter()->count();
+        $nbFilieres = $affectations->pluck('filiere_id')->unique()->filter()->count();
+        $nbSecteurs = $affectations->pluck('secteur_id')->unique()->filter()->count();
+        $nbGroupes = $affectations->pluck('groupe_id')->unique()->filter()->count();
+        $nbModules = $affectations->pluck('module_id')->unique()->filter()->count();
         
         // Formateurs uniques
-        $formateursPresentiel = $avancements->pluck('mle_presentiel')->filter()->unique();
-        $formateursSyn = $avancements->pluck('mle_syn')->filter()->unique();
+        $formateursPresentiel = $affectations->pluck('mle_affecte_presentiel')->filter()->unique();
+        $formateursSyn = $affectations->pluck('mle_affecte_syn')->filter()->unique();
         $nbFormateurs = $formateursPresentiel->merge($formateursSyn)->unique()->count();
         
         // Calculer l'effectif total
-        $groupesUniques = $avancements->groupBy('groupe')->map(function($items) {
+        $groupesUniques = $affectations->groupBy('groupe_id')->map(function($items) {
             return $items->first()->effectif_groupe ?? 0;
         });
         $nbApprenants = $groupesUniques->sum();
@@ -447,12 +661,13 @@ class EtablissementController extends Controller
 
     private function getChartData($code_efp, $filters)
     {
-        $query = Avancement::query()
-            ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
-            ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-            ->join('etablissements', 'formations.code_efp', '=', 'etablissements.code_efp')
-            ->join('filieres', 'formations.code_filiere', '=', 'filieres.code_filiere')
-            ->join('secteurs', 'filieres.nom_secteur', '=', 'secteurs.nom_secteur')
+        $query = Affectation::query()
+            ->join('groupes', 'affectations.groupe_id', '=', 'groupes.id')
+            ->join('formations', 'groupes.formation_id', '=', 'formations.id')
+            ->join('filieres', 'groupes.filiere_id', '=', 'filieres.id')
+            ->join('secteurs', 'filieres.secteur_id', '=', 'secteurs.id')
+            ->join('etablissements', 'affectations.code_efp', '=', 'etablissements.code_efp')
+            ->leftJoin('avancements', 'affectations.id', '=', 'avancements.affectation_id')
             ->where('etablissements.code_efp', $code_efp);
 
         // Appliquer les filtres
@@ -464,44 +679,63 @@ class EtablissementController extends Controller
         }
         if (!empty($filters['formateur'])) {
             $query->where(function($q) use ($filters) {
-                $q->where('avancements.mle_presentiel', $filters['formateur'])
-                  ->orWhere('avancements.mle_syn', $filters['formateur']);
+                $q->where('affectations.mle_affecte_presentiel', $filters['formateur'])
+                  ->orWhere('affectations.mle_affecte_syn', $filters['formateur']);
             });
         }
         if (!empty($filters['module'])) {
-            $query->where('avancements.code_module', $filters['module']);
+            $query->where('modules.code_module', $filters['module']);
         }
         if (!empty($filters['groupe'])) {
-            $query->where('groupes.groupe', $filters['groupe']);
+            $query->where('groupes.code_groupe', $filters['groupe']);
         }
 
-        $avancements = $query->get();
+        $affectations = $query->select(
+            'affectations.mhp_s1_drif',
+            'affectations.mhsyn_s1_drif',
+            'affectations.mhasyn_s1_drif',
+            'affectations.mhp_s2_drif',
+            'affectations.mhsyn_s2_drif',
+            'affectations.mhasyn_s2_drif',
+            'affectations.mh_affectee_presentiel',
+            'affectations.mh_affectee_sync',
+            'avancements.mh_realisee_presentiel',
+            'avancements.mh_realisee_sync'
+        )->get();
 
         return [
             'heures_par_semestre' => [
                 's1' => [
-                    'presentiel' => round($avancements->sum('mhp_s1_drif'), 2),
-                    'synchrone' => round($avancements->sum('mhsyn_s1_drif'), 2),
-                    'asynchrone' => round($avancements->sum('mhasyn_s1_drif'), 2),
+                    'presentiel' => round($affectations->sum('mhp_s1_drif'), 2),
+                    'synchrone' => round($affectations->sum('mhsyn_s1_drif'), 2),
+                    'asynchrone' => round($affectations->sum('mhasyn_s1_drif'), 2),
                 ],
                 's2' => [
-                    'presentiel' => round($avancements->sum('mhp_s2_drif'), 2),
-                    'synchrone' => round($avancements->sum('mhsyn_s2_drif'), 2),
-                    'asynchrone' => round($avancements->sum('mhasyn_s2_drif'), 2),
+                    'presentiel' => round($affectations->sum('mhp_s2_drif'), 2),
+                    'synchrone' => round($affectations->sum('mhsyn_s2_drif'), 2),
+                    'asynchrone' => round($affectations->sum('mhasyn_s2_drif'), 2),
                 ],
             ],
             'heures_par_mode' => [
-                'presentiel' => round($avancements->sum('mh_realisee_presentiel'), 2),
-                'synchrone' => round($avancements->sum('mh_realisee_sync'), 2),
+                'presentiel' => round($affectations->sum(function($item) {
+                    return $item->mh_realisee_presentiel ?? 0;
+                }), 2),
+                'synchrone' => round($affectations->sum(function($item) {
+                    return $item->mh_realisee_sync ?? 0;
+                }), 2),
             ],
             'taux_par_mode' => [
                 'presentiel' => [
-                    'affectee' => round($avancements->sum('mh_affectee_presentiel'), 2),
-                    'realisee' => round($avancements->sum('mh_realisee_presentiel'), 2),
+                    'affectee' => round($affectations->sum('mh_affectee_presentiel'), 2),
+                    'realisee' => round($affectations->sum(function($item) {
+                        return $item->mh_realisee_presentiel ?? 0;
+                    }), 2),
                 ],
                 'synchrone' => [
-                    'affectee' => round($avancements->sum('mh_affectee_sync'), 2),
-                    'realisee' => round($avancements->sum('mh_realisee_sync'), 2),
+                    'affectee' => round($affectations->sum('mh_affectee_sync'), 2),
+                    'realisee' => round($affectations->sum(function($item) {
+                        return $item->mh_realisee_sync ?? 0;
+                    }), 2),
                 ],
             ],
         ];
@@ -509,64 +743,65 @@ class EtablissementController extends Controller
 
     private function getFilterOptions($code_efp)
     {
-        $secteurs = Secteur::whereHas('filieres.formations.etablissement', function($q) use ($code_efp) {
-            $q->where('code_efp', $code_efp);
+        $secteurs = Secteur::whereHas('filieres.groupes.formation', function($q) use ($code_efp) {
+            $q->join('affectations', 'formations.id', '=', DB::raw('(SELECT formation_id FROM groupes WHERE groupes.id = affectations.groupe_id LIMIT 1)'))
+              ->where('affectations.code_efp', $code_efp);
         })
-        ->select('nom_secteur')
+        ->select('id', 'nom_secteur')
         ->distinct()
         ->orderBy('nom_secteur')
         ->get();
 
-        $filieres = Filiere::whereHas('formations.etablissement', function($q) use ($code_efp) {
-            $q->where('code_efp', $code_efp);
+        $filieres = Filiere::whereHas('groupes.formation', function($q) use ($code_efp) {
+            $q->join('affectations', 'groupes.id', '=', 'affectations.groupe_id')
+              ->where('affectations.code_efp', $code_efp);
         })
-        ->select('code_filiere', 'nom_filiere')
+        ->select('id', 'code_filiere', 'nom_filiere')
         ->orderBy('nom_filiere')
         ->get();
 
-        // Récupérer les formateurs via la table avancements
-        $formateursMle = DB::table('avancements')
-            ->join('groupes', 'avancements.groupe', '=', 'groupes.groupe')
-            ->join('formations', 'groupes.id_formation', '=', 'formations.id')
-            ->where('formations.code_efp', $code_efp)
+        // Récupérer les formateurs via la table affectations
+        $formateursMle = Affectation::query()
+            ->where('affectations.code_efp', $code_efp)
             ->where(function($q) {
-                $q->whereNotNull('avancements.mle_presentiel')
-                  ->orWhereNotNull('avancements.mle_syn');
+                $q->whereNotNull('affectations.mle_affecte_presentiel')
+                  ->orWhereNotNull('affectations.mle_affecte_syn');
             })
-            ->select('avancements.mle_presentiel', 'avancements.mle_syn')
+            ->select('affectations.mle_affecte_presentiel', 'affectations.mle_affecte_syn')
             ->distinct()
             ->get();
 
         // Collecter tous les MLE uniques
         $mleList = collect();
         foreach ($formateursMle as $item) {
-            if (!empty($item->mle_presentiel)) {
-                $mleList->push($item->mle_presentiel);
+            if (!empty($item->mle_affecte_presentiel)) {
+                $mleList->push($item->mle_affecte_presentiel);
             }
-            if (!empty($item->mle_syn)) {
-                $mleList->push($item->mle_syn);
+            if (!empty($item->mle_affecte_syn)) {
+                $mleList->push($item->mle_affecte_syn);
             }
         }
         $mleList = $mleList->unique()->values();
 
         // Récupérer les informations des formateurs
         $formateurs = Formateur::whereIn('mle', $mleList)
-            ->select('mle', 'nom_formateur')
-            ->orderBy('nom_formateur')
+            ->select('mle', 'nom_complet as nom_formateur')
+            ->orderBy('nom_complet')
             ->get();
 
-        $modules = Module::whereHas('avancements.groupe.formation.etablissement', function($q) use ($code_efp) {
-            $q->where('code_efp', $code_efp);
+        $modules = Module::whereHas('affectations', function($q) use ($code_efp) {
+            $q->where('affectations.code_efp', $code_efp);
         })
-        ->select('code_module', 'nom_module')
+        ->select('id', 'code_module', 'nom_module')
         ->orderBy('nom_module')
         ->get();
 
-        $groupes = Groupe::whereHas('formation.etablissement', function($q) use ($code_efp) {
-            $q->where('code_efp', $code_efp);
+        $groupes = Groupe::whereHas('formation', function($q) use ($code_efp) {
+            $q->join('affectations', 'groupes.id', '=', 'affectations.groupe_id')
+              ->where('affectations.code_efp', $code_efp);
         })
-        ->select('groupe')
-        ->orderBy('groupe')
+        ->select('id', 'code_groupe as groupe')
+        ->orderBy('code_groupe')
         ->get();
 
         return [

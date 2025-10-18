@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
-@section('title', 'Connexion')
+@section('title', 'Mot de passe oublié')
 
 @section('content')
 <style>
-    /* Style spécifique pour la page de connexion */
+    /* Style spécifique pour la page de mot de passe oublié */
     body {
         background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
         min-height: 100vh;
@@ -44,18 +44,18 @@
         90% { opacity: 0.3; }
     }
 
-    /* Container principal - CORRIGÉ */
-    .login-main {
+    /* Container principal */
+    .forgot-main {
         display: flex;
         align-items: center;
         justify-content: center;
         min-height: 100vh;
-        padding: 120px 1rem 3rem 1rem; /* Marge en haut pour éviter le header */
+        padding: 120px 1rem 3rem 1rem;
         position: relative;
         z-index: 10;
     }
 
-    .login-container {
+    .forgot-container {
         background: rgba(255, 255, 255, 0.98);
         backdrop-filter: blur(20px);
         border-radius: 25px;
@@ -68,7 +68,7 @@
         padding: 0;
         overflow: hidden;
         animation: slideUp 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        position: relative; /* AJOUTÉ pour fixer la carte */
+        position: relative;
     }
 
     @keyframes slideUp {
@@ -82,7 +82,7 @@
         }
     }
 
-    .login-container-header {
+    .forgot-container-header {
         background: linear-gradient(135deg, var(--ofppt-green) 0%, #3ca870 100%);
         color: white;
         padding: 45px 35px;
@@ -91,7 +91,7 @@
         overflow: hidden;
     }
 
-    .login-container-header::before {
+    .forgot-container-header::before {
         content: '';
         position: absolute;
         top: -50%;
@@ -128,7 +128,7 @@
         50% { transform: scale(1.05); box-shadow: 0 12px 30px rgba(0,0,0,0.3); }
     }
 
-    .login-container-header h2 {
+    .forgot-container-header h2 {
         font-size: 2rem;
         font-weight: 700;
         margin-bottom: 12px;
@@ -137,7 +137,7 @@
         text-shadow: 0 2px 10px rgba(0,0,0,0.2);
     }
 
-    .login-container-header p {
+    .forgot-container-header p {
         margin: 0;
         opacity: 0.95;
         position: relative;
@@ -145,9 +145,49 @@
         font-size: 1.05rem;
     }
 
-    .login-form {
+    .forgot-form {
         padding: 50px 40px;
         position: relative;
+    }
+
+    /* Alerts */
+    .alert {
+        padding: 16px 20px;
+        border-radius: 15px;
+        margin-bottom: 25px;
+        display: flex;
+        align-items: center;
+        font-weight: 500;
+        border: none;
+        animation: slideDown 0.5s ease;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .alert i {
+        margin-right: 12px;
+        font-size: 1.3rem;
+    }
+
+    .alert-danger {
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.15) 0%, rgba(220, 53, 69, 0.1) 100%);
+        color: #dc3545;
+        border-left: 4px solid #dc3545;
+    }
+
+    .alert-success {
+        background: linear-gradient(135deg, rgba(40, 167, 69, 0.15) 0%, rgba(40, 167, 69, 0.1) 100%);
+        color: #28a745;
+        border-left: 4px solid #28a745;
     }
 
     .form-group {
@@ -205,109 +245,9 @@
         pointer-events: none;
     }
 
-    .toggle-password {
-        position: absolute;
-        right: 18px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: var(--ofppt-blue);
-        font-size: 1.2rem;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        z-index: 10;
-    }
-
-    .toggle-password:hover {
-        color: var(--ofppt-green);
-        transform: translateY(-50%) scale(1.15);
-    }
-
     .form-control:focus ~ .input-icon {
         color: var(--ofppt-green);
         transform: translateY(-50%) scale(1.15);
-    }
-
-    /* Checkbox Remember Me */
-    .remember-forgot {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 25px;
-    }
-
-    .remember-me {
-        display: flex;
-        align-items: center;
-    }
-
-    .remember-me input[type="checkbox"] {
-        width: 20px;
-        height: 20px;
-        margin-right: 10px;
-        cursor: pointer;
-        accent-color: var(--ofppt-green);
-    }
-
-    .remember-me label {
-        color: var(--ofppt-dark-blue);
-        font-weight: 500;
-        cursor: pointer;
-        margin: 0;
-    }
-
-    .forgot-password {
-        color: var(--ofppt-blue);
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 0.95rem;
-        transition: all 0.3s ease;
-    }
-
-    .forgot-password:hover {
-        color: var(--ofppt-green);
-        text-decoration: underline;
-    }
-
-    .btn-login {
-        width: 100%;
-        padding: 18px;
-        background: linear-gradient(135deg, var(--ofppt-green) 0%, #3ca870 100%);
-        color: white;
-        border: none;
-        border-radius: 15px;
-        font-size: 1.15rem;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 8px 20px rgba(46, 139, 87, 0.3);
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-    }
-
-    .btn-login::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-        transition: left 0.6s ease;
-    }
-
-    .btn-login:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 12px 30px rgba(46, 139, 87, 0.4);
-    }
-
-    .btn-login:hover::before {
-        left: 100%;
-    }
-
-    .btn-login:active {
-        transform: translateY(-1px);
     }
 
     .error-message {
@@ -334,64 +274,140 @@
         font-size: 1.1rem;
     }
 
-    /* Aide et À propos */
-    .help-links {
-        text-align: center;
-        margin-top: 30px;
-        padding-top: 25px;
-        border-top: 2px solid #e0e7ed;
+    .btn-submit {
+        width: 100%;
+        padding: 18px;
+        background: linear-gradient(135deg, var(--ofppt-green) 0%, #3ca870 100%);
+        color: white;
+        border: none;
+        border-radius: 15px;
+        font-size: 1.15rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 8px 20px rgba(46, 139, 87, 0.3);
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 10px;
     }
 
-    .help-link {
+    .btn-submit::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        transition: left 0.6s ease;
+    }
+
+    .btn-submit:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 30px rgba(46, 139, 87, 0.4);
+    }
+
+    .btn-submit:hover::before {
+        left: 100%;
+    }
+
+    .btn-submit:active {
+        transform: translateY(-1px);
+    }
+
+    .back-link {
+        text-align: center;
+        margin-top: 30px;
+        padding-top: 25px;
+        border-top: 2px solid #e0e7ed;
+    }
+
+    .back-link a {
         color: var(--ofppt-blue);
         text-decoration: none;
         font-weight: 600;
-        font-size: 0.95rem;
+        font-size: 1rem;
         transition: all 0.3s ease;
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 8px 15px;
-        border-radius: 10px;
+        gap: 8px;
+        padding: 10px 20px;
+        border-radius: 12px;
     }
 
-    .help-link:hover {
+    .back-link a:hover {
         color: var(--ofppt-green);
         background-color: rgba(46, 139, 87, 0.1);
         transform: translateY(-2px);
     }
 
-    .help-link i {
+    .back-link a i {
         font-size: 1.1rem;
         transition: transform 0.3s ease;
     }
 
-    .help-link:hover i {
-        transform: scale(1.2);
+    .back-link a:hover i {
+        transform: translateX(-5px);
     }
 
-    .separator {
-        color: #d0d0d0;
-        font-size: 1.2rem;
-        font-weight: bold;
+    /* Info box */
+    .info-box {
+        background: linear-gradient(135deg, rgba(0, 123, 255, 0.1) 0%, rgba(0, 123, 255, 0.05) 100%);
+        border-left: 4px solid var(--ofppt-blue);
+        border-radius: 12px;
+        padding: 18px 20px;
+        margin-bottom: 25px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        animation: fadeIn 0.6s ease;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    .info-box i {
+        color: var(--ofppt-blue);
+        font-size: 1.4rem;
+        margin-top: 2px;
+    }
+
+    .info-box-content {
+        flex: 1;
+    }
+
+    .info-box-content p {
+        margin: 0;
+        color: var(--ofppt-dark-blue);
+        font-size: 0.95rem;
+        line-height: 1.6;
     }
 
     /* Responsive */
     @media (max-width: 768px) {
-        .login-main {
-            padding: 100px 1rem 2rem 1rem; /* Ajusté pour mobile */
+        .forgot-main {
+            padding: 100px 1rem 2rem 1rem;
         }
 
-        .login-container {
+        .forgot-container {
             margin: 0;
             border-radius: 20px;
         }
         
-        .login-container-header {
+        .forgot-container-header {
             padding: 35px 25px;
         }
 
@@ -401,7 +417,7 @@
             font-size: 2rem;
         }
         
-        .login-form {
+        .forgot-form {
             padding: 35px 25px;
         }
 
@@ -409,39 +425,27 @@
             padding: 14px 45px 14px 45px;
         }
 
-        .btn-login {
+        .btn-submit {
             padding: 16px;
             font-size: 1.05rem;
-        }
-
-        .remember-forgot {
-            flex-direction: column;
-            gap: 15px;
-            align-items: flex-start;
-        }
-
-        .help-links {
-            flex-direction: row;
-            gap: 8px;
-        }
-
-        .help-link {
-            font-size: 0.9rem;
-            padding: 6px 12px;
         }
     }
 
     @media (max-width: 576px) {
-        .login-main {
-            padding: 90px 0.5rem 1.5rem 0.5rem; /* Plus compact sur petit écran */
+        .forgot-main {
+            padding: 90px 0.5rem 1.5rem 0.5rem;
         }
 
-        .login-container-header h2 {
+        .forgot-container-header h2 {
             font-size: 1.6rem;
         }
 
-        .login-container-header p {
+        .forgot-container-header p {
             font-size: 0.95rem;
+        }
+
+        .info-box {
+            padding: 15px;
         }
     }
 </style>
@@ -460,18 +464,39 @@
 </div>
 
 <!-- Contenu principal -->
-<div class="login-main">
-    <div class="login-container">
-        <div class="login-container-header">
+<div class="forgot-main">
+    <div class="forgot-container">
+        <div class="forgot-container-header">
             <div class="header-icon">
-                <i class="fas fa-user-shield"></i>
+                <i class="fas fa-key"></i>
             </div>
-            <h2>Bienvenue</h2>
-            <p>Connectez-vous pour accéder à votre espace de pilotage</p>
+            <h2>Mot de passe oublié</h2>
+            <p>Récupérez l'accès à votre compte</p>
         </div>
 
-        <div class="login-form">
-            <form method="POST" action="{{ route('login') }}">
+        <div class="forgot-form">
+            @if(session('error'))
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i>
+                    {{ session('error') }}
+                </div>
+            @endif
+
+            @if(session('success'))
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            <div class="info-box">
+                <i class="fas fa-info-circle"></i>
+                <div class="info-box-content">
+                    <p>Entrez votre adresse email et nous vous enverrons un code de vérification pour réinitialiser votre mot de passe.</p>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ route('forgot.password.send') }}">
                 @csrf
                 
                 <!-- Email -->
@@ -489,7 +514,7 @@
                                placeholder="votre.email@ofppt.ma"
                                required 
                                autofocus>
-                        <i class="fas fa-user input-icon"></i>
+                        <i class="fas fa-at input-icon"></i>
                     </div>
                     @error('email')
                         <div class="error-message">
@@ -499,56 +524,18 @@
                     @enderror
                 </div>
 
-                <!-- Password -->
-                <div class="form-group">
-                    <label for="password" class="form-label">
-                        <i class="fas fa-lock"></i>
-                        Mot de Passe
-                    </label>
-                    <div class="input-wrapper">
-                        <input type="password" 
-                               id="password" 
-                               name="password" 
-                               class="form-control @error('password') is-invalid @enderror"
-                               placeholder="Entrez votre mot de passe"
-                               required>
-                        <i class="fas fa-key input-icon"></i>
-                        <i class="fas fa-eye toggle-password" id="togglePassword"></i>
-                    </div>
-                    @error('password')
-                        <div class="error-message">
-                            <i class="fas fa-exclamation-circle"></i>
-                            {{ $message }}
-                        </div>
-                    @enderror
-                </div>
-
-                <!-- Remember Me & Forgot Password -->
-                <div class="remember-forgot">
-                    <div class="remember-me">
-                        <input type="checkbox" name="remember" id="remember" {{ old('remember') ? 'checked' : '' }}>
-                        <label for="remember">Se souvenir de moi</label>
-                    </div>
-                   <a href="{{ route('forgot.password.form') }}">Mot de passe oublié ?</a>
-                </div>
-
                 <!-- Button -->
-                <button type="submit" class="btn-login">
-                    <i class="fas fa-sign-in-alt me-2"></i>
-                    Se Connecter
+                <button type="submit" class="btn-submit">
+                    <i class="fas fa-paper-plane"></i>
+                    Envoyer le code
                 </button>
             </form>
 
-            <!-- Aide et À propos -->
-            <div class="help-links">
-                <a href="#" class="help-link" id="openAide">
-                    <i class="fas fa-question-circle"></i>
-                    Aide
-                </a>
-                <span class="separator">•</span>
-                <a href="#" class="help-link" id="openAbout">
-                    <i class="fas fa-info-circle"></i>
-                    À propos
+            <!-- Retour à la connexion -->
+            <div class="back-link">
+                <a href="{{ route('login') }}">
+                    <i class="fas fa-arrow-left"></i>
+                    Retour à la page de connexion
                 </a>
             </div>
         </div>
@@ -557,30 +544,17 @@
 
 @push('scripts')
 <script>
-    // Toggle password visibility
-    const togglePassword = document.getElementById('togglePassword');
-    const passwordInput = document.getElementById('password');
-
-    if (togglePassword && passwordInput) {
-        togglePassword.addEventListener('click', function() {
-            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordInput.setAttribute('type', type);
-            this.classList.toggle('fa-eye');
-            this.classList.toggle('fa-eye-slash');
-        });
-    }
-
     // Animation des icônes au focus
     document.querySelectorAll('.form-control').forEach(function(input) {
         input.addEventListener('focus', function() {
-            const icon = this.previousElementSibling;
+            const icon = this.nextElementSibling;
             if (icon && icon.classList.contains('input-icon')) {
                 icon.style.color = 'var(--ofppt-green)';
             }
         });
         
         input.addEventListener('blur', function() {
-            const icon = this.previousElementSibling;
+            const icon = this.nextElementSibling;
             if (icon && icon.classList.contains('input-icon')) {
                 icon.style.color = 'var(--ofppt-blue)';
             }
@@ -588,31 +562,16 @@
     });
 
     // Animation du bouton
-    const loginBtn = document.querySelector('.btn-login');
-    if (loginBtn) {
-        loginBtn.addEventListener('mousedown', function() {
+    const submitBtn = document.querySelector('.btn-submit');
+    if (submitBtn) {
+        submitBtn.addEventListener('mousedown', function() {
             this.style.transform = 'translateY(-1px)';
         });
         
-        loginBtn.addEventListener('mouseup', function() {
+        submitBtn.addEventListener('mouseup', function() {
             this.style.transform = 'translateY(-3px)';
         });
     }
-
-    // Désactiver l'effet parallaxe pour éviter les conflits avec le positionnement fixe
-    // Si vous souhaitez le garder, décommentez le code ci-dessous
-    /*
-    if (window.innerWidth > 768) {
-        document.addEventListener('mousemove', function(e) {
-            const container = document.querySelector('.login-container');
-            if (container) {
-                const x = (e.clientX - window.innerWidth / 2) / 50;
-                const y = (e.clientY - window.innerHeight / 2) / 50;
-                container.style.transform = `translateX(${x}px) translateY(${y}px)`;
-            }
-        });
-    }
-    */
 </script>
 @endpush
 @endsection

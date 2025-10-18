@@ -15,6 +15,7 @@ use App\Http\Controllers\AdministrationEtablissement\FormateurController;
 use App\Http\Controllers\AdministrationEtablissement\ModuleController;
 use App\Http\Controllers\AdministrationEtablissement\AffectationController;
 use App\Http\Controllers\AdministrationEtablissement\AvancementController; // À FAIRE
+use App\Http\Controllers\ForgotPasswordController;
 
 /*
 |--------------------------------------------------------------------------
@@ -74,6 +75,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('etablissements/{code_efp}', [EtablissementController::class, 'show'])
             ->name('etablissements.show');
     });
+
+
+   
+    
     
     /*
     |--------------------------------------------------------------------------
@@ -120,20 +125,6 @@ Route::middleware(['auth'])->group(function () {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /*
 |--------------------------------------------------------------------------
 | Routes d'authentification (accessibles par tous)
@@ -147,8 +138,24 @@ Route::controller(AuthController::class)->group(function () {
     
     // 👇 AJOUTER CES ROUTES 👇
     // Routes pour la réinitialisation du mot de passe
-    Route::get('/forgot-password', 'showForgotPasswordForm')->name('password.request');
-    Route::post('/forgot-password', 'sendResetLinkEmail')->name('password.email');
-    Route::get('/reset-password/{token}', 'showResetPasswordForm')->name('password.reset');
-    Route::post('/reset-password', 'resetPassword')->name('password.update');
+   // Route::get('/forgot-password', 'showForgotPasswordForm')->name('forgot.password.form');
+    //Route::post('/forgot-password', 'sendResetCode')->name('forgot.password.send');
+    //Route::get('/verify-code', 'showVerifyCodeForm')->name('forgot.password.code.form');
+    //Route::post('/verify-code', 'verifyCode')->name('forgot.password.verify'); 
+    Route::get('/forgot-password', [ForgotPasswordController::class, 'showForgetPasswordForm'])->name('forgot.password.form');
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetCode'])->name('forgot.password.send');
+
+Route::get('/verify-code', [ForgotPasswordController::class, 'showVerifyCodeForm'])->name('forgot.password.code.form');
+Route::post('/verify-code', [ForgotPasswordController::class, 'verifyCode'])->name('forgot.password.code.verify');
+
+Route::get('/reset-password', [ForgotPasswordController::class, 'showResetPasswordForm'])->name('forgot.password.reset.form');
+Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'])->name('forgot.password.reset');
+   
+
+// Formulaire pour entrer le code
+
+    
+    
+ 
+    
 });

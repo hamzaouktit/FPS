@@ -7,6 +7,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use App\Mail\MyEmail;
+use Illuminate\Support\Facades\Mail;
+use App\Http\Controllers\ForgotPasswordController;
 
 class AuthController extends Controller
 {
@@ -16,6 +19,26 @@ class AuthController extends Controller
     public function showLoginForm()
     {
         return view('auth.login');
+    }
+
+        public function showForgotPasswordForm()
+    {
+        return view('auth.forgetpassword');
+    }
+
+    public function sendResetCode(Request $request)
+    {
+        // Implémentez la logique d'envoi de code ici
+    }
+
+    public function showVerifyCodeForm()
+    {
+        return view('auth.verifycode');
+    }
+
+    public function verifyCode(Request $request)
+    {
+        // Implémentez la logique de vérification ici
     }
 
     /**

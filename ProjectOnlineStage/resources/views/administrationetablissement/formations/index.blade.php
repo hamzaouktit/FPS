@@ -2,6 +2,38 @@
 
 @section('title', 'Gestion des Formations')
 
+@push('styles')
+<style>
+.pagination {
+    margin: 0;
+}
+
+.pagination .page-link {
+    color: #4e73df;
+    border-color: #dddfeb;
+    padding: 0.5rem 0.75rem;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #4e73df;
+    border-color: #4e73df;
+    color: white;
+}
+
+.pagination .page-link:hover {
+    background-color: #eaecf4;
+    border-color: #dddfeb;
+    color: #2e59d9;
+}
+
+.pagination .page-item.disabled .page-link {
+    color: #858796;
+    background-color: white;
+    border-color: #dddfeb;
+}
+</style>
+@endpush
+
 @section('content')
 <div class="container-fluid px-4 py-4">
     <!-- En-tête -->
@@ -286,7 +318,9 @@
                     <div class="text-muted">
                         Affichage de {{ $formations->firstItem() }} à {{ $formations->lastItem() }} sur {{ $formations->total() }} résultats
                     </div>
-                    {{ $formations->links() }}
+                    <nav aria-label="Page navigation">
+                        {{ $formations->appends(request()->query())->links('pagination::bootstrap-5') }}
+                    </nav>
                 </div>
             @else
                 <div class="text-center py-5">
@@ -334,7 +368,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
 
                     // Envoyer la requête de suppression
-                    fetch({{ route('administration.etablissement.formations.index') }}/${formationId}, {
+                    fetch(`{{ route('administration.etablissement.formations.index') }}/${formationId}`, {
                         method: 'DELETE',
                         headers: {
                             'X-CSRF-TOKEN': '{{ csrf_token() }}',

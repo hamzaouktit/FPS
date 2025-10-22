@@ -13,27 +13,85 @@ use Illuminate\Support\Facades\Auth;
 
 class FormateurController extends Controller
 {
-    /**
-     * Afficher la liste des formateurs de l'établissement
-     */
-    public function index()
-    {
-        // Récupérer l'établissement du directeur connecté
-        $user = Auth::user();
-        $etablissement = $user->etablissement;
-        
-        if (!$etablissement) {
-            return redirect()->route('administration.etablissement.dashboard')
-                ->with('error', 'Aucun établissement associé à votre compte.');
-        }
-
-        $formateurs = Formateur::where('code_efp', $etablissement->code_efp)
-            ->with(['secteurs', 'modules'])
-            ->orderBy('nom_complet')
-            ->get();
-
-        return view('administrationetablissement.formateurs.index', compact('formateurs', 'etablissement'));
+/**
+ * Afficher la liste des formateurs de l'établissement avec filtrage
+ */
+public function index(Request $request)
+{
+    // Récupérer l'établissement du directeur connecté
+    $user = Auth::user();
+    $etablissement = $user->etablissement;
+    
+    if (!$etablissement) {
+        return redirect()->route('administration.etablissement.dashboard')
+            ->with('error', 'Aucun établissement associé à votre compte.');
     }
+
+    // Query de base
+    $query = Formateur::where('code_efp', $etablissement->code_efp)
+        ->with(['secteurs', 'modules']);
+
+    // Filtrage par recherche (MLE ou Nom)
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $query->where(function($q) use ($search) {
+            $q->where('mle', 'like', "%{$search}%")
+              ->orWhere('nom_complet', 'like', "%{$search}%");
+        });
+    }
+
+    // Filtrage par type
+    if ($request->filled('type')) {
+        $query->where('type', $request->type);
+    }
+
+    // Filtrage par secteur
+    if ($request->filled('secteur_id')) {
+        $query->whereHas('secteurs', function($q) use ($request) {
+            $q->where('secteurs.id', $request->secteur_id);
+        });
+    }
+
+    // Filtrage par module
+    if ($request->filled('module_id')) {
+        $query->whereHas('modules', function($q) use ($request) {
+            $q->where('modules.id', $request->module_id);
+        });
+    }
+
+    // Tri
+    $sortBy = $request->get('sort_by', 'nom_complet');
+    $sortOrder = $request->get('sort_order', 'asc');
+    $query->orderBy($sortBy, $sortOrder);
+
+    $formateurs = $query->paginate(15)->withQueryString();
+
+    // Récupérer les secteurs et modules pour les filtres
+    $secteurs = Secteur::where('code_efp', $etablissement->code_efp)
+        ->orderBy('nom_secteur')
+        ->get();
+    
+    $modules = Module::where('code_efp', $etablissement->code_efp)
+        ->orderBy('nom_module')
+        ->get();
+
+    // Statistiques
+    $stats = [
+        'total' => Formateur::where('code_efp', $etablissement->code_efp)->count(),
+        'permanents' => Formateur::where('code_efp', $etablissement->code_efp)
+            ->where('type', 'permanent')->count(),
+        'vacataires' => Formateur::where('code_efp', $etablissement->code_efp)
+            ->where('type', 'vacataire')->count(),
+    ];
+
+    return view('administrationetablissement.formateurs.index', compact(
+        'formateurs', 
+        'etablissement', 
+        'secteurs', 
+        'modules',
+        'stats'
+    ));
+}
 
     /**
      * Afficher le formulaire de création

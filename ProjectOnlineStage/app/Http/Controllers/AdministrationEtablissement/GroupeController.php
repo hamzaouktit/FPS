@@ -29,19 +29,90 @@ class GroupeController extends Controller
     }
 
     /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        $code_efp = $this->getCodeEfp();
-        
-        $groupes = Groupe::where('code_efp', $code_efp)
-            ->with(['filiere.secteur', 'formation.niveau', 'formation.filiere'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
-
-        return view('administrationetablissement.groupes.index', compact('groupes'));
+ * Display a listing of the resource with filters.
+ */
+public function index(Request $request)
+{
+    $code_efp = $this->getCodeEfp();
+    
+    // Construction de la requête de base
+    $query = Groupe::where('code_efp', $code_efp)
+        ->with(['filiere.secteur', 'formation.niveau', 'formation.filiere']);
+    
+    // Filtrage par code groupe
+    if ($request->filled('code_groupe')) {
+        $query->where('code_groupe', 'like', '%' . $request->code_groupe . '%');
     }
+    
+    // Filtrage par secteur
+    if ($request->filled('secteur_id')) {
+        $query->whereHas('filiere.secteur', function($q) use ($request) {
+            $q->where('id', $request->secteur_id);
+        });
+    }
+    
+    // Filtrage par filière
+    if ($request->filled('filiere_id')) {
+        $query->where('filiere_id', $request->filiere_id);
+    }
+    
+    // Filtrage par niveau
+    if ($request->filled('niveau_id')) {
+        $query->whereHas('formation', function($q) use ($request) {
+            $q->where('niveau_id', $request->niveau_id);
+        });
+    }
+    
+    // Filtrage par année de formation
+    if ($request->filled('annee_formation')) {
+        $query->where('annee_formation', $request->annee_formation);
+    }
+    
+    // Filtrage par statut
+    if ($request->filled('statut')) {
+        $query->where('statut', $request->statut);
+    }
+    
+    // Filtrage par type de formation
+    if ($request->filled('type_formation')) {
+        $query->whereHas('formation', function($q) use ($request) {
+            $q->where('type', $request->type_formation);
+        });
+    }
+    
+    // Tri
+    $sortBy = $request->get('sort_by', 'created_at');
+    $sortOrder = $request->get('sort_order', 'desc');
+    
+    if (in_array($sortBy, ['code_groupe', 'annee_formation', 'effectif_groupe', 'statut', 'created_at'])) {
+        $query->orderBy($sortBy, $sortOrder);
+    } else {
+        $query->orderBy('created_at', 'desc');
+    }
+    
+    $groupes = $query->paginate(15)->withQueryString();
+    
+    // Récupération des données pour les filtres
+    $secteurs = Secteur::where('code_efp', $code_efp)->orderBy('nom_secteur')->get();
+    $filieres = Filiere::where('code_efp', $code_efp)->orderBy('nom_filiere')->get();
+    $niveaux = Niveau::where('code_efp', $code_efp)->orderBy('nom')->get();
+    
+    // Types de formation uniques
+    $typesFormation = Formation::where('code_efp', $code_efp)
+        ->distinct()
+        ->pluck('type')
+        ->filter()
+        ->sort()
+        ->values();
+    
+    return view('administrationetablissement.groupes.index', compact(
+        'groupes', 
+        'secteurs', 
+        'filieres', 
+        'niveaux', 
+        'typesFormation'
+    ));
+}
 
     /**
      * Show the form for creating a new resource.

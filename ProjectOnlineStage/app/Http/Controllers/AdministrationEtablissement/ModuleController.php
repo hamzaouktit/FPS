@@ -15,25 +15,69 @@ use Illuminate\Support\Facades\Auth;
 
 class ModuleController extends Controller
 {
-    /**
-     * Afficher la liste des modules de l'établissement
-     */
-    public function index()
-    {
-        // Récupérer l'établissement de l'utilisateur connecté
-        $etablissement = Auth::user()->etablissement;
-        
-        if (!$etablissement) {
-            return redirect()->back()->with('error', 'Aucun établissement associé à votre compte.');
-        }
-
-        $modules = Module::where('code_efp', $etablissement->code_efp)
-                        ->with(['filieres', 'formateurs'])
-                        ->orderBy('code_module')
-                        ->get();
-
-        return view('administrationetablissement.modules.index', compact('modules', 'etablissement'));
+/**
+ * Afficher la liste des modules de l'établissement avec filtrage et pagination
+ */
+public function index(Request $request)
+{
+    // Récupérer l'établissement de l'utilisateur connecté
+    $etablissement = Auth::user()->etablissement;
+    
+    if (!$etablissement) {
+        return redirect()->back()->with('error', 'Aucun établissement associé à votre compte.');
     }
+
+    // Construction de la requête avec filtres
+    $query = Module::where('code_efp', $etablissement->code_efp)
+                   ->with(['filieres', 'formateurs']);
+
+    // Filtre par code module
+    if ($request->filled('code_module')) {
+        $query->where('code_module', 'LIKE', '%' . $request->code_module . '%');
+    }
+
+    // Filtre par nom module
+    if ($request->filled('nom_module')) {
+        $query->where('nom_module', 'LIKE', '%' . $request->nom_module . '%');
+    }
+
+    // Filtre par régional
+    if ($request->filled('regional')) {
+        $query->where('regional', $request->regional);
+    }
+
+    // Filtre par module PIE
+    if ($request->filled('module_pie')) {
+        $query->where('module_pie', $request->module_pie);
+    }
+
+    // Filtre par filière
+    if ($request->filled('filiere_id')) {
+        $query->whereHas('filieres', function($q) use ($request) {
+            $q->where('filieres.id', $request->filiere_id);
+        });
+    }
+
+    // Tri
+    $sortBy = $request->get('sort_by', 'code_module');
+    $sortOrder = $request->get('sort_order', 'asc');
+    $query->orderBy($sortBy, $sortOrder);
+
+    // Pagination
+    $perPage = $request->get('per_page', 15);
+    $modules = $query->paginate($perPage)->withQueryString();
+
+    // Récupérer les filières pour le filtre
+    $filieres = Filiere::where('code_efp', $etablissement->code_efp)
+                       ->orderBy('nom_filiere')
+                       ->get();
+
+    return view('administrationetablissement.modules.index', compact(
+        'modules', 
+        'etablissement',
+        'filieres'
+    ));
+}
 
     /**
      * Afficher le formulaire de création

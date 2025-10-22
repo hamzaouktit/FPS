@@ -14,26 +14,76 @@ use Illuminate\Support\Facades\Auth;
 
 class AffectationController extends Controller
 {
-    /**
-     * Afficher la liste des affectations de l'établissement
-     */
-    public function index()
-    {
-        // Récupérer l'établissement de l'utilisateur connecté
-        $etablissement = Auth::user()->etablissement;
-        
-        if (!$etablissement) {
-            return redirect()->back()->with('error', 'Aucun établissement associé à votre compte.');
-        }
-
-        $affectations = Affectation::where('code_efp', $etablissement->code_efp)
-                        ->with(['groupe.filiere', 'module', 'formateurPresentiel', 'formateurSyn', 'avancement'])
-                        ->orderBy('created_at', 'desc')
-                        ->get();
-
-        return view('administrationetablissement.affectations.index', compact('affectations', 'etablissement'));
+/**
+ * Afficher la liste des affectations de l'établissement avec filtrage
+ */
+public function index(Request $request)
+{
+    // Récupérer l'établissement de l'utilisateur connecté
+    $etablissement = Auth::user()->etablissement;
+    
+    if (!$etablissement) {
+        return redirect()->back()->with('error', 'Aucun établissement associé à votre compte.');
     }
 
+    // Query de base
+    $query = Affectation::where('code_efp', $etablissement->code_efp)
+                ->with(['groupe.filiere.secteur', 'module', 'formateurPresentiel', 'formateurSyn', 'avancement']);
+
+    // Filtrage par secteur
+    if ($request->filled('secteur_id')) {
+        $query->whereHas('groupe.filiere.secteur', function($q) use ($request) {
+            $q->where('id', $request->secteur_id);
+        });
+    }
+
+    // Filtrage par filière
+    if ($request->filled('filiere_id')) {
+        $query->whereHas('groupe', function($q) use ($request) {
+            $q->where('filiere_id', $request->filiere_id);
+        });
+    }
+
+    // Filtrage par groupe
+    if ($request->filled('groupe_id')) {
+        $query->where('groupe_id', $request->groupe_id);
+    }
+
+    // Filtrage par module
+    if ($request->filled('module_id')) {
+        $query->where('module_id', $request->module_id);
+    }
+
+    // Filtrage par formateur présentiel
+    if ($request->filled('formateur_presentiel')) {
+        $query->where('mle_affecte_presentiel', $request->formateur_presentiel);
+    }
+
+    // Filtrage par formateur synchrone
+    if ($request->filled('formateur_syn')) {
+        $query->where('mle_affecte_syn', $request->formateur_syn);
+    }
+
+    // Récupérer les résultats
+    $affectations = $query->orderBy('created_at', 'desc')->paginate(15);
+
+    // Données pour les filtres
+    $secteurs = \App\Models\Secteur::where('code_efp', $etablissement->code_efp)->get();
+    $filieres = \App\Models\Filiere::where('code_efp', $etablissement->code_efp)->get();
+    $groupes = \App\Models\Groupe::where('code_efp', $etablissement->code_efp)->get();
+    $modules = \App\Models\Module::where('code_efp', $etablissement->code_efp)->get();
+    $formateurs = \App\Models\Formateur::where('code_efp', $etablissement->code_efp)->get();
+
+    return view('administrationetablissement.affectations.index', compact(
+        'affectations', 
+        'etablissement',
+        'secteurs',
+        'filieres',
+        'groupes',
+        'modules',
+        'formateurs'
+    ));
+}
     /**
      * Afficher le formulaire de création
      */

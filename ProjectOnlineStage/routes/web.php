@@ -16,23 +16,24 @@ use App\Http\Controllers\AdministrationEtablissement\ModuleController;
 use App\Http\Controllers\AdministrationEtablissement\AffectationController;
 use App\Http\Controllers\AdministrationEtablissement\AvancementController; // À FAIRE
 use App\Http\Controllers\ForgotPasswordController;
+use App\Http\Controllers\VisitorController;
 
 /*
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
 */
-
+// Route pour la page d'accueil des visiteurs
+Route::get('/', [VisitorController::class, 'index'])->name('visitor.index');
 // Route d'accueil (page welcome)
-Route::get('/', function () {
+Route::get('/admin', function () {
     return view('welcome');
 })->name('welcome');
 
 // Fallback route
 Route::fallback(function () {
-    return redirect()->route('welcome');
+    return redirect()->route('visitor.index');
 });
-
 /*
 |--------------------------------------------------------------------------
 | Routes d'authentification (accessibles par tous)

@@ -27,7 +27,16 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
     protected $errors = [];
     protected $imported = 0;
     protected $skipped = 0;
-    protected $updated = 0;
+    protected $deleted = 0;
+    
+    protected $cachedFormateurs = [];
+    protected $cachedSecteurs = [];
+    protected $cachedNiveaux = [];
+    protected $cachedFilieres = [];
+    protected $cachedFormations = [];
+    protected $cachedGroupes = [];
+    // ✅ NOUVEAU: Cache par code_module + nom_module + filiere_id
+    protected $cachedModules = [];
 
     public function __construct()
     {
@@ -42,78 +51,157 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
         DB::beginTransaction();
         
         try {
+            $this->deleteExistingData();
+            
             foreach ($rows as $index => $row) {
                 $this->processRow($row, $index + 2);
             }
             
             DB::commit();
             
-            Log::info("Importation terminée: {$this->imported} importés, {$this->updated} mis à jour, {$this->skipped} ignorés");
+            Log::info("✅ Importation terminée: {$this->imported} importés, {$this->deleted} supprimés, {$this->skipped} ignorés");
             
         } catch (\Exception $e) {
             DB::rollback();
-            Log::error('Erreur lors de l\'importation: ' . $e->getMessage());
+            Log::error('❌ Erreur lors de l\'importation: ' . $e->getMessage());
             throw $e;
+        }
+    }
+
+    protected function deleteExistingData()
+    {
+        try {
+            Log::info("🗑️ Début de la suppression pour l'EFP: {$this->codeEfp}");
+
+            $deleted = Avancement::where('code_efp', $this->codeEfp)->delete();
+            $this->deleted += $deleted;
+            Log::info("✓ Supprimé {$deleted} avancements");
+
+            $deleted = Affectation::where('code_efp', $this->codeEfp)->delete();
+            $this->deleted += $deleted;
+            Log::info("✓ Supprimé {$deleted} affectations");
+
+            $formateurIds = Formateur::where('code_efp', $this->codeEfp)->pluck('id')->toArray();
+            if (!empty($formateurIds)) {
+                $deleted = DB::table('formateur_module')->whereIn('formateur_id', $formateurIds)->delete();
+                Log::info("✓ Supprimé {$deleted} relations formateur_module");
+                
+                $deleted = DB::table('formateur_secteur')->whereIn('formateur_id', $formateurIds)->delete();
+                Log::info("✓ Supprimé {$deleted} relations formateur_secteur");
+            }
+
+            $deleted = Formateur::where('code_efp', $this->codeEfp)->delete();
+            $this->deleted += $deleted;
+            Log::info("✓ Supprimé {$deleted} formateurs");
+
+            $moduleIds = Module::where('code_efp', $this->codeEfp)->pluck('id')->toArray();
+            if (!empty($moduleIds)) {
+                $deleted = DB::table('filiere_module')->whereIn('module_id', $moduleIds)->delete();
+                Log::info("✓ Supprimé {$deleted} relations filiere_module");
+            }
+
+            $deleted = Module::where('code_efp', $this->codeEfp)->delete();
+            $this->deleted += $deleted;
+            Log::info("✓ Supprimé {$deleted} modules");
+
+            $deleted = Groupe::where('code_efp', $this->codeEfp)->delete();
+            $this->deleted += $deleted;
+            Log::info("✓ Supprimé {$deleted} groupes");
+
+            $deleted = Formation::where('code_efp', $this->codeEfp)->delete();
+            $this->deleted += $deleted;
+            Log::info("✓ Supprimé {$deleted} formations");
+
+            $deleted = Filiere::where('code_efp', $this->codeEfp)->delete();
+            $this->deleted += $deleted;
+            Log::info("✓ Supprimé {$deleted} filières");
+
+            $deleted = Niveau::where('code_efp', $this->codeEfp)->delete();
+            $this->deleted += $deleted;
+            Log::info("✓ Supprimé {$deleted} niveaux");
+
+            $deleted = Secteur::where('code_efp', $this->codeEfp)->delete();
+            $this->deleted += $deleted;
+            Log::info("✓ Supprimé {$deleted} secteurs");
+
+            Log::info("✅ Suppression terminée: {$this->deleted} enregistrements supprimés");
+
+        } catch (\Exception $e) {
+            Log::error('❌ Erreur lors de la suppression: ' . $e->getMessage());
+            throw new \Exception("Erreur lors de la suppression des données: " . $e->getMessage());
         }
     }
 
     protected function processRow($row, $lineNumber)
     {
         try {
-            // Récupérer les données de base
-            $codeEfp = trim($row['code_efp'] ?? '');
-            $efpNom = trim($row['efp'] ?? '');
+            if ($lineNumber === 2) {
+                Log::info("=== TOUTES LES COLONNES DISPONIBLES (ligne 2) ===");
+                foreach ($row as $key => $value) {
+                    Log::info("Clé: '{$key}' => Valeur: '{$value}'");
+                }
+            }
             
-            // Vérifier si cette ligne concerne l'établissement (si filtrage activé)
+            $codeEfp = trim($row['code_efp'] ?? '');
+            
+            if (empty($codeEfp)) {
+                $this->errors[] = "Ligne {$lineNumber}: code_efp requis";
+                $this->skipped++;
+                return;
+            }
+            
             if ($this->codeEfp && $codeEfp !== $this->codeEfp) {
                 $this->skipped++;
                 return;
             }
 
-            // 1. Traiter le SECTEUR avec code_efp
+            // 1. SECTEUR
             $nomSecteur = trim($row['secteur'] ?? '');
             $secteur = null;
             if (!empty($nomSecteur)) {
-                $secteur = Secteur::updateOrCreate(
-                    [
+                $cacheKey = $codeEfp . '_' . $nomSecteur;
+                if (!isset($this->cachedSecteurs[$cacheKey])) {
+                    $this->cachedSecteurs[$cacheKey] = Secteur::create([
                         'nom_secteur' => $nomSecteur,
                         'code_efp' => $codeEfp
-                    ]
-                );
+                    ]);
+                }
+                $secteur = $this->cachedSecteurs[$cacheKey];
             }
 
-            // 2. Traiter le NIVEAU avec code_efp
+            // 2. NIVEAU
             $niveauCode = trim($row['niveau'] ?? '');
             $niveau = null;
             if (!empty($niveauCode)) {
-                $niveauNom = $this->getNiveauNom($niveauCode);
-                $niveau = Niveau::updateOrCreate(
-                    [
-                        'nom' => $niveauNom,
+                $cacheKey = $codeEfp . '_' . $niveauCode;
+                if (!isset($this->cachedNiveaux[$cacheKey])) {
+                    $this->cachedNiveaux[$cacheKey] = Niveau::create([
+                        'nom' => $this->getNiveauNom($niveauCode),
                         'code_efp' => $codeEfp
-                    ]
-                );
+                    ]);
+                }
+                $niveau = $this->cachedNiveaux[$cacheKey];
             }
 
-            // 3. Traiter la FILIERE avec code_efp
+            // 3. FILIERE
             $codeFiliere = trim($row['code_filiere'] ?? '');
             $nomFiliere = trim($row['filiere'] ?? '');
             $filiere = null;
             
             if (!empty($codeFiliere) && !empty($nomFiliere) && $secteur) {
-                $filiere = Filiere::updateOrCreate(
-                    [
+                $cacheKey = $codeEfp . '_' . $codeFiliere;
+                if (!isset($this->cachedFilieres[$cacheKey])) {
+                    $this->cachedFilieres[$cacheKey] = Filiere::create([
                         'code_filiere' => $codeFiliere,
-                        'code_efp' => $codeEfp
-                    ],
-                    [
                         'nom_filiere' => $nomFiliere,
-                        'secteur_id' => $secteur->id
-                    ]
-                );
+                        'secteur_id' => $secteur->id,
+                        'code_efp' => $codeEfp
+                    ]);
+                }
+                $filiere = $this->cachedFilieres[$cacheKey];
             }
 
-            // 4. Traiter la FORMATION avec code_efp
+            // 4. FORMATION
             $annee = intval($row['annee'] ?? date('Y'));
             $typeFormation = trim($row['type_de_formation'] ?? 'Diplômante');
             $mode = trim($row['mode'] ?? 'Résidentiel');
@@ -121,8 +209,9 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
 
             $formation = null;
             if ($filiere && $niveau) {
-                $formation = Formation::updateOrCreate(
-                    [
+                $cacheKey = $codeEfp . '_' . $annee . '_' . $filiere->id . '_' . $niveau->id . '_' . $typeFormation . '_' . $mode . '_' . $creneau;
+                if (!isset($this->cachedFormations[$cacheKey])) {
+                    $this->cachedFormations[$cacheKey] = Formation::create([
                         'annee' => $annee,
                         'filiere_id' => $filiere->id,
                         'niveau_id' => $niveau->id,
@@ -130,41 +219,38 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                         'mode' => $mode,
                         'creneau' => $creneau,
                         'code_efp' => $codeEfp
-                    ]
-                );
+                    ]);
+                }
+                $formation = $this->cachedFormations[$cacheKey];
             }
 
-            // 5. Traiter le GROUPE avec code_efp
+            // 5. GROUPE
             $nomGroupe = trim($row['groupe'] ?? '');
             $effectifGroupe = intval($row['effectif_groupe'] ?? 0);
             $sousGroupe = trim($row['sous_groupe'] ?? '');
             $statutSousGroupe = trim($row['statut_sous_groupe'] ?? 'Actif');
-            $fusionGroupe = trim($row['fusiongroupe'] ?? '');
-            $codeFusion = trim($row['code_fusion'] ?? '');
             $anneeFormation = intval($row['annee_de_formation'] ?? 1);
 
             $groupe = null;
             if (!empty($nomGroupe) && $filiere && $formation) {
-                $groupe = Groupe::updateOrCreate(
-                    [
+                $cacheKey = $codeEfp . '_' . $nomGroupe;
+                if (!isset($this->cachedGroupes[$cacheKey])) {
+                    $this->cachedGroupes[$cacheKey] = Groupe::create([
                         'code_groupe' => $nomGroupe,
-                        'code_efp' => $codeEfp
-                    ],
-                    [
                         'effectif_groupe' => $effectifGroupe,
                         'statut' => $statutSousGroupe,
                         'sous_groupe' => $sousGroupe,
                         'statut_sous_groupe' => $statutSousGroupe,
-                        'fusion_groupe' => $fusionGroupe,
-                        'code_fusion' => $codeFusion,
                         'annee_formation' => $anneeFormation,
                         'filiere_id' => $filiere->id,
-                        'formation_id' => $formation->id
-                    ]
-                );
+                        'formation_id' => $formation->id,
+                        'code_efp' => $codeEfp
+                    ]);
+                }
+                $groupe = $this->cachedGroupes[$cacheKey];
             }
 
-            // 6. Traiter le MODULE avec code_efp
+            // ✅ 6. MODULE - IDENTIFICATION UNIQUE: code + nom + filiere
             $codeModule = trim($row['code_module'] ?? '');
             $nomModule = trim($row['module'] ?? '');
             $regional = trim($row['regional'] ?? 'N');
@@ -172,252 +258,253 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             $efpPie = trim($row['efp_pie'] ?? '');
 
             $module = null;
-            if (!empty($codeModule) && !empty($nomModule)) {
-                // Chercher le module par CODE + NOM + CODE_EFP
-                $module = Module::where([
-                    'code_module' => $codeModule,
-                    'nom_module' => $nomModule,
-                    'code_efp' => $codeEfp
-                ])->first();
+            if (!empty($codeModule) && !empty($nomModule) && $filiere) {
+                // ✅ CLÉ UNIQUE: code_efp + code_module + nom_module + filiere_id
+                $cacheKey = $codeEfp . '_' . $codeModule . '_' . md5($nomModule) . '_' . $filiere->id;
                 
-                // Si le module n'existe pas, on le crée
-                if (!$module) {
+                if (!isset($this->cachedModules[$cacheKey])) {
+                    // ✅ Créer un nouveau module unique
                     $module = Module::create([
                         'code_module' => $codeModule,
                         'nom_module' => $nomModule,
-                        'regional' => $regional,
+                        'regional' => strtoupper($regional) === 'O' ? 'O' : 'N',
                         'module_pie' => !empty($modulePie) && strtoupper($modulePie) === 'O' ? 'O' : 'N',
                         'efp_pie' => $efpPie,
                         'code_efp' => $codeEfp
                     ]);
                     
-                    // Associer le module à la filière via la table pivot
-                    if ($filiere) {
-                        $module->filieres()->syncWithoutDetaching([$filiere->id]);
-                    }
-                    
-                    Log::info("Nouveau module créé: {$codeModule} - {$nomModule} (EFP: {$codeEfp})");
-                } else {
-                    // Mettre à jour les informations du module
-                    $module->update([
-                        'regional' => $regional,
-                        'module_pie' => !empty($modulePie) && strtoupper($modulePie) === 'O' ? 'O' : 'N',
-                        'efp_pie' => $efpPie,
+                    // ✅ Créer la relation filiere_module (une seule fois)
+                    DB::table('filiere_module')->insert([
+                        'filiere_id' => $filiere->id,
+                        'module_id' => $module->id,
+                        'created_at' => now(),
+                        'updated_at' => now()
                     ]);
                     
-                    // S'assurer que la relation avec la filière existe
-                    if ($filiere) {
-                        $module->filieres()->syncWithoutDetaching([$filiere->id]);
-                    }
+                    $this->cachedModules[$cacheKey] = $module;
                     
-                    Log::debug("Module existant trouvé: {$codeModule} - {$nomModule} (ID: {$module->id})");
+                    Log::info("✅ Nouveau module créé: ID={$module->id}, Code={$codeModule}, Nom={$nomModule}, Filière={$filiere->nom_filiere}");
+                } else {
+                    // ✅ Réutiliser le module existant (même code + nom + filière)
+                    $module = $this->cachedModules[$cacheKey];
+                    Log::info("♻️ Module réutilisé: ID={$module->id}, Code={$codeModule}, Nom={$nomModule}");
                 }
             }
 
-            // 7. Traiter les FORMATEURS avec code_efp
+            // 7. FORMATEURS
             $mleAffectePresentiel = trim($row['mle_affecte_presentiel_actif'] ?? '');
             $formateurPresentiel = trim($row['formateur_affecte_presentiel_actif'] ?? '');
             $mleAffecteSyn = trim($row['mle_affecte_syn_actif'] ?? '');
             $formateurSyn = trim($row['formateur_affecte_syn_actif'] ?? '');
 
-            // Créer le formateur présentiel s'il existe
-            $formateurPresentielObj = null;
+            $formateurPresObj = null;
             if (!empty($mleAffectePresentiel) && !empty($formateurPresentiel)) {
-                $formateurPresentielObj = Formateur::updateOrCreate(
-                    ['mle' => $mleAffectePresentiel],
-                    [
+                $cacheKey = $codeEfp . '_' . $mleAffectePresentiel;
+                
+                if (!isset($this->cachedFormateurs[$cacheKey])) {
+                    $formateurPresObj = Formateur::create([
+                        'mle' => $mleAffectePresentiel,
                         'nom_complet' => $formateurPresentiel,
                         'type' => $this->determineTypeFormateur($mleAffectePresentiel),
                         'code_efp' => $codeEfp
-                    ]
-                );
+                    ]);
+                    $this->cachedFormateurs[$cacheKey] = $formateurPresObj;
+                } else {
+                    $formateurPresObj = $this->cachedFormateurs[$cacheKey];
+                }
                 
-                // Associer le formateur au secteur et module
-                if ($secteur) {
-                    $formateurPresentielObj->secteurs()->syncWithoutDetaching([$secteur->id]);
+                if ($secteur && $formateurPresObj) {
+                    $exists = DB::table('formateur_secteur')
+                        ->where('formateur_id', $formateurPresObj->id)
+                        ->where('secteur_id', $secteur->id)
+                        ->exists();
+                    
+                    if (!$exists) {
+                        DB::table('formateur_secteur')->insert([
+                            'formateur_id' => $formateurPresObj->id,
+                            'secteur_id' => $secteur->id,
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ]);
+                    }
                 }
-                if ($module) {
-                    $formateurPresentielObj->modules()->syncWithoutDetaching([$module->id]);
+                
+                if ($module && $formateurPresObj) {
+                    // ✅ Vérifier si la relation existe déjà
+                    $exists = DB::table('formateur_module')
+                        ->where('formateur_id', $formateurPresObj->id)
+                        ->where('module_id', $module->id)
+                        ->exists();
+                    
+                    if (!$exists) {
+                        DB::table('formateur_module')->insert([
+                            'formateur_id' => $formateurPresObj->id,
+                            'module_id' => $module->id,
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ]);
+                    }
                 }
-            } else {
-                // Si le formateur présentiel n'existe pas, mettre à null
-                $mleAffectePresentiel = null;
             }
 
-            // Créer le formateur synchrone s'il existe et différent du présentiel
             $formateurSynObj = null;
             if (!empty($mleAffecteSyn) && !empty($formateurSyn) && $mleAffecteSyn !== $mleAffectePresentiel) {
-                $formateurSynObj = Formateur::updateOrCreate(
-                    ['mle' => $mleAffecteSyn],
-                    [
+                $cacheKey = $codeEfp . '_' . $mleAffecteSyn;
+                
+                if (!isset($this->cachedFormateurs[$cacheKey])) {
+                    $formateurSynObj = Formateur::create([
+                        'mle' => $mleAffecteSyn,
                         'nom_complet' => $formateurSyn,
                         'type' => $this->determineTypeFormateur($mleAffecteSyn),
                         'code_efp' => $codeEfp
-                    ]
-                );
+                    ]);
+                    $this->cachedFormateurs[$cacheKey] = $formateurSynObj;
+                } else {
+                    $formateurSynObj = $this->cachedFormateurs[$cacheKey];
+                }
                 
-                // Associer le formateur au secteur et module
-                if ($secteur) {
-                    $formateurSynObj->secteurs()->syncWithoutDetaching([$secteur->id]);
+                if ($secteur && $formateurSynObj) {
+                    $exists = DB::table('formateur_secteur')
+                        ->where('formateur_id', $formateurSynObj->id)
+                        ->where('secteur_id', $secteur->id)
+                        ->exists();
+                    
+                    if (!$exists) {
+                        DB::table('formateur_secteur')->insert([
+                            'formateur_id' => $formateurSynObj->id,
+                            'secteur_id' => $secteur->id,
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ]);
+                    }
                 }
-                if ($module) {
-                    $formateurSynObj->modules()->syncWithoutDetaching([$module->id]);
+                
+                if ($module && $formateurSynObj) {
+                    $exists = DB::table('formateur_module')
+                        ->where('formateur_id', $formateurSynObj->id)
+                        ->where('module_id', $module->id)
+                        ->exists();
+                    
+                    if (!$exists) {
+                        DB::table('formateur_module')->insert([
+                            'formateur_id' => $formateurSynObj->id,
+                            'module_id' => $module->id,
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ]);
+                    }
                 }
-            } else {
-                // Si le formateur synchrone n'existe pas ou est identique, mettre à null
-                $mleAffecteSyn = null;
             }
 
-            // 8. Créer/Mettre à jour l'AFFECTATION avec code_efp
+            // 8. AFFECTATION
             if ($groupe && $module) {
-                $affectationData = [
+                $fusionGroupe = trim(
+                    $row['fusiongroupe'] ?? 
+                    $row['fusion_groupe'] ?? 
+                    $row['fusion'] ?? 
+                    ''
+                );
+                
+                $codeFusion = trim(
+                    $row['code_fusion'] ?? 
+                    $row['codefusion'] ?? 
+                    ''
+                );
+                
+                if ($fusionGroupe === '0' || $fusionGroupe === '' || empty($fusionGroupe)) {
+                    $fusionGroupe = null;
+                }
+                
+                if ($codeFusion === '0' || $codeFusion === '' || empty($codeFusion)) {
+                    $codeFusion = null;
+                }
+                
+                $affectation = Affectation::create([
                     'groupe_id' => $groupe->id,
-                    'module_id' => $module->id
-                ];
-
-                $affectationValues = [
-                    // Code EFP
+                    'module_id' => $module->id,
                     'code_efp' => $codeEfp,
                     
-                    // Formateurs (maintenant garantis d'exister ou NULL)
-                    'mle_affecte_presentiel' => $mleAffectePresentiel,
-                    'formateur_affecte_presentiel' => $formateurPresentiel,
-                    'mle_affecte_syn' => $mleAffecteSyn,
-                    'formateur_affecte_syn' => $formateurSyn,
+                    'fusion_groupe' => $fusionGroupe,
+                    'code_fusion' => $codeFusion,
                     
-                    // Heures S1 DRIF
+                    'mle_affecte_presentiel' => !empty($mleAffectePresentiel) ? $mleAffectePresentiel : null,
+                    'formateur_affecte_presentiel' => !empty($formateurPresentiel) ? $formateurPresentiel : null,
+                    'mle_affecte_syn' => !empty($mleAffecteSyn) ? $mleAffecteSyn : null,
+                    'formateur_affecte_syn' => !empty($formateurSyn) ? $formateurSyn : null,
+                    
                     'mhp_s1_drif' => $this->parseDecimal($row['mhp_s1_drif'] ?? 0),
                     'mhsyn_s1_drif' => $this->parseDecimal($row['mhsyn_s1_drif'] ?? 0),
                     'mhasyn_s1_drif' => $this->parseDecimal($row['mhasyn_s1_drif'] ?? 0),
                     'mh_totale_s1_drif' => $this->parseDecimal($row['mh_totale_s1_drif'] ?? 0),
                     
-                    // Heures S2 DRIF
                     'mhp_s2_drif' => $this->parseDecimal($row['mhp_s2_drif'] ?? 0),
                     'mhsyn_s2_drif' => $this->parseDecimal($row['mhsyn_s2_drif'] ?? 0),
                     'mhasyn_s2_drif' => $this->parseDecimal($row['mhasyn_s2_drif'] ?? 0),
                     'mh_totale_s2_drif' => $this->parseDecimal($row['mh_totale_s2_drif'] ?? 0),
                     
-                    // Totaux DRIF
                     'mhp_totale_drif' => $this->parseDecimal($row['mhp_totale_drif'] ?? 0),
                     'mhsyn_totale_drif' => $this->parseDecimal($row['mhsyn_totale_drif'] ?? 0),
                     'mhasyn_totale_drif' => $this->parseDecimal($row['mhasyn_totale_drif'] ?? 0),
                     'mh_totale_drif' => $this->parseDecimal($row['mh_totale_drif'] ?? 0),
                     
-                    // Affectées
                     'mh_affectee_presentiel' => $this->parseDecimal($row['mh_affectee_presentiel'] ?? 0),
                     'mh_affectee_sync' => $this->parseDecimal($row['mh_affectee_sync'] ?? 0),
                     'mh_affectee_globale' => $this->parseDecimal($row['mh_affectee_globale_p_syn'] ?? 0)
-                ];
+                ]);
 
-                $affectation = Affectation::updateOrCreate($affectationData, $affectationValues);
-
-                // 9. Créer/Mettre à jour l'AVANCEMENT avec code_efp
-                $avancementData = [
-                    'affectation_id' => $affectation->id
-                ];
-
-                $avancementValues = [
-                    // Code EFP
+                // 9. AVANCEMENT
+                Avancement::create([
+                    'affectation_id' => $affectation->id,
                     'code_efp' => $codeEfp,
                     
-                    // Réalisées
                     'mh_realisee_presentiel' => $this->parseDecimal($row['mh_realisee_presentiel'] ?? 0),
                     'mh_realisee_sync' => $this->parseDecimal($row['mh_realisee_sync'] ?? 0),
                     'mh_realisee_globale' => $this->parseDecimal($row['mh_realisee_globale'] ?? 0),
                     
-                    // Taux de réalisation
                     'taux_realisation_presentiel' => $this->parseDecimal($row['taux_realisation_presentiel'] ?? 0),
                     'taux_realisation_syn' => $this->parseDecimal($row['taux_realisation_syn'] ?? 0),
                     'taux_realisation_globale' => $this->parseDecimal($row['taux_realisation_p_syn'] ?? 0),
                     
-                    // Autres informations
                     'moyenne_absence' => $this->parseDecimal($row['moy_absence'] ?? 0),
                     'nb_cc' => intval($row['nb_cc'] ?? 0),
                     'seance_efm' => trim($row['seance_efm'] ?? 'Non'),
                     'validation_efm' => trim($row['validation_efm'] ?? 'non'),
                     'classe_teams' => trim($row['classe_teams'] ?? ''),
                     'date_maj' => $this->parseDate($row['date_maj'] ?? null)
-                ];
-
-                $avancement = Avancement::updateOrCreate($avancementData, $avancementValues);
+                ]);
                 
-                if ($avancement->wasRecentlyCreated) {
-                    $this->imported++;
-                } else {
-                    $this->updated++;
-                }
+                $this->imported++;
+                
             } else {
                 $this->skipped++;
-                Log::warning("Ligne {$lineNumber} ignorée: Groupe ou Module manquant");
+                Log::warning("⚠️ Ligne {$lineNumber} ignorée: Groupe ou Module manquant");
             }
 
         } catch (\Exception $e) {
             $this->errors[] = "Ligne {$lineNumber}: " . $e->getMessage();
-            Log::error("Erreur ligne {$lineNumber}: " . $e->getMessage());
-            Log::error("Données de la ligne: " . json_encode($row->toArray()));
-            throw $e; // Pour rollback la transaction
+            Log::error("❌ Erreur ligne {$lineNumber}: " . $e->getMessage());
+            throw $e;
         }
     }
 
-    /**
-     * Parser une date depuis différents formats
-     */
     protected function parseDate($dateString)
     {
-        if (empty($dateString)) {
-            return now();
-        }
-
+        if (empty($dateString)) return now();
         try {
-            $formats = [
-                'd/m/Y H:i:s',
-                'd/m/Y H:i',
-                'd/m/Y',
-                'Y-m-d H:i:s',
-                'Y-m-d',
-                'd-m-Y H:i:s',
-                'd-m-Y',
-                'm/d/Y H:i:s',
-                'm/d/Y'
-            ];
-            
-            foreach ($formats as $format) {
-                try {
-                    $date = Carbon::createFromFormat($format, trim($dateString));
-                    if ($date) {
-                        return $date;
-                    }
-                } catch (\Exception $e) {
-                    continue;
-                }
-            }
-            
             return Carbon::parse($dateString);
-            
         } catch (\Exception $e) {
-            Log::warning("Impossible de parser la date: {$dateString}. Utilisation de la date actuelle.");
             return now();
         }
     }
 
-    /**
-     * Parser un nombre décimal
-     */
     protected function parseDecimal($value)
     {
-        if (empty($value)) {
-            return 0;
-        }
-        
+        if (empty($value)) return 0;
         $value = str_replace(',', '.', trim($value));
         $value = str_replace(' ', '', $value);
-        
         return floatval($value);
     }
 
-    /**
-     * Obtenir le nom complet du niveau
-     */
     protected function getNiveauNom($code)
     {
         $niveaux = [
@@ -428,76 +515,37 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             'BP' => 'Brevet Professionnel',
             'FQ' => 'Formation Qualifiante'
         ];
-
         return $niveaux[$code] ?? $code;
     }
 
-    /**
-     * Déterminer le type de formateur (permanent ou vacataire)
-     * basé sur le matricule
-     */
     protected function determineTypeFormateur($mle)
     {
-        // Les matricules commençant par EE, Y, H, E, PB sont souvent des vacataires
         if (preg_match('/^(EE|Y|H|E|PB)\d+/', $mle)) {
             return 'vacataire';
         }
-        
         return 'permanent';
     }
 
-    /**
-     * Règles de validation
-     */
     public function rules(): array
     {
-        return [
-            'code_efp' => 'required|string',
-            'annee' => 'nullable|integer',
-            'niveau' => 'nullable|string',
-            'secteur' => 'nullable|string',
-            'code_filiere' => 'nullable|string',
-            'filiere' => 'nullable|string',
-            'groupe' => 'nullable|string',
-            'code_module' => 'nullable|string',
-            'module' => 'nullable|string'
-        ];
+        return ['code_efp' => 'required|string'];
     }
 
-    /**
-     * Getters pour les statistiques
-     */
-    public function getErrors()
-    {
-        return $this->errors;
-    }
+    public function getErrors() { return $this->errors; }
+    public function getImported() { return $this->imported; }
+    public function getSkipped() { return $this->skipped; }
+    public function getDeleted() { return $this->deleted; }
+    public function getUpdated() { return 0; }
 
-    public function getImported()
-    {
-        return $this->imported;
-    }
-
-    public function getSkipped()
-    {
-        return $this->skipped;
-    }
-
-    public function getUpdated()
-    {
-        return $this->updated;
-    }
-
-    /**
-     * Obtenir un résumé de l'importation
-     */
     public function getSummary()
     {
         return [
             'imported' => $this->imported,
-            'updated' => $this->updated,
+            'deleted' => $this->deleted,
             'skipped' => $this->skipped,
+            'updated' => 0,
             'errors' => count($this->errors),
-            'total' => $this->imported + $this->updated + $this->skipped,
+            'total' => $this->imported + $this->skipped,
             'error_details' => $this->errors
         ];
     }

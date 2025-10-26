@@ -54,6 +54,11 @@
         background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
     }
     
+    .card-header.bg-warning {
+        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+        color: #000 !important;
+    }
+    
     .card-body {
         padding: 1.5rem;
     }
@@ -185,6 +190,15 @@
         background-clip: text;
     }
     
+    .fusion-badge {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        display: inline-block;
+        margin-bottom: 0.5rem;
+    }
+    
     @media (max-width: 768px) {
         .card-body {
             padding: 1rem;
@@ -240,6 +254,39 @@
                 </div>
             </div>
         </div>
+
+        <!-- Fusion de Groupe -->
+        @if($affectation->fusion_groupe || $affectation->code_fusion)
+        <div class="card mt-4">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0">
+                    <i class="fas fa-object-group me-2"></i>Fusion de Groupe
+                </h6>
+            </div>
+            <div class="card-body">
+                @if($affectation->fusion_groupe)
+                    <div class="info-box" style="border-left-color: #ffc107;">
+                        <h6><i class="fas fa-layer-group me-2"></i>Groupes Fusionnés</h6>
+                        <p>
+                            <span class="fusion-badge">
+                                <i class="fas fa-object-group me-1"></i>
+                                {{ $affectation->fusion_groupe }}
+                            </span>
+                        </p>
+                    </div>
+                @endif
+
+                @if($affectation->code_fusion)
+                    <div class="info-box" style="border-left-color: #17a2b8;">
+                        <h6><i class="fas fa-barcode me-2"></i>Code de Fusion</h6>
+                        <p>
+                            <span class="badge bg-info fs-6">{{ $affectation->code_fusion }}</span>
+                        </p>
+                    </div>
+                @endif
+            </div>
+        </div>
+        @endif
 
         <!-- Formateurs Assignés -->
         <div class="card mt-4">

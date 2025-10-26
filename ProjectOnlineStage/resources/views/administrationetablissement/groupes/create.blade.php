@@ -96,12 +96,14 @@
                                 <i class="fas fa-calendar me-1"></i>
                                 Année de Formation <span class="text-danger">*</span>
                             </label>
-                            <input type="number" 
-                                   class="form-control @error('annee_formation') is-invalid @enderror" 
-                                   id="annee_formation" 
-                                   name="annee_formation" 
-                                   value="{{ old('annee_formation', date('Y')) }}"
-                                   required>
+                            <select class="form-select @error('annee_formation') is-invalid @enderror" 
+                                    id="annee_formation" 
+                                    name="annee_formation" 
+                                    required>
+                                <option value="">Sélectionnez une année</option>
+                                <option value="1" {{ old('annee_formation') == '1' ? 'selected' : '' }}>1ère année</option>
+                                <option value="2" {{ old('annee_formation') == '2' ? 'selected' : '' }}>2ème année</option>
+                            </select>
                             @error('annee_formation')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -146,40 +148,6 @@
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="fusion_groupe" class="form-label">
-                                <i class="fas fa-object-group me-1"></i>
-                                Fusion de Groupe
-                            </label>
-                            <input type="text" 
-                                   class="form-control @error('fusion_groupe') is-invalid @enderror" 
-                                   id="fusion_groupe" 
-                                   name="fusion_groupe" 
-                                   value="{{ old('fusion_groupe') }}"
-                                   placeholder="Ex: Fusion avec G2">
-                            @error('fusion_groupe')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="col-md-6 mb-3">
-                            <label for="code_fusion" class="form-label">
-                                <i class="fas fa-code me-1"></i>
-                                Code Fusion
-                            </label>
-                            <input type="text" 
-                                   class="form-control @error('code_fusion') is-invalid @enderror" 
-                                   id="code_fusion" 
-                                   name="code_fusion" 
-                                   value="{{ old('code_fusion') }}"
-                                   placeholder="Ex: FUS-G1-G2">
-                            @error('code_fusion')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
                             <label for="filiere_id" class="form-label">
                                 <i class="fas fa-stream me-1"></i>
                                 Filière <span class="text-danger">*</span>
@@ -212,7 +180,7 @@
                                 <option value="">Sélectionnez une formation</option>
                                 @foreach($formations as $formation)
                                     <option value="{{ $formation->id }}" {{ old('formation_id') == $formation->id ? 'selected' : '' }}>
-                                        {{ $formation->type }} -{{ $formation->filiere->nom_filiere }} - {{ $formation->mode }} ({{ $formation->creneau }})
+                                        {{ $formation->type }} - {{ $formation->filiere->nom_filiere }} - {{ $formation->mode }} ({{ $formation->creneau }})
                                     </option>
                                 @endforeach
                             </select>
@@ -224,7 +192,7 @@
 
                     <div class="alert alert-info mt-3">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>Information :</strong> Ce groupe sera spécifique à votre établissement.
+                        <strong>Information :</strong> Ce groupe sera spécifique à votre établissement. Les informations de fusion de groupe seront gérées au niveau des affectations.
                     </div>
 
                     <div class="d-flex justify-content-between mt-4">

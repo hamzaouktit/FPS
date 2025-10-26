@@ -68,17 +68,14 @@
                 </p>
             </div>
             <div class="col-md-6">
-                <p><strong><i class="fas fa-object-group me-2 text-primary"></i>Fusion Groupe :</strong> 
-                    {{ $groupe->fusion_groupe ?? 'Aucune' }}
-                </p>
-                <p><strong><i class="fas fa-code me-2 text-primary"></i>Code Fusion :</strong> 
-                    {{ $groupe->code_fusion ?? 'Aucun' }}
-                </p>
                 <p><strong><i class="fas fa-building me-2 text-primary"></i>Établissement :</strong> 
                     {{ $groupe->etablissement->nom_efp ?? 'N/A' }}
                 </p>
                 <p><strong><i class="fas fa-clock me-2 text-primary"></i>Créé le :</strong> 
                     {{ $groupe->created_at->format('d/m/Y H:i') }}
+                </p>
+                <p><strong><i class="fas fa-clock me-2 text-primary"></i>Modifié le :</strong> 
+                    {{ $groupe->updated_at->format('d/m/Y H:i') }}
                 </p>
             </div>
         </div>
@@ -109,7 +106,7 @@
         <div class="card text-center shadow-sm">
             <div class="card-body">
                 <i class="fas fa-clock fa-2x text-info mb-3"></i>
-                <h3 class="mb-0">{{ $stats['mh_totale_affectee'] ?? 0 }}</h3>
+                <h3 class="mb-0">{{ number_format($stats['mh_totale_affectee'] ?? 0, 2) }}</h3>
                 <p class="text-muted mb-0">MH Affectée</p>
             </div>
         </div>
@@ -118,7 +115,7 @@
         <div class="card text-center shadow-sm">
             <div class="card-body">
                 <i class="fas fa-check-circle fa-2x text-warning mb-3"></i>
-                <h3 class="mb-0">{{ $stats['mh_totale_realisee'] ?? 0 }}</h3>
+                <h3 class="mb-0">{{ number_format($stats['mh_totale_realisee'] ?? 0, 2) }}</h3>
                 <p class="text-muted mb-0">MH Réalisée</p>
             </div>
         </div>
@@ -193,9 +190,15 @@
                                 <tr>
                                     <td>
                                         <strong>{{ $affectation->module->nom_module ?? 'N/A' }}</strong>
+                                        @if($affectation->fusion_groupe)
+                                            <br><small class="text-muted"><i class="fas fa-object-group"></i> {{ $affectation->fusion_groupe }}</small>
+                                        @endif
                                     </td>
                                     <td>
                                         <code>{{ $affectation->module->code_module ?? 'N/A' }}</code>
+                                        @if($affectation->code_fusion)
+                                            <br><small class="badge bg-warning">{{ $affectation->code_fusion }}</small>
+                                        @endif
                                     </td>
                                     <td>
                                         @if($affectation->formateurPresentiel)
@@ -207,7 +210,7 @@
                                         @endif
                                     </td>
                                     <td>
-                                        <span class="badge bg-info">{{ $affectation->mh_affectee_globale }}h</span>
+                                        <span class="badge bg-info">{{ number_format($affectation->mh_affectee_globale, 2) }}h</span>
                                     </td>
                                 </tr>
                                 @endforeach
@@ -240,15 +243,15 @@
                     <thead class="table-light">
                         <tr>
                             <th>Module</th>
+                            <th>Fusion</th>
                             <th>Formateur Présentiel</th>
                             <th>Formateur Synchrone</th>
-                            <th>MH Affectée Globale</th>
-                            <th>MH Réalisée Globale</th>
-                            <th>Taux Réalisation</th>
-                            <th>Moyenne Absence</th>
+                            <th>MH Affectée</th>
+                            <th>MH Réalisée</th>
+                            <th>Taux</th>
+                            <th>Moy. Absence</th>
                             <th>NB CC</th>
-                            <th>Séance EFM</th>
-                            <th>Validation EFM</th>
+                            <th>EFM</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -258,6 +261,16 @@
                                     <strong>{{ $affectation->module->nom_module ?? 'N/A' }}</strong>
                                     <br>
                                     <small class="text-muted">{{ $affectation->module->code_module ?? 'N/A' }}</small>
+                                </td>
+                                <td>
+                                    @if($affectation->fusion_groupe)
+                                        <span class="badge bg-info">{{ $affectation->fusion_groupe }}</span>
+                                        @if($affectation->code_fusion)
+                                            <br><small>{{ $affectation->code_fusion }}</small>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
                                 </td>
                                 <td>
                                     @if($affectation->formateurPresentiel)
@@ -278,12 +291,12 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <span class="badge bg-primary">{{ $affectation->mh_affectee_globale }}h</span>
+                                    <span class="badge bg-primary">{{ number_format($affectation->mh_affectee_globale, 2) }}h</span>
                                 </td>
                                 <td>
                                     @if($affectation->avancement)
                                         <span class="badge bg-{{ $affectation->avancement->mh_realisee_globale > 0 ? 'success' : 'secondary' }}">
-                                            {{ $affectation->avancement->mh_realisee_globale }}h
+                                            {{ number_format($affectation->avancement->mh_realisee_globale, 2) }}h
                                         </span>
                                     @else
                                         <span class="badge bg-secondary">0h</span>
@@ -292,14 +305,14 @@
                                 <td>
                                     @if($affectation->avancement)
                                         <span class="badge bg-{{ $affectation->avancement->taux_realisation_globale >= 50 ? 'success' : 'warning' }}">
-                                            {{ $affectation->avancement->taux_realisation_globale }}%
+                                            {{ number_format($affectation->avancement->taux_realisation_globale, 2) }}%
                                         </span>
                                     @else
                                         <span class="badge bg-secondary">0%</span>
                                     @endif
                                 </td>
                                 <td>
-                                    {{ $affectation->avancement->moyenne_absence ?? 'N/A' }}
+                                    {{ $affectation->avancement ? number_format($affectation->avancement->moyenne_absence, 2) : 'N/A' }}
                                 </td>
                                 <td>
                                     {{ $affectation->avancement->nb_cc ?? '0' }}
@@ -309,17 +322,12 @@
                                         <span class="badge bg-{{ $affectation->avancement->seance_efm === 'Oui' ? 'success' : 'secondary' }}">
                                             {{ $affectation->avancement->seance_efm }}
                                         </span>
+                                        <br>
+                                        <small class="badge bg-{{ $affectation->avancement->validation_efm === 'oui' ? 'success' : 'secondary' }}">
+                                            Val: {{ $affectation->avancement->validation_efm }}
+                                        </small>
                                     @else
                                         <span class="badge bg-secondary">Non</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($affectation->avancement)
-                                        <span class="badge bg-{{ $affectation->avancement->validation_efm === 'oui' ? 'success' : 'secondary' }}">
-                                            {{ $affectation->avancement->validation_efm }}
-                                        </span>
-                                    @else
-                                        <span class="badge bg-secondary">non</span>
                                     @endif
                                 </td>
                             </tr>

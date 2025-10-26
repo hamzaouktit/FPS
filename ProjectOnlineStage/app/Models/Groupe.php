@@ -13,8 +13,9 @@ class Groupe extends Model
 {
     protected $fillable = [
         'code_groupe', 'effectif_groupe', 'statut', 'sous_groupe',
-        'statut_sous_groupe', 'fusion_groupe', 'code_fusion',
-        'annee_formation', 'filiere_id', 'formation_id', 'code_efp'
+        'statut_sous_groupe', 'annee_formation', 'filiere_id', 
+        'formation_id', 'code_efp'
+        // ❌ SUPPRIMÉ: 'fusion_groupe', 'code_fusion'
     ];
 
     public function filiere()

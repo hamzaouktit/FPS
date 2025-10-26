@@ -95,12 +95,14 @@
                                 <i class="fas fa-calendar me-1"></i>
                                 Année de Formation <span class="text-danger">*</span>
                             </label>
-                            <input type="number" 
-                                   class="form-control @error('annee_formation') is-invalid @enderror" 
-                                   id="annee_formation" 
-                                   name="annee_formation" 
-                                   value="{{ old('annee_formation', $groupe->annee_formation) }}"
-                                   required>
+                            <select class="form-select @error('annee_formation') is-invalid @enderror" 
+                                    id="annee_formation" 
+                                    name="annee_formation" 
+                                    required>
+                                <option value="">Sélectionnez une année</option>
+                                <option value="1" {{ old('annee_formation', $groupe->annee_formation) == '1' ? 'selected' : '' }}>1ère année</option>
+                                <option value="2" {{ old('annee_formation', $groupe->annee_formation) == '2' ? 'selected' : '' }}>2ème année</option>
+                            </select>
                             @error('annee_formation')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -138,38 +140,6 @@
                                 <option value="Inactif" {{ old('statut_sous_groupe', $groupe->statut_sous_groupe) == 'Inactif' ? 'selected' : '' }}>Inactif</option>
                             </select>
                             @error('statut_sous_groupe')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="fusion_groupe" class="form-label">
-                                <i class="fas fa-object-group me-1"></i>
-                                Fusion de Groupe
-                            </label>
-                            <input type="text" 
-                                   class="form-control @error('fusion_groupe') is-invalid @enderror" 
-                                   id="fusion_groupe" 
-                                   name="fusion_groupe" 
-                                   value="{{ old('fusion_groupe', $groupe->fusion_groupe) }}">
-                            @error('fusion_groupe')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="col-md-6 mb-3">
-                            <label for="code_fusion" class="form-label">
-                                <i class="fas fa-code me-1"></i>
-                                Code Fusion
-                            </label>
-                            <input type="text" 
-                                   class="form-control @error('code_fusion') is-invalid @enderror" 
-                                   id="code_fusion" 
-                                   name="code_fusion" 
-                                   value="{{ old('code_fusion', $groupe->code_fusion) }}">
-                            @error('code_fusion')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
@@ -222,10 +192,15 @@
                     @if($groupe->affectations()->exists())
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Attention :</strong> Ce groupe contient des affectations. 
-                        Les modifications peuvent impacter les données liées.
+                        <strong>Attention :</strong> Ce groupe contient {{ $groupe->affectations()->count() }} affectation(s). 
+                        Les modifications peuvent impacter les données liées. Les informations de fusion de groupe sont gérées au niveau des affectations.
                     </div>
                     @endif
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note :</strong> Les informations de fusion de groupe (fusion_groupe et code_fusion) sont désormais gérées au niveau des affectations et non plus au niveau du groupe.
+                    </div>
 
                     <div class="d-flex justify-content-between mt-4">
                         <a href="{{ route('administration.etablissement.groupes.index') }}" class="btn btn-secondary">

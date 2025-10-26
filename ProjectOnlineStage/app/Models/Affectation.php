@@ -11,6 +11,8 @@ class Affectation extends Model
 {
     protected $fillable = [
         'groupe_id', 'module_id', 'code_efp',
+        // ✅ AJOUTÉ ICI
+        'fusion_groupe', 'code_fusion',
         'mle_affecte_presentiel', 'formateur_affecte_presentiel',
         'mle_affecte_syn', 'formateur_affecte_syn',
         'mhp_s1_drif', 'mhsyn_s1_drif', 'mhasyn_s1_drif', 'mh_totale_s1_drif',

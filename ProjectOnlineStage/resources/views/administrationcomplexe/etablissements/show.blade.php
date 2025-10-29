@@ -51,6 +51,13 @@
         background-color: #f8f9fa;
         border-bottom: 1px solid #dee2e6;
     }
+
+    /* Style pour les cellules vides (non affecté) */
+    .non-affecte {
+        background-color: #fff3cd;
+        font-style: italic;
+        color: #856404;
+    }
 </style>
 @endpush
 
@@ -220,17 +227,20 @@
         </div>
     </div>
 
-    {{-- Tableau des modules non affectés par filière --}}
+    {{-- ✅ CORRECTION : Tableau des modules non affectés par filière --}}
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white border-bottom">
             <h5 class="mb-0">
                 <i class="bi bi-exclamation-triangle text-warning"></i> Modules non affectés par filière
+                @if($modulesNonAffectesParFiliere->count() > 0)
+                    <span class="badge bg-warning text-dark">{{ $modulesNonAffectesParFiliere->sum(function($m) { return $m->count(); }) }}</span>
+                @endif
             </h5>
         </div>
         <div class="card-body p-0">
             <div class="table-wrapper" style="max-height: 400px; overflow: auto;">
                 <table class="table table-sm table-hover table-bordered mb-0">
-                    <thead class="table-light">
+                    <thead class="table-light" style="position: sticky; top: 0; z-index: 10;">
                         <tr>
                             <th>Filière</th>
                             <th>Code Module</th>
@@ -242,7 +252,7 @@
                             @foreach($modules as $module)
                             <tr>
                                 <td>{{ $filiere }}</td>
-                                <td>{{ $module->code_module }}</td>
+                                <td><span class="badge bg-secondary">{{ $module->code_module }}</span></td>
                                 <td>{{ $module->nom_module }}</td>
                             </tr>
                             @endforeach
@@ -250,7 +260,7 @@
                             <tr>
                                 <td colspan="3" class="text-center py-3 text-muted">
                                     <i class="bi bi-check-circle text-success fs-4 d-block mb-2"></i>
-                                    Tous les modules sont affectés
+                                    Tous les modules sont affectés avec des formateurs
                                 </td>
                             </tr>
                         @endforelse
@@ -260,17 +270,20 @@
         </div>
     </div>
 
-    {{-- Tableau des modules non affectés par groupe --}}
+    {{-- ✅ CORRECTION : Tableau des modules non affectés par groupe --}}
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white border-bottom">
             <h5 class="mb-0">
                 <i class="bi bi-exclamation-triangle text-warning"></i> Modules non affectés par groupe
+                @if($modulesNonAffectesParGroupe->count() > 0)
+                    <span class="badge bg-warning text-dark">{{ $modulesNonAffectesParGroupe->sum(function($m) { return $m->count(); }) }}</span>
+                @endif
             </h5>
         </div>
         <div class="card-body p-0">
             <div class="table-wrapper" style="max-height: 400px; overflow: auto;">
                 <table class="table table-sm table-hover table-bordered mb-0">
-                    <thead class="table-light">
+                    <thead class="table-light" style="position: sticky; top: 0; z-index: 10;">
                         <tr>
                             <th>Groupe</th>
                             <th>Filière</th>
@@ -282,9 +295,9 @@
                         @forelse($modulesNonAffectesParGroupe as $groupe => $modules)
                             @foreach($modules as $module)
                             <tr>
-                                <td>{{ $groupe }}</td>
+                                <td><span class="badge bg-info">{{ $groupe }}</span></td>
                                 <td>{{ $module->nom_filiere }}</td>
-                                <td>{{ $module->code_module }}</td>
+                                <td><span class="badge bg-secondary">{{ $module->code_module }}</span></td>
                                 <td>{{ $module->nom_module }}</td>
                             </tr>
                             @endforeach
@@ -292,7 +305,7 @@
                             <tr>
                                 <td colspan="4" class="text-center py-3 text-muted">
                                     <i class="bi bi-check-circle text-success fs-4 d-block mb-2"></i>
-                                    Tous les modules sont affectés
+                                    Tous les modules sont affectés avec des formateurs
                                 </td>
                             </tr>
                         @endforelse
@@ -302,7 +315,7 @@
         </div>
     </div>
 
-    {{-- Tableau des statistiques des formateurs (SIMPLIFIÉ) --}}
+    {{-- Tableau des statistiques des formateurs --}}
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white border-bottom">
             <h5 class="mb-0">
@@ -312,7 +325,7 @@
         <div class="card-body p-0">
             <div class="table-wrapper" style="max-height: 500px; overflow: auto;">
                 <table class="table table-sm table-hover table-bordered mb-0">
-                    <thead class="table-light">
+                    <thead class="table-light" style="position: sticky; top: 0; z-index: 10;">
                         <tr>
                             <th>MLE</th>
                             <th>Nom complet</th>
@@ -567,10 +580,10 @@
                             <td style="font-size: 0.75rem; padding: 0.4rem; white-space: nowrap;">{{ $row->code_module }}</td>
                             <td style="font-size: 0.75rem; padding: 0.4rem;">{{ $row->module }}</td>
                             <td style="font-size: 0.75rem; padding: 0.4rem; white-space: nowrap;">{{ $row->regional }}</td>
-                            <td style="font-size: 0.75rem; padding: 0.4rem; white-space: nowrap;">{{ $row->mle_presentiel }}</td>
-                            <td style="font-size: 0.75rem; padding: 0.4rem;">{{ $row->formateur_presentiel }}</td>
-                            <td style="font-size: 0.75rem; padding: 0.4rem; white-space: nowrap;">{{ $row->mle_syn }}</td>
-                            <td style="font-size: 0.75rem; padding: 0.4rem;">{{ $row->formateur_syn }}</td>
+                            <td style="font-size: 0.75rem; padding: 0.4rem; white-space: nowrap;" class="{{ !$row->mle_presentiel ? 'non-affecte' : '' }}">{{ $row->mle_presentiel ?? 'Non affecté' }}</td>
+                            <td style="font-size: 0.75rem; padding: 0.4rem;" class="{{ !$row->formateur_presentiel ? 'non-affecte' : '' }}">{{ $row->formateur_presentiel ?? 'Non affecté' }}</td>
+                            <td style="font-size: 0.75rem; padding: 0.4rem; white-space: nowrap;" class="{{ !$row->mle_syn ? 'non-affecte' : '' }}">{{ $row->mle_syn ?? 'Non affecté' }}</td>
+                            <td style="font-size: 0.75rem; padding: 0.4rem;" class="{{ !$row->formateur_syn ? 'non-affecte' : '' }}">{{ $row->formateur_syn ?? 'Non affecté' }}</td>
                             <td style="font-size: 0.75rem; padding: 0.4rem; text-align: right;">{{ $row->mhp_s1_drif }}</td>
                             <td style="font-size: 0.75rem; padding: 0.4rem; text-align: right;">{{ $row->mhsyn_s1_drif }}</td>
                             <td style="font-size: 0.75rem; padding: 0.4rem; text-align: right;">{{ $row->mhasyn_s1_drif }}</td>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use App\Models\{Etablissement, Formateur, Formation, Module, Groupe, Filiere, Secteur, Affectation, Avancement, User};
 
 class EtablissementController extends Controller
@@ -13,37 +14,100 @@ class EtablissementController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
-    {
-        $user = Auth::user();
-        
-        if ($user->role !== 'directeur_complexe') {
-            return redirect()->route('welcome')
-                ->with('error', 'Accès refusé. Vous n\'êtes pas directeur de complexe.');
-        }
-        
-        $complexe = $user->complexe;
-        if (!$complexe) {
-            return redirect()->route('welcome')
-                ->with('error', 'Aucun complexe associé à votre compte.');
-        }
-
-        $etablissements = Etablissement::where('complexe_id', $complexe->id)
-            ->with(['user', 'formations'])
-            ->withCount('formations')
-            ->paginate(10);
-
-        foreach ($etablissements as $etablissement) {
-            $stats = $this->getEtablissementStats($etablissement->code_efp);
-            $etablissement->stats = $stats;
-        }
-
-        return view('administrationcomplexe.etablissements.index', compact(
-            'user',
-            'complexe',
-            'etablissements'
-        ));
+public function index(Request $request)
+{
+    $user = Auth::user();
+    
+    if ($user->role !== 'directeur_complexe') {
+        return redirect()->route('welcome')
+            ->with('error', 'Accès refusé. Vous n\'êtes pas directeur de complexe.');
     }
+    
+    $complexe = $user->complexe;
+    if (!$complexe) {
+        return redirect()->route('welcome')
+            ->with('error', 'Aucun complexe associé à votre compte.');
+    }
+
+    // Optimisation avec eager loading complet
+    $etablissements = Etablissement::where('complexe_id', $complexe->id)
+        ->with([
+            'user',
+            'groupes' => function($query) {
+                $query->where('statut', 'Actif');
+            },
+            'secteurs',
+            'modules',
+            'formateurs',
+            'affectations' => function($query) {
+                $query->with(['avancement', 'groupe.formation']);
+            }
+        ])
+        ->paginate(10);
+
+    // Calcul des stats pour chaque établissement
+    foreach ($etablissements as $etablissement) {
+        // Récupérer les affectations avec formations
+        $affectations = $etablissement->affectations;
+        
+        // ✅ Compter les formations UNIQUES via les affectations (comme dans le dashboard)
+        $formations_count = $affectations->pluck('groupe.formation.id')
+            ->unique()
+            ->filter()
+            ->count();
+        
+        // Nombre de groupes actifs
+        $nb_groupes = $etablissement->groupes->count();
+        
+        // Nombre de stagiaires (somme des effectifs des groupes actifs)
+        $nb_stagiaires = $etablissement->groupes->sum('effectif_groupe');
+        
+        // Nombre de secteurs
+        $nb_secteurs = $etablissement->secteurs->count();
+        
+        // Nombre de modules
+        $nb_modules = $etablissement->modules->count();
+        
+        // Nombre de formateurs
+        $formateurs = $etablissement->formateurs;
+        $nb_formateurs = $formateurs->count();
+        $nb_permanents = $formateurs->where('type', 'permanent')->count();
+        $nb_vacataires = $formateurs->where('type', 'vacataire')->count();
+        
+        // Calcul du taux de réalisation
+        $mh_totale = $affectations->sum('mh_totale_drif');
+        $mh_realisee = $affectations->sum(function($affectation) {
+            return $affectation->avancement ? $affectation->avancement->mh_realisee_globale : 0;
+        });
+        
+        $taux_realisation = $mh_totale > 0 
+            ? ($mh_realisee / $mh_totale) * 100 
+            : 0;
+        
+        // Stocker les stats dans l'objet établissement
+        $etablissement->stats = [
+            'nb_groupes' => $nb_groupes,
+            'nb_stagiaires' => $nb_stagiaires,
+            'nb_secteurs' => $nb_secteurs,
+            'nb_modules' => $nb_modules,
+            'nb_formateurs' => $nb_formateurs,
+            'nb_permanents' => $nb_permanents,
+            'nb_vacataires' => $nb_vacataires,
+            'mh_totale' => $mh_totale,
+            'mh_realisee' => $mh_realisee,
+            'taux_realisation' => $taux_realisation,
+        ];
+        
+        // ✅ Stocker le nombre de formations (utilisé dans la vue)
+        $etablissement->formations_count = $formations_count;
+    }
+
+    return view('administrationcomplexe.etablissements.index', compact(
+        'user',
+        'complexe',
+        'etablissements'
+    ));
+}
 
     /**
      * Display the specified resource.
@@ -65,6 +129,7 @@ class EtablissementController extends Controller
 
         $etablissement = Etablissement::where('code_efp', $code_efp)
             ->where('complexe_id', $complexe->id)
+            ->with(['user', 'complexe'])
             ->firstOrFail();
 
         $filters = [
@@ -102,137 +167,205 @@ class EtablissementController extends Controller
     // ========== METHODES PRIVEES ==========
 
     /**
-     * ✅ CORRECTION COMPLÈTE : Récupère les modules non affectés par filière
+     * ✅ Modules non affectés par filière - VERSION CORRIGÉE
      */
     private function getModulesNonAffectesParFiliere($code_efp)
     {
-        $filieres = Filiere::where('code_efp', $code_efp)->get();
-        $result = collect();
+        // Cache pour 5 minutes
+        $cacheKey = "modules_non_affectes_filiere_{$code_efp}";
         
-        foreach ($filieres as $filiere) {
-            // Récupérer tous les modules de la filière
-            $modulesFiliere = $filiere->modules;
+        return Cache::remember($cacheKey, 300, function() use ($code_efp) {
+            $filieres = Filiere::where('code_efp', $code_efp)
+                ->with(['modules' => function($query) use ($code_efp) {
+                    $query->where('modules.code_efp', $code_efp);
+                }])
+                ->get();
             
-            // Récupérer tous les groupes de la filière dans cet établissement
-            $groupesIds = Groupe::where('filiere_id', $filiere->id)
-                ->where('code_efp', $code_efp)
-                ->pluck('id');
+            $result = collect();
             
-            foreach ($modulesFiliere as $module) {
-                // Vérifier si le module est affecté avec au moins un formateur
-                $estAffecte = Affectation::where('module_id', $module->id)
+            foreach ($filieres as $filiere) {
+                // Récupérer les IDs des groupes actifs
+                $groupesIds = Groupe::where('filiere_id', $filiere->id)
                     ->where('code_efp', $code_efp)
-                    ->whereIn('groupe_id', $groupesIds)
-                    ->where(function($query) {
-                        $query->whereNotNull('mle_affecte_presentiel')
-                              ->orWhereNotNull('mle_affecte_syn');
-                    })
-                    ->exists();
+                    ->where('statut', 'Actif')
+                    ->pluck('id');
                 
-                if (!$estAffecte) {
-                    $result->push((object)[
-                        'code_filiere' => $filiere->code_filiere,
-                        'nom_filiere' => $filiere->nom_filiere,
-                        'code_module' => $module->code_module,
-                        'nom_module' => $module->nom_module
-                    ]);
+                if ($groupesIds->isEmpty()) {
+                    foreach ($filiere->modules as $module) {
+                        $result->push((object)[
+                            'code_filiere' => $filiere->code_filiere,
+                            'nom_filiere' => $filiere->nom_filiere,
+                            'code_module' => $module->code_module,
+                            'nom_module' => $module->nom_module,
+                            'raison' => 'Aucun groupe actif'
+                        ]);
+                    }
+                    continue;
+                }
+                
+                foreach ($filiere->modules as $module) {
+                    // Vérifier si au moins UNE affectation complète existe
+                    $affectationComplete = Affectation::where('module_id', $module->id)
+                        ->where('code_efp', $code_efp)
+                        ->whereIn('groupe_id', $groupesIds)
+                        ->where(function($query) {
+                            $query->whereNotNull('mle_affecte_presentiel')
+                                  ->orWhereNotNull('mle_affecte_syn');
+                        })
+                        ->exists();
+                    
+                    if (!$affectationComplete) {
+                        $affectationsSansFormateur = Affectation::where('module_id', $module->id)
+                            ->where('code_efp', $code_efp)
+                            ->whereIn('groupe_id', $groupesIds)
+                            ->whereNull('mle_affecte_presentiel')
+                            ->whereNull('mle_affecte_syn')
+                            ->exists();
+                        
+                        $result->push((object)[
+                            'code_filiere' => $filiere->code_filiere,
+                            'nom_filiere' => $filiere->nom_filiere,
+                            'code_module' => $module->code_module,
+                            'nom_module' => $module->nom_module,
+                            'raison' => $affectationsSansFormateur ? 'Affectations sans formateur' : 'Aucune affectation'
+                        ]);
+                    }
                 }
             }
-        }
-        
-        return $result->groupBy('nom_filiere');
+            
+            return $result->sortBy('nom_filiere')->groupBy('nom_filiere');
+        });
     }
 
     /**
-     * ✅ CORRECTION COMPLÈTE : Récupère les modules non affectés par groupe
+     * ✅ Modules non affectés par groupe - VERSION CORRIGÉE
      */
     private function getModulesNonAffectesParGroupe($code_efp)
     {
-        $groupes = Groupe::where('code_efp', $code_efp)
-            ->with('filiere')
-            ->get();
+        $cacheKey = "modules_non_affectes_groupe_{$code_efp}";
         
-        $result = collect();
-        
-        foreach ($groupes as $groupe) {
-            // Récupérer tous les modules de la filière du groupe
-            $modulesFiliere = $groupe->filiere->modules;
+        return Cache::remember($cacheKey, 300, function() use ($code_efp) {
+            $groupes = Groupe::where('code_efp', $code_efp)
+                ->where('statut', 'Actif')
+                ->with(['filiere.modules' => function($query) use ($code_efp) {
+                    $query->where('modules.code_efp', $code_efp);
+                }])
+                ->get();
             
-            foreach ($modulesFiliere as $module) {
-                // Vérifier si le module est affecté avec au moins un formateur pour ce groupe
-                $estAffecte = Affectation::where('module_id', $module->id)
-                    ->where('groupe_id', $groupe->id)
-                    ->where('code_efp', $code_efp)
-                    ->where(function($query) {
-                        $query->whereNotNull('mle_affecte_presentiel')
-                              ->orWhereNotNull('mle_affecte_syn');
-                    })
-                    ->exists();
+            $result = collect();
+            
+            foreach ($groupes as $groupe) {
+                if (!$groupe->filiere || $groupe->filiere->modules->isEmpty()) {
+                    continue;
+                }
                 
-                if (!$estAffecte) {
-                    $result->push((object)[
-                        'code_groupe' => $groupe->code_groupe,
-                        'code_filiere' => $groupe->filiere->code_filiere,
-                        'nom_filiere' => $groupe->filiere->nom_filiere,
-                        'code_module' => $module->code_module,
-                        'nom_module' => $module->nom_module
-                    ]);
+                foreach ($groupe->filiere->modules as $module) {
+                    // Vérifier l'affectation pour CE groupe spécifique
+                    $affectationComplete = Affectation::where('module_id', $module->id)
+                        ->where('groupe_id', $groupe->id)
+                        ->where('code_efp', $code_efp)
+                        ->where(function($query) {
+                            $query->whereNotNull('mle_affecte_presentiel')
+                                  ->orWhereNotNull('mle_affecte_syn');
+                        })
+                        ->exists();
+                    
+                    if (!$affectationComplete) {
+                        $affectationExiste = Affectation::where('module_id', $module->id)
+                            ->where('groupe_id', $groupe->id)
+                            ->where('code_efp', $code_efp)
+                            ->exists();
+                        
+                        $result->push((object)[
+                            'code_groupe' => $groupe->code_groupe,
+                            'code_filiere' => $groupe->filiere->code_filiere,
+                            'nom_filiere' => $groupe->filiere->nom_filiere,
+                            'code_module' => $module->code_module,
+                            'nom_module' => $module->nom_module,
+                            'raison' => $affectationExiste ? 'Affectation sans formateur' : 'Aucune affectation',
+                            'effectif' => $groupe->effectif_groupe
+                        ]);
+                    }
                 }
             }
-        }
-        
-        return $result->groupBy('code_groupe');
+            
+            return $result->sortBy('code_groupe')->groupBy('code_groupe');
+        });
     }
 
     /**
-     * Récupère les statistiques des formateurs
+     * ✅ Stats des formateurs optimisées
      */
     private function getFormateursStats($code_efp)
     {
-        $formateurs = Formateur::where('code_efp', $code_efp)->get();
-        $stats = [];
-
-        foreach ($formateurs as $formateur) {
-            $affectationsPresentiel = Affectation::where('code_efp', $code_efp)
-                ->where('mle_affecte_presentiel', $formateur->mle)
+        $cacheKey = "formateurs_stats_{$code_efp}";
+        
+        return Cache::remember($cacheKey, 300, function() use ($code_efp) {
+            $formateurs = Formateur::where('code_efp', $code_efp)
+                ->with([
+                    'affectationsPresentiel' => function($query) use ($code_efp) {
+                        $query->where('code_efp', $code_efp)
+                              ->select('id', 'mle_affecte_presentiel', 'mhp_totale_drif', 'mh_affectee_presentiel');
+                    },
+                    'affectationsSyn' => function($query) use ($code_efp) {
+                        $query->where('code_efp', $code_efp)
+                              ->select('id', 'mle_affecte_syn', 'mhsyn_totale_drif', 'mh_affectee_sync');
+                    }
+                ])
                 ->get();
-            
-            $affectationsSyn = Affectation::where('code_efp', $code_efp)
-                ->where('mle_affecte_syn', $formateur->mle)
-                ->get();
 
-            $heuresRequisesPresentiel = $affectationsPresentiel->sum('mhp_totale_drif');
-            $heuresRequisesSyn = $affectationsSyn->sum('mhsyn_totale_drif');
-            $heuresRequisesTotal = $heuresRequisesPresentiel + $heuresRequisesSyn;
+            $stats = [];
 
-            $heuresAffecteesPresentiel = $affectationsPresentiel->sum('mh_affectee_presentiel');
-            $heuresAffecteesSyn = $affectationsSyn->sum('mh_affectee_sync');
-            $heuresAffecteesTotal = $heuresAffecteesPresentiel + $heuresAffecteesSyn;
+            foreach ($formateurs as $formateur) {
+                $heuresRequisesPresentiel = $formateur->affectationsPresentiel->sum('mhp_totale_drif');
+                $heuresRequisesSyn = $formateur->affectationsSyn->sum('mhsyn_totale_drif');
+                $heuresRequisesTotal = $heuresRequisesPresentiel + $heuresRequisesSyn;
 
-            $heuresManquantes = max(0, $heuresRequisesTotal - $heuresAffecteesTotal);
+                $heuresAffecteesPresentiel = $formateur->affectationsPresentiel->sum('mh_affectee_presentiel');
+                $heuresAffecteesSyn = $formateur->affectationsSyn->sum('mh_affectee_sync');
+                $heuresAffecteesTotal = $heuresAffecteesPresentiel + $heuresAffecteesSyn;
 
-            $stats[] = [
-                'mle' => $formateur->mle,
-                'nom_complet' => $formateur->nom_complet,
-                'type' => $formateur->type,
-                'heures_requises' => $heuresRequisesTotal,
-                'heures_affectees' => $heuresAffecteesTotal,
-                'heures_manquantes' => $heuresManquantes,
+                $heuresManquantes = max(0, $heuresRequisesTotal - $heuresAffecteesTotal);
+                $tauxAffectation = $heuresRequisesTotal > 0 
+                    ? ($heuresAffecteesTotal / $heuresRequisesTotal) * 100 
+                    : 0;
+
+                $stats[] = [
+                    'mle' => $formateur->mle,
+                    'nom_complet' => $formateur->nom_complet,
+                    'type' => $formateur->type,
+                    'heures_requises' => round($heuresRequisesTotal, 2),
+                    'heures_affectees' => round($heuresAffecteesTotal, 2),
+                    'heures_manquantes' => round($heuresManquantes, 2),
+                    'taux_affectation' => round($tauxAffectation, 2),
+                ];
+            }
+
+            usort($stats, function($a, $b) {
+                return $b['heures_manquantes'] <=> $a['heures_manquantes'];
+            });
+
+            $totaux = [
+                'heures_requises' => round(array_sum(array_column($stats, 'heures_requises')), 2),
+                'heures_affectees' => round(array_sum(array_column($stats, 'heures_affectees')), 2),
+                'heures_manquantes' => round(array_sum(array_column($stats, 'heures_manquantes')), 2),
+                'taux_affectation' => 0,
             ];
-        }
 
-        $totaux = [
-            'heures_requises' => collect($stats)->sum('heures_requises'),
-            'heures_affectees' => collect($stats)->sum('heures_affectees'),
-            'heures_manquantes' => collect($stats)->sum('heures_manquantes'),
-        ];
+            if ($totaux['heures_requises'] > 0) {
+                $totaux['taux_affectation'] = round(($totaux['heures_affectees'] / $totaux['heures_requises']) * 100, 2);
+            }
 
-        return [
-            'formateurs' => $stats,
-            'totaux' => $totaux,
-        ];
+            return [
+                'formateurs' => $stats,
+                'totaux' => $totaux,
+            ];
+        });
     }
 
+    /**
+     * Stats de l'établissement
+     */
     private function getEtablissementStats($code_efp)
     {
         $affectations = Affectation::where('code_efp', $code_efp)
@@ -260,6 +393,9 @@ class EtablissementController extends Controller
         ];
     }
 
+    /**
+     * Construction de la requête détaillée avec filtres
+     */
     private function buildDetailedQuery($code_efp, $filters)
     {
         $query = Affectation::query()
@@ -355,6 +491,9 @@ class EtablissementController extends Controller
                      ->orderBy('groupes.code_groupe', 'asc');
     }
 
+    /**
+     * Calcul des statistiques
+     */
     private function calculateStatistics($code_efp, $filters)
     {
         $query = Affectation::query()
@@ -438,6 +577,9 @@ class EtablissementController extends Controller
         ];
     }
 
+    /**
+     * Données pour les graphiques
+     */
     private function getChartData($code_efp, $filters)
     {
         $query = Affectation::query()
@@ -511,6 +653,9 @@ class EtablissementController extends Controller
         ];
     }
 
+    /**
+     * Options de filtrage
+     */
     private function getFilterOptions($code_efp)
     {
         $secteurs = Secteur::where('code_efp', $code_efp)
@@ -583,6 +728,7 @@ class EtablissementController extends Controller
 
         $directeurs = User::where('role', 'directeur_etablissement')
             ->whereDoesntHave('etablissement')
+            ->orderBy('nom')
             ->get();
 
         return view('administrationcomplexe.etablissements.create', compact(
@@ -614,13 +760,30 @@ class EtablissementController extends Controller
             'code_efp' => 'required|string|max:50|unique:etablissements,code_efp',
             'nom_efp' => 'required|string|max:255',
             'user_id' => 'nullable|exists:users,id',
+        ], [
+            'code_efp.required' => 'Le code EFP est obligatoire.',
+            'code_efp.unique' => 'Ce code EFP existe déjà.',
+            'nom_efp.required' => 'Le nom de l\'établissement est obligatoire.',
+            'user_id.exists' => 'Le directeur sélectionné n\'existe pas.',
         ]);
 
         $validated['complexe_id'] = $complexe->id;
-        Etablissement::create($validated);
-
-        return redirect()->route('administration.complexe.etablissements.index')
-            ->with('success', 'Établissement créé avec succès.');
+        
+        try {
+            Etablissement::create($validated);
+            
+            // Vider le cache
+            Cache::forget("modules_non_affectes_filiere_{$validated['code_efp']}");
+            Cache::forget("modules_non_affectes_groupe_{$validated['code_efp']}");
+            Cache::forget("formateurs_stats_{$validated['code_efp']}");
+            
+            return redirect()->route('administration.complexe.etablissements.index')
+                ->with('success', 'Établissement créé avec succès.');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Erreur lors de la création de l\'établissement: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -650,6 +813,7 @@ class EtablissementController extends Controller
                 $query->whereDoesntHave('etablissement')
                       ->orWhere('id', $etablissement->user_id);
             })
+            ->orderBy('nom')
             ->get();
 
         return view('administrationcomplexe.etablissements.edit', compact(
@@ -685,12 +849,26 @@ class EtablissementController extends Controller
         $validated = $request->validate([
             'nom_efp' => 'required|string|max:255',
             'user_id' => 'nullable|exists:users,id',
+        ], [
+            'nom_efp.required' => 'Le nom de l\'établissement est obligatoire.',
+            'user_id.exists' => 'Le directeur sélectionné n\'existe pas.',
         ]);
 
-        $etablissement->update($validated);
-
-        return redirect()->route('administration.complexe.etablissements.index')
-            ->with('success', 'Établissement modifié avec succès.');
+        try {
+            $etablissement->update($validated);
+            
+            // Vider le cache
+            Cache::forget("modules_non_affectes_filiere_{$code_efp}");
+            Cache::forget("modules_non_affectes_groupe_{$code_efp}");
+            Cache::forget("formateurs_stats_{$code_efp}");
+            
+            return redirect()->route('administration.complexe.etablissements.index')
+                ->with('success', 'Établissement modifié avec succès.');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Erreur lors de la modification: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -715,14 +893,29 @@ class EtablissementController extends Controller
             ->where('complexe_id', $complexe->id)
             ->firstOrFail();
 
-        if ($etablissement->formations()->count() > 0) {
+        // Vérifier s'il y a des données liées
+        $hasRelatedData = $etablissement->formations()->count() > 0 
+                       || $etablissement->groupes()->count() > 0 
+                       || $etablissement->affectations()->count() > 0;
+
+        if ($hasRelatedData) {
             return redirect()->route('administration.complexe.etablissements.index')
-                ->with('error', 'Impossible de supprimer cet établissement car il contient des formations.');
+                ->with('error', 'Impossible de supprimer cet établissement car il contient des données (formations, groupes ou affectations).');
         }
 
-        $etablissement->delete();
-
-        return redirect()->route('administration.complexe.etablissements.index')
-            ->with('success', 'Établissement supprimé avec succès.');
+        try {
+            $etablissement->delete();
+            
+            // Vider le cache
+            Cache::forget("modules_non_affectes_filiere_{$code_efp}");
+            Cache::forget("modules_non_affectes_groupe_{$code_efp}");
+            Cache::forget("formateurs_stats_{$code_efp}");
+            
+            return redirect()->route('administration.complexe.etablissements.index')
+                ->with('success', 'Établissement supprimé avec succès.');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Erreur lors de la suppression: ' . $e->getMessage());
+        }
     }
 }

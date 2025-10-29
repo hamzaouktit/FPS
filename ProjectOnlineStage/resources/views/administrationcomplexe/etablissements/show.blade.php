@@ -227,146 +227,228 @@
         </div>
     </div>
 
-    {{-- ✅ CORRECTION : Tableau des modules non affectés par filière --}}
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white border-bottom">
-            <h5 class="mb-0">
-                <i class="bi bi-exclamation-triangle text-warning"></i> Modules non affectés par filière
-                @if($modulesNonAffectesParFiliere->count() > 0)
-                    <span class="badge bg-warning text-dark">{{ $modulesNonAffectesParFiliere->sum(function($m) { return $m->count(); }) }}</span>
-                @endif
-            </h5>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-wrapper" style="max-height: 400px; overflow: auto;">
-                <table class="table table-sm table-hover table-bordered mb-0">
-                    <thead class="table-light" style="position: sticky; top: 0; z-index: 10;">
-                        <tr>
-                            <th>Filière</th>
-                            <th>Code Module</th>
-                            <th>Module</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($modulesNonAffectesParFiliere as $filiere => $modules)
-                            @foreach($modules as $module)
-                            <tr>
-                                <td>{{ $filiere }}</td>
-                                <td><span class="badge bg-secondary">{{ $module->code_module }}</span></td>
-                                <td>{{ $module->nom_module }}</td>
-                            </tr>
-                            @endforeach
-                        @empty
-                            <tr>
-                                <td colspan="3" class="text-center py-3 text-muted">
-                                    <i class="bi bi-check-circle text-success fs-4 d-block mb-2"></i>
-                                    Tous les modules sont affectés avec des formateurs
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    {{-- ✅ CORRECTION : Section modules non affectés par filière --}}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom">
+        <h5 class="mb-0">
+            <i class="bi bi-exclamation-triangle text-warning"></i> Modules non affectés par filière
+            @if($modulesNonAffectesParFiliere->count() > 0)
+                <span class="badge bg-warning text-dark">
+                    {{ $modulesNonAffectesParFiliere->sum(function($m) { return $m->count(); }) }}
+                </span>
+            @endif
+        </h5>
     </div>
-
-    {{-- ✅ CORRECTION : Tableau des modules non affectés par groupe --}}
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white border-bottom">
-            <h5 class="mb-0">
-                <i class="bi bi-exclamation-triangle text-warning"></i> Modules non affectés par groupe
-                @if($modulesNonAffectesParGroupe->count() > 0)
-                    <span class="badge bg-warning text-dark">{{ $modulesNonAffectesParGroupe->sum(function($m) { return $m->count(); }) }}</span>
-                @endif
-            </h5>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-wrapper" style="max-height: 400px; overflow: auto;">
-                <table class="table table-sm table-hover table-bordered mb-0">
-                    <thead class="table-light" style="position: sticky; top: 0; z-index: 10;">
+    <div class="card-body p-0">
+        <div class="table-wrapper" style="max-height: 400px; overflow: auto;">
+            <table class="table table-sm table-hover table-bordered mb-0">
+                <thead class="table-light" style="position: sticky; top: 0; z-index: 10;">
+                    <tr>
+                        <th style="width: 25%;">Filière</th>
+                        <th style="width: 15%;">Code Module</th>
+                        <th style="width: 40%;">Module</th>
+                        <th style="width: 20%;">Raison</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($modulesNonAffectesParFiliere as $filiere => $modules)
+                        @foreach($modules as $module)
                         <tr>
-                            <th>Groupe</th>
-                            <th>Filière</th>
-                            <th>Code Module</th>
-                            <th>Module</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($modulesNonAffectesParGroupe as $groupe => $modules)
-                            @foreach($modules as $module)
-                            <tr>
-                                <td><span class="badge bg-info">{{ $groupe }}</span></td>
-                                <td>{{ $module->nom_filiere }}</td>
-                                <td><span class="badge bg-secondary">{{ $module->code_module }}</span></td>
-                                <td>{{ $module->nom_module }}</td>
-                            </tr>
-                            @endforeach
-                        @empty
-                            <tr>
-                                <td colspan="4" class="text-center py-3 text-muted">
-                                    <i class="bi bi-check-circle text-success fs-4 d-block mb-2"></i>
-                                    Tous les modules sont affectés avec des formateurs
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    {{-- Tableau des statistiques des formateurs --}}
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white border-bottom">
-            <h5 class="mb-0">
-                <i class="bi bi-person-badge text-primary"></i> Statistiques des formateurs
-            </h5>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-wrapper" style="max-height: 500px; overflow: auto;">
-                <table class="table table-sm table-hover table-bordered mb-0">
-                    <thead class="table-light" style="position: sticky; top: 0; z-index: 10;">
-                        <tr>
-                            <th>MLE</th>
-                            <th>Nom complet</th>
-                            <th>Type</th>
-                            <th class="text-end">Heures requises</th>
-                            <th class="text-end">Heures affectées</th>
-                            <th class="text-end">Heures manquantes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($formateursStats['formateurs'] as $formateur)
-                        <tr>
-                            <td>{{ $formateur['mle'] }}</td>
-                            <td>{{ $formateur['nom_complet'] }}</td>
                             <td>
-                                <span class="badge bg-{{ $formateur['type'] == 'permanent' ? 'success' : 'warning' }}">
-                                    {{ ucfirst($formateur['type']) }}
-                                </span>
+                                <strong>{{ $module->code_filiere }}</strong> - {{ $filiere }}
                             </td>
-                            <td class="text-end">{{ number_format($formateur['heures_requises'], 2) }}h</td>
-                            <td class="text-end">{{ number_format($formateur['heures_affectees'], 2) }}h</td>
-                            <td class="text-end {{ $formateur['heures_manquantes'] > 0 ? 'text-danger fw-bold' : 'text-success' }}">
-                                {{ number_format($formateur['heures_manquantes'], 2) }}h
+                            <td>
+                                <span class="badge bg-secondary">{{ $module->code_module }}</span>
+                            </td>
+                            <td>{{ $module->nom_module }}</td>
+                            <td>
+                                <span class="badge bg-{{ $module->raison == 'Aucun groupe actif' ? 'info' : 'warning' }}">
+                                    {{ $module->raison }}
+                                </span>
                             </td>
                         </tr>
                         @endforeach
-                    </tbody>
-                    <tfoot class="table-light">
+                    @empty
                         <tr>
-                            <th colspan="3" class="text-end">TOTAUX:</th>
-                            <th class="text-end">{{ number_format($formateursStats['totaux']['heures_requises'], 2) }}h</th>
-                            <th class="text-end">{{ number_format($formateursStats['totaux']['heures_affectees'], 2) }}h</th>
-                            <th class="text-end {{ $formateursStats['totaux']['heures_manquantes'] > 0 ? 'text-danger fw-bold' : 'text-success' }}">
-                                {{ number_format($formateursStats['totaux']['heures_manquantes'], 2) }}h
-                            </th>
+                            <td colspan="4" class="text-center py-3 text-muted">
+                                <i class="bi bi-check-circle text-success fs-4 d-block mb-2"></i>
+                                Tous les modules des filières sont affectés avec des formateurs
+                            </td>
                         </tr>
-                    </tfoot>
-                </table>
-            </div>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
+    @if($modulesNonAffectesParFiliere->count() > 0)
+    <div class="card-footer bg-light border-top">
+        <small class="text-muted">
+            <i class="bi bi-info-circle"></i>
+            <strong>Légende :</strong> 
+            <span class="badge bg-warning text-dark">Affectations sans formateur</span> = L'affectation existe mais aucun formateur n'est assigné |
+            <span class="badge bg-warning text-dark">Aucune affectation</span> = Le module n'est pas encore affecté |
+            <span class="badge bg-info">Aucun groupe actif</span> = La filière n'a aucun groupe actif
+        </small>
+    </div>
+    @endif
+</div>
+
+{{-- ✅ CORRECTION : Section modules non affectés par groupe --}}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom">
+        <h5 class="mb-0">
+            <i class="bi bi-exclamation-triangle text-warning"></i> Modules non affectés par groupe
+            @if($modulesNonAffectesParGroupe->count() > 0)
+                <span class="badge bg-warning text-dark">
+                    {{ $modulesNonAffectesParGroupe->sum(function($m) { return $m->count(); }) }}
+                </span>
+            @endif
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-wrapper" style="max-height: 400px; overflow: auto;">
+            <table class="table table-sm table-hover table-bordered mb-0">
+                <thead class="table-light" style="position: sticky; top: 0; z-index: 10;">
+                    <tr>
+                        <th style="width: 15%;">Groupe</th>
+                        <th style="width: 10%;">Effectif</th>
+                        <th style="width: 20%;">Filière</th>
+                        <th style="width: 15%;">Code Module</th>
+                        <th style="width: 25%;">Module</th>
+                        <th style="width: 15%;">Raison</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($modulesNonAffectesParGroupe as $groupe => $modules)
+                        @foreach($modules as $module)
+                        <tr>
+                            <td>
+                                <span class="badge bg-info">{{ $groupe }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-dark">{{ $module->effectif }}</span>
+                            </td>
+                            <td>
+                                <small><strong>{{ $module->code_filiere }}</strong></small><br>
+                                <small class="text-muted">{{ $module->nom_filiere }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ $module->code_module }}</span>
+                            </td>
+                            <td>{{ $module->nom_module }}</td>
+                            <td>
+                                <span class="badge bg-{{ $module->raison == 'Affectation sans formateur' ? 'warning' : 'danger' }}">
+                                    {{ $module->raison }}
+                                </span>
+                            </td>
+                        </tr>
+                        @endforeach
+                    @empty
+                        <tr>
+                            <td colspan="6" class="text-center py-3 text-muted">
+                                <i class="bi bi-check-circle text-success fs-4 d-block mb-2"></i>
+                                Tous les modules de tous les groupes sont affectés avec des formateurs
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @if($modulesNonAffectesParGroupe->count() > 0)
+    <div class="card-footer bg-light border-top">
+        <small class="text-muted">
+            <i class="bi bi-info-circle"></i>
+            <strong>Légende :</strong> 
+            <span class="badge bg-warning">Affectation sans formateur</span> = L'affectation existe mais aucun formateur n'est assigné |
+            <span class="badge bg-danger">Aucune affectation</span> = Le module n'est pas encore affecté pour ce groupe
+        </small>
+    </div>
+    @endif
+</div>
+
+{{-- ✅ AMÉLIORATION : Tableau des formateurs avec tri et couleurs --}}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom">
+        <h5 class="mb-0">
+            <i class="bi bi-person-badge text-primary"></i> Statistiques des formateurs
+            <span class="badge bg-primary">{{ count($formateursStats['formateurs']) }}</span>
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-wrapper" style="max-height: 500px; overflow: auto;">
+            <table class="table table-sm table-hover table-bordered mb-0">
+                <thead class="table-light" style="position: sticky; top: 0; z-index: 10;">
+                    <tr>
+                        <th style="width: 12%;">MLE</th>
+                        <th style="width: 30%;">Nom complet</th>
+                        <th style="width: 12%;">Type</th>
+                        <th class="text-end" style="width: 15%;">Heures requises</th>
+                        <th class="text-end" style="width: 15%;">Heures affectées</th>
+                        <th class="text-end" style="width: 16%;">Heures manquantes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($formateursStats['formateurs'] as $formateur)
+                    <tr class="{{ $formateur['heures_manquantes'] > 50 ? 'table-danger' : ($formateur['heures_manquantes'] > 0 ? 'table-warning' : '') }}">
+                        <td><code>{{ $formateur['mle'] }}</code></td>
+                        <td>{{ $formateur['nom_complet'] }}</td>
+                        <td>
+                            <span class="badge bg-{{ $formateur['type'] == 'permanent' ? 'success' : 'warning' }}">
+                                {{ ucfirst($formateur['type']) }}
+                            </span>
+                        </td>
+                        <td class="text-end">{{ number_format($formateur['heures_requises'], 2) }}h</td>
+                        <td class="text-end">{{ number_format($formateur['heures_affectees'], 2) }}h</td>
+                        <td class="text-end">
+                            @if($formateur['heures_manquantes'] > 0)
+                                <strong class="text-danger">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    {{ number_format($formateur['heures_manquantes'], 2) }}h
+                                </strong>
+                            @else
+                                <span class="text-success">
+                                    <i class="bi bi-check-circle"></i> 0h
+                                </span>
+                            @endif
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+                <tfoot class="table-light" style="position: sticky; bottom: 0;">
+                    <tr>
+                        <th colspan="3" class="text-end">TOTAUX:</th>
+                        <th class="text-end">{{ number_format($formateursStats['totaux']['heures_requises'], 2) }}h</th>
+                        <th class="text-end">{{ number_format($formateursStats['totaux']['heures_affectees'], 2) }}h</th>
+                        <th class="text-end {{ $formateursStats['totaux']['heures_manquantes'] > 0 ? 'text-danger' : 'text-success' }}">
+                            <strong>
+                                @if($formateursStats['totaux']['heures_manquantes'] > 0)
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                @else
+                                    <i class="bi bi-check-circle"></i>
+                                @endif
+                                {{ number_format($formateursStats['totaux']['heures_manquantes'], 2) }}h
+                            </strong>
+                        </th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    @if($formateursStats['totaux']['heures_manquantes'] > 0)
+    <div class="card-footer bg-light border-top">
+        <small class="text-muted">
+            <i class="bi bi-info-circle"></i>
+            <strong>Légende :</strong> 
+            <span class="badge bg-danger">Rouge</span> = Plus de 50h manquantes |
+            <span class="badge bg-warning text-dark">Jaune</span> = Heures manquantes |
+            Les formateurs sont triés par nombre d'heures manquantes (décroissant)
+        </small>
+    </div>
+    @endif
+</div>
+
+
 
     {{-- Graphiques --}}
     <div class="row g-3 mb-4">

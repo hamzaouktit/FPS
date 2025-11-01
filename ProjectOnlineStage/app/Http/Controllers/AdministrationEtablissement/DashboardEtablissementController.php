@@ -19,6 +19,8 @@ use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\DataImport;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 
 class DashboardEtablissementController extends Controller
 {
@@ -100,8 +102,16 @@ class DashboardEtablissementController extends Controller
         // Graphiques de taux
         $tauxChartData = $this->getTauxChartData($affectations);
         
-        // Données détaillées par groupe et module
+        // Données détaillées par groupe et module - AVEC PAGINATION
         $detailedData = $this->getDetailedGroupeModuleData($affectations);
+        
+        // Pagination pour les données détaillées
+        $perPage = 15;
+        $currentPage = LengthAwarePaginator::resolveCurrentPage();
+        $currentItems = $detailedData->slice(($currentPage - 1) * $perPage, $perPage)->all();
+        $paginatedDetailedData = new LengthAwarePaginator($currentItems, $detailedData->count(), $perPage);
+        $paginatedDetailedData->setPath($request->url());
+        $paginatedDetailedData->appends($request->query());
         
         // Top 10 modules avec meilleurs taux
         $topModules = $this->getTopModules($affectations);
@@ -128,6 +138,19 @@ class DashboardEtablissementController extends Controller
             return $aucunFormateur || $heuresNonAffectees;
         });
 
+        // Ajouter la raison à chaque affectation non affectée
+        $affectationsNonAffectes = $affectationsNonAffectes->map(function ($affectation) {
+            $raisons = [];
+            if (is_null($affectation->mle_affecte_presentiel) && is_null($affectation->mle_affecte_syn)) {
+                $raisons[] = 'Aucun formateur affecté';
+            }
+            if (($affectation->mh_affectee_globale == 0 || is_null($affectation->mh_affectee_globale)) && $affectation->mh_totale_drif > 0) {
+                $raisons[] = 'Masse horaire non affectée';
+            }
+            $affectation->raison = implode(', ', $raisons) ?: 'Autres raisons';
+            return $affectation;
+        });
+
         // Par module
         $nonAffectesParModule = $affectationsNonAffectes->groupBy('module_id')->map(function ($group) {
             $firstAffectation = $group->first();
@@ -137,6 +160,7 @@ class DashboardEtablissementController extends Controller
                 'groupes' => $group->pluck('groupe.code_groupe')->unique()->implode(', '),
                 'masse_horaire' => $group->sum('mh_totale_drif'),
                 'formateur' => 'Non affecté',
+                'raisons' => $group->pluck('raison')->unique()->implode(', '),
             ];
         })->values();
 
@@ -158,6 +182,7 @@ class DashboardEtablissementController extends Controller
                 'nom_filiere' => $filiere ? $filiere->nom_filiere : 'N/A',
                 'modules' => $modules,
                 'masse_horaire' => $group->sum('mh_totale_drif'),
+                'raisons' => $group->pluck('raison')->unique()->implode(', '),
             ];
         })->filter(function($item) {
             return $item['code_filiere'] !== null;
@@ -190,6 +215,23 @@ class DashboardEtablissementController extends Controller
             'heures_manquantes' => $formateursData->sum('heures_manquantes'),
         ];
 
+        // Nouvelle table : Entités sans affectation
+        // Groupes sans aucune affectation
+        $groupesSansAffectation = Groupe::where('code_efp', $etablissement->code_efp)
+            ->whereDoesntHave('affectations')
+            ->get();
+
+        // Modules sans aucune affectation
+        $modulesSansAffectation = Module::where('code_efp', $etablissement->code_efp)
+            ->whereDoesntHave('affectations')
+            ->get();
+
+        // Formateurs sans aucune affectation
+        $formateursSansAffectation = Formateur::where('code_efp', $etablissement->code_efp)
+            ->whereDoesntHave('affectationsPresentiel')
+            ->whereDoesntHave('affectationsSyn')
+            ->get();
+
         return view('administrationetablissement.dashboard', compact(
             'etablissement',
             'statistics',
@@ -197,6 +239,7 @@ class DashboardEtablissementController extends Controller
             'heuresData',
             'tauxChartData',
             'detailedData',
+            'paginatedDetailedData',
             'topModules',
             'chartData',
             'formateurStats',
@@ -207,7 +250,10 @@ class DashboardEtablissementController extends Controller
             'nonAffectesParFiliere',
             'totalNonAffectesFiliere',
             'formateursData',
-            'totalFormateurs'
+            'totalFormateurs',
+            'groupesSansAffectation',
+            'modulesSansAffectation',
+            'formateursSansAffectation'
         ));
     }
 

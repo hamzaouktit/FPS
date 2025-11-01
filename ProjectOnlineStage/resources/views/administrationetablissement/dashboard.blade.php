@@ -637,6 +637,7 @@
                                 <th>Groupes</th>
                                 <th class="text-end">Masse Horaire</th>
                                 <th>Formateur</th>
+                                <th>Raison</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -646,10 +647,11 @@
                                 <td>{{ $item['groupes'] }}</td>
                                 <td class="text-end">{{ number_format($item['masse_horaire'], 2) }}h</td>
                                 <td>{{ $item['formateur'] }}</td>
+                                <td>{{ $item['raisons'] }}</td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="4" class="text-center text-muted py-4">
+                                <td colspan="5" class="text-center text-muted py-4">
                                     <i class="fas fa-check-circle fa-3x mb-3 d-block text-success"></i>
                                     Tous les modules sont affectés
                                 </td>
@@ -660,7 +662,7 @@
                             <tr class="table-secondary fw-bold">
                                 <th colspan="2">Total</th>
                                 <th class="text-end">{{ number_format($totalNonAffectesModule, 2) }}h</th>
-                                <th></th>
+                                <th colspan="2"></th>
                             </tr>
                         </tfoot>
                     </table>
@@ -688,6 +690,7 @@
                                 <th>Filière</th>
                                 <th>Modules Non Affectés</th>
                                 <th class="text-end">Masse Horaire</th>
+                                <th>Raison</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -699,10 +702,11 @@
                                 </td>
                                 <td>{{ $item['modules'] }}</td>
                                 <td class="text-end">{{ number_format($item['masse_horaire'], 2) }}h</td>
+                                <td>{{ $item['raisons'] }}</td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="3" class="text-center text-muted py-4">
+                                <td colspan="4" class="text-center text-muted py-4">
                                     <i class="fas fa-check-circle fa-3x mb-3 d-block text-success"></i>
                                     Tous les modules sont affectés
                                 </td>
@@ -713,9 +717,108 @@
                             <tr class="table-secondary fw-bold">
                                 <th colspan="2">Total</th>
                                 <th class="text-end">{{ number_format($totalNonAffectesFiliere, 2) }}h</th>
+                                <th></th>
                             </tr>
                         </tfoot>
                     </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Nouvelle table : Entités sans affectation -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-circle text-danger me-2"></i>
+                    Entités Sans Affectation (Groupes, Modules, Formateurs créés mais non affectés)
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Groupes sans affectation -->
+                    <div class="col-md-4 mb-4">
+                        <h6 class="mb-3">Groupes sans affectation</h6>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Code Groupe</th>
+                                        <th>Année</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($groupesSansAffectation as $groupe)
+                                    <tr>
+                                        <td>{{ $groupe->code_groupe }}</td>
+                                        <td>{{ $groupe->annee_formation }}</td>
+                                    </tr>
+                                    @empty
+                                    <tr>
+                                        <td colspan="2" class="text-center text-muted">Aucun groupe sans affectation</td>
+                                    </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Modules sans affectation -->
+                    <div class="col-md-4 mb-4">
+                        <h6 class="mb-3">Modules sans affectation</h6>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Code Module</th>
+                                        <th>Nom Module</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($modulesSansAffectation as $module)
+                                    <tr>
+                                        <td>{{ $module->code_module }}</td>
+                                        <td>{{ $module->nom_module }}</td>
+                                    </tr>
+                                    @empty
+                                    <tr>
+                                        <td colspan="2" class="text-center text-muted">Aucun module sans affectation</td>
+                                    </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Formateurs sans affectation -->
+                    <div class="col-md-4 mb-4">
+                        <h6 class="mb-3">Formateurs sans affectation</h6>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>MLE</th>
+                                        <th>Nom Complet</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($formateursSansAffectation as $formateur)
+                                    <tr>
+                                        <td>{{ $formateur->mle }}</td>
+                                        <td>{{ $formateur->nom_complet }}</td>
+                                    </tr>
+                                    @empty
+                                    <tr>
+                                        <td colspan="2" class="text-center text-muted">Aucun formateur sans affectation</td>
+                                    </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -778,7 +881,7 @@
         </div>
     </div>
 </div>
-
+<!-- Données détaillées -->
 <!-- Données détaillées -->
 <div class="row mb-4">
     <div class="col-12">
@@ -788,13 +891,15 @@
                     <i class="fas fa-table text-primary me-2"></i>
                     Données Détaillées par Groupe et Module
                 </h5>
-                <button class="btn btn-success" onclick="exportTableToExcel('detailedTable', 'donnees_detaillees')">
-                    <i class="fas fa-file-excel me-1"></i> Exporter Excel
-                </button>
+                <div>
+                    <button class="btn btn-success btn-sm" onclick="exportTableToExcel('detailedTable', 'donnees_detaillees')">
+                        <i class="fas fa-file-excel me-1"></i> Exporter Excel
+                    </button>
+                </div>
             </div>
-            <div class="card-body">
+            <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover table-sm align-middle" id="detailedTable">
+                    <table class="table table-hover table-sm align-middle mb-0" id="detailedTable">
                         <thead class="table-dark">
                             <tr>
                                 <th>Groupe</th>
@@ -816,7 +921,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($detailedData as $data)
+                            @forelse($paginatedDetailedData as $data)
                             <tr>
                                 <td><strong>{{ $data['groupe'] }}</strong></td>
                                 <td>
@@ -824,14 +929,14 @@
                                     <small class="text-muted">{{ Str::limit($data['module_nom'], 30) }}</small>
                                 </td>
                                 <td><small>{{ $data['formation'] }}</small></td>
-                                <td><span class="badge bg-info">{{ $data['niveau'] }}</span></td>
+                                <td><span class="badge bg-info text-dark">{{ $data['niveau'] }}</span></td>
                                 <td><small>{{ $data['annee'] }}</small></td>
                                 <td><small>{{ Str::limit($data['formateur_presentiel'], 20) }}</small></td>
                                 <td><small>{{ Str::limit($data['formateur_synchrone'], 20) }}</small></td>
                                 <td class="text-end">{{ $data['heures_affectees'] }}h</td>
                                 <td class="text-end">{{ $data['heures_realisees'] }}h</td>
                                 <td class="text-center">
-                                    <span class="badge {{ $data['taux_realisation'] >= 80 ? 'bg-success' : ($data['taux_realisation'] >= 50 ? 'bg-warning text-dark' : 'bg-danger') }}">
+                                    <span class="badge rounded-pill fw-bold {{ $data['taux_realisation'] >= 80 ? 'bg-success' : ($data['taux_realisation'] >= 50 ? 'bg-warning text-dark' : 'bg-danger') }}">
                                         {{ $data['taux_realisation'] }}%
                                     </span>
                                 </td>
@@ -841,16 +946,16 @@
                                 <td class="text-center"><span class="badge bg-secondary">{{ $data['nb_cc'] }}</span></td>
                                 <td class="text-center">
                                     @if($data['efm_valide'] == 'Oui')
-                                        <i class="fas fa-check-circle text-success"></i>
+                                        <i class="fas fa-check-circle text-success fs-5"></i>
                                     @else
-                                        <i class="fas fa-times-circle text-danger"></i>
+                                        <i class="fas fa-times-circle text-danger fs-5"></i>
                                     @endif
                                 </td>
-                                <td><small>{{ $data['date_maj'] }}</small></td>
+                                <td><small class="text-muted">{{ $data['date_maj'] }}</small></td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="16" class="text-center text-muted py-4">
+                                <td colspan="16" class="text-center text-muted py-5">
                                     <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
                                     Aucune donnée disponible
                                 </td>
@@ -859,6 +964,91 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Pagination Modernisée -->
+                @if($paginatedDetailedData->hasPages())
+                <div class="border-top bg-light px-4 py-3">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+                        <!-- Info -->
+                        <div class="text-muted small">
+                            Affichage de <strong>{{ $paginatedDetailedData->firstItem() }}</strong> à 
+                            <strong>{{ $paginatedDetailedData->lastItem() }}</strong> sur 
+                            <strong>{{ $paginatedDetailedData->total() }}</strong> résultats
+                        </div>
+
+                        <!-- Navigation -->
+                        <nav aria-label="Pagination des données détaillées">
+                            <ul class="pagination pagination-sm mb-0">
+                                <!-- Précédent -->
+                                @if($paginatedDetailedData->onFirstPage())
+                                    <li class="page-item disabled" aria-disabled="true">
+                                        <span class="page-link rounded-pill px-3" aria-hidden="true">
+                                            <i class="fas fa-chevron-left"></i>
+                                        </span>
+                                    </li>
+                                @else
+                                    <li class="page-item">
+                                        <a class="page-link rounded-pill px-3" href="{{ $paginatedDetailedData->previousPageUrl() }}" rel="prev" aria-label="Précédent">
+                                            <i class="fas fa-chevron-left"></i>
+                                        </a>
+                                    </li>
+                                @endif
+
+                                <!-- Pages -->
+                                @php
+                                    $start = max(1, $paginatedDetailedData->currentPage() - 2);
+                                    $end = min($paginatedDetailedData->lastPage(), $paginatedDetailedData->currentPage() + 2);
+                                @endphp
+
+                                @if($start > 1)
+                                    <li class="page-item"><a class="page-link rounded-pill" href="{{ $paginatedDetailedData->url(1) }}">1</a></li>
+                                    @if($start > 2)
+                                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                                    @endif
+                                @endif
+
+                                @for($i = $start; $i <= $end; $i++)
+                                    @if($i == $paginatedDetailedData->currentPage())
+                                        <li class="page-item active" aria-current="page">
+                                            <span class="page-link rounded-pill bg-primary border-primary">{{ $i }}</span>
+                                        </li>
+                                    @else
+                                        <li class="page-item">
+                                            <a class="page-link rounded-pill" href="{{ $paginatedDetailedData->url($i) }}">{{ $i }}</a>
+                                        </li>
+                                    @endif
+                                @endfor
+
+                                @if($end < $paginatedDetailedData->lastPage())
+                                    @if($end < $paginatedDetailedData->lastPage() - 1)
+                                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                                    @endif
+                                    <li class="page-item">
+                                        <a class="page-link rounded-pill" href="{{ $paginatedDetailedData->url($paginatedDetailedData->lastPage()) }}">
+                                            {{ $paginatedDetailedData->lastPage() }}
+                                        </a>
+                                    </li>
+                                @endif
+
+                                <!-- Suivant -->
+                                @if($paginatedDetailedData->hasMorePages())
+                                    <li class="page-item">
+                                        <a class="page-link rounded-pill px-3" href="{{ $paginatedDetailedData->nextPageUrl() }}" rel="next" aria-label="Suivant">
+                                            <i class="fas fa-chevron-right"></i>
+                                        </a>
+                                    </li>
+                                @else
+                                    <li class="page-item disabled" aria-disabled="true">
+                                        <span class="page-link rounded-pill px-3" aria-hidden="true">
+                                            <i class="fas fa-chevron-right"></i>
+                                        </span>
+                                    </li>
+                                @endif
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+                @endif
             </div>
         </div>
     </div>
@@ -1181,5 +1371,73 @@ document.addEventListener('DOMContentLoaded', function() {
     .btn, .card-header, nav { display: none !important; }
     .card { border: 1px solid #dee2e6 !important; page-break-inside: avoid; }
 }
+
+
+
+/* === Pagination Moderne & Élégante === */
+.pagination .page-link {
+    color: #495057;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    font-weight: 500;
+    padding: 0.375rem 0.75rem;
+    margin: 0 2px;
+    border-radius: 50px !important;
+    transition: all 0.25s ease;
+    min-width: 36px;
+    text-align: center;
+    font-size: 0.875rem;
+}
+
+.pagination .page-link:hover {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(13, 110, 253, 0.25);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.3);
+}
+
+.pagination .page-item.disabled .page-link {
+    color: #6c757d;
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Icônes seules */
+.pagination .page-link i {
+    font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .pagination {
+        justify-content: center;
+    }
+    .pagination .page-link {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+        min-width: 32px;
+    }
+    .d-flex.flex-column .text-muted {
+        text-align: center;
+        font-size: 0.8rem;
+    }
+}
+
+/* Accessibilité */
+.page-link:focus {
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
 </style>
 @endpush

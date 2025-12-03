@@ -35,7 +35,6 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
     protected $cachedFilieres = [];
     protected $cachedFormations = [];
     protected $cachedGroupes = [];
-    // ✅ NOUVEAU: Cache par code_module + nom_module + filiere_id
     protected $cachedModules = [];
 
     public function __construct()
@@ -71,7 +70,7 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
     protected function deleteExistingData()
     {
         try {
-            Log::info("🗑️ Début de la suppression pour l'EFP: {$this->codeEfp}");
+            Log::info("🗑 Début de la suppression pour l'EFP: {$this->codeEfp}");
 
             $deleted = Avancement::where('code_efp', $this->codeEfp)->delete();
             $this->deleted += $deleted;
@@ -81,18 +80,31 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             $this->deleted += $deleted;
             Log::info("✓ Supprimé {$deleted} affectations");
 
-            $formateurIds = Formateur::where('code_efp', $this->codeEfp)->pluck('id')->toArray();
-            if (!empty($formateurIds)) {
-                $deleted = DB::table('formateur_module')->whereIn('formateur_id', $formateurIds)->delete();
+            $deleted = DB::table('etablissement_formateur')
+                ->where('code_efp', $this->codeEfp)
+                ->delete();
+            Log::info("✓ Supprimé {$deleted} relations etablissement_formateur");
+
+            $formateursSansEtab = DB::table('formateurs as f')
+                ->leftJoin('etablissement_formateur as ef', 'f.id', '=', 'ef.formateur_id')
+                ->whereNull('ef.formateur_id')
+                ->pluck('f.id')
+                ->toArray();
+
+            if (!empty($formateursSansEtab)) {
+                $deleted = DB::table('formateur_module')
+                    ->whereIn('formateur_id', $formateursSansEtab)
+                    ->delete();
                 Log::info("✓ Supprimé {$deleted} relations formateur_module");
                 
-                $deleted = DB::table('formateur_secteur')->whereIn('formateur_id', $formateurIds)->delete();
+                $deleted = DB::table('formateur_secteur')
+                    ->whereIn('formateur_id', $formateursSansEtab)
+                    ->delete();
                 Log::info("✓ Supprimé {$deleted} relations formateur_secteur");
+                
+                $deleted = Formateur::whereIn('id', $formateursSansEtab)->delete();
+                Log::info("✓ Supprimé {$deleted} formateurs orphelins");
             }
-
-            $deleted = Formateur::where('code_efp', $this->codeEfp)->delete();
-            $this->deleted += $deleted;
-            Log::info("✓ Supprimé {$deleted} formateurs");
 
             $moduleIds = Module::where('code_efp', $this->codeEfp)->pluck('id')->toArray();
             if (!empty($moduleIds)) {
@@ -209,7 +221,7 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
 
             $formation = null;
             if ($filiere && $niveau) {
-                $cacheKey = $codeEfp . '_' . $annee . '_' . $filiere->id . '_' . $niveau->id . '_' . $typeFormation . '_' . $mode . '_' . $creneau;
+                $cacheKey = $codeEfp . '' . $annee . '' . $filiere->id . '' . $niveau->id . '' . $typeFormation . '' . $mode . '' . $creneau;
                 if (!isset($this->cachedFormations[$cacheKey])) {
                     $this->cachedFormations[$cacheKey] = Formation::create([
                         'annee' => $annee,
@@ -250,7 +262,7 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                 $groupe = $this->cachedGroupes[$cacheKey];
             }
 
-            // ✅ 6. MODULE - IDENTIFICATION UNIQUE: code + nom + filiere
+            // 6. MODULE
             $codeModule = trim($row['code_module'] ?? '');
             $nomModule = trim($row['module'] ?? '');
             $regional = trim($row['regional'] ?? 'N');
@@ -259,11 +271,9 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
 
             $module = null;
             if (!empty($codeModule) && !empty($nomModule) && $filiere) {
-                // ✅ CLÉ UNIQUE: code_efp + code_module + nom_module + filiere_id
-                $cacheKey = $codeEfp . '_' . $codeModule . '_' . md5($nomModule) . '_' . $filiere->id;
+                $cacheKey = $codeEfp . '' . $codeModule . '' . md5($nomModule) . '_' . $filiere->id;
                 
                 if (!isset($this->cachedModules[$cacheKey])) {
-                    // ✅ Créer un nouveau module unique
                     $module = Module::create([
                         'code_module' => $codeModule,
                         'nom_module' => $nomModule,
@@ -273,7 +283,6 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                         'code_efp' => $codeEfp
                     ]);
                     
-                    // ✅ Créer la relation filiere_module (une seule fois)
                     DB::table('filiere_module')->insert([
                         'filiere_id' => $filiere->id,
                         'module_id' => $module->id,
@@ -285,13 +294,12 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                     
                     Log::info("✅ Nouveau module créé: ID={$module->id}, Code={$codeModule}, Nom={$nomModule}, Filière={$filiere->nom_filiere}");
                 } else {
-                    // ✅ Réutiliser le module existant (même code + nom + filière)
                     $module = $this->cachedModules[$cacheKey];
-                    Log::info("♻️ Module réutilisé: ID={$module->id}, Code={$codeModule}, Nom={$nomModule}");
+                    Log::info("♻ Module réutilisé: ID={$module->id}, Code={$codeModule}, Nom={$nomModule}");
                 }
             }
 
-            // 7. FORMATEURS
+            // 7. FORMATEURS - AVEC MASSE HORAIRE PAR DÉFAUT 910
             $mleAffectePresentiel = trim($row['mle_affecte_presentiel_actif'] ?? '');
             $formateurPresentiel = trim($row['formateur_affecte_presentiel_actif'] ?? '');
             $mleAffecteSyn = trim($row['mle_affecte_syn_actif'] ?? '');
@@ -299,18 +307,43 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
 
             $formateurPresObj = null;
             if (!empty($mleAffectePresentiel) && !empty($formateurPresentiel)) {
-                $cacheKey = $codeEfp . '_' . $mleAffectePresentiel;
+                $cacheKey = $mleAffectePresentiel;
                 
                 if (!isset($this->cachedFormateurs[$cacheKey])) {
-                    $formateurPresObj = Formateur::create([
-                        'mle' => $mleAffectePresentiel,
-                        'nom_complet' => $formateurPresentiel,
-                        'type' => $this->determineTypeFormateur($mleAffectePresentiel),
-                        'code_efp' => $codeEfp
-                    ]);
+                    $formateurPresObj = Formateur::where('mle', $mleAffectePresentiel)->first();
+                    
+                    if (!$formateurPresObj) {
+                        $formateurPresObj = Formateur::create([
+                            'mle' => $mleAffectePresentiel,
+                            'nom_complet' => $formateurPresentiel,
+                            'type' => $this->determineTypeFormateur($mleAffectePresentiel),
+                            'masse_horaire' => 910.00
+                        ]);
+                        
+                        Log::info("✅ Nouveau formateur créé: MLE={$mleAffectePresentiel}, Nom={$formateurPresentiel}, Masse horaire=910");
+                    }
+                    
                     $this->cachedFormateurs[$cacheKey] = $formateurPresObj;
                 } else {
                     $formateurPresObj = $this->cachedFormateurs[$cacheKey];
+                }
+                
+                if ($formateurPresObj) {
+                    $exists = DB::table('etablissement_formateur')
+                        ->where('code_efp', $codeEfp)
+                        ->where('formateur_id', $formateurPresObj->id)
+                        ->exists();
+                    
+                    if (!$exists) {
+                        DB::table('etablissement_formateur')->insert([
+                            'code_efp' => $codeEfp,
+                            'formateur_id' => $formateurPresObj->id,
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ]);
+                        
+                        Log::info("🔗 Formateur {$mleAffectePresentiel} attaché à l'établissement {$codeEfp}");
+                    }
                 }
                 
                 if ($secteur && $formateurPresObj) {
@@ -330,7 +363,6 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                 }
                 
                 if ($module && $formateurPresObj) {
-                    // ✅ Vérifier si la relation existe déjà
                     $exists = DB::table('formateur_module')
                         ->where('formateur_id', $formateurPresObj->id)
                         ->where('module_id', $module->id)
@@ -349,18 +381,43 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
 
             $formateurSynObj = null;
             if (!empty($mleAffecteSyn) && !empty($formateurSyn) && $mleAffecteSyn !== $mleAffectePresentiel) {
-                $cacheKey = $codeEfp . '_' . $mleAffecteSyn;
+                $cacheKey = $mleAffecteSyn;
                 
                 if (!isset($this->cachedFormateurs[$cacheKey])) {
-                    $formateurSynObj = Formateur::create([
-                        'mle' => $mleAffecteSyn,
-                        'nom_complet' => $formateurSyn,
-                        'type' => $this->determineTypeFormateur($mleAffecteSyn),
-                        'code_efp' => $codeEfp
-                    ]);
+                    $formateurSynObj = Formateur::where('mle', $mleAffecteSyn)->first();
+                    
+                    if (!$formateurSynObj) {
+                        $formateurSynObj = Formateur::create([
+                            'mle' => $mleAffecteSyn,
+                            'nom_complet' => $formateurSyn,
+                            'type' => $this->determineTypeFormateur($mleAffecteSyn),
+                            'masse_horaire' => 910.00
+                        ]);
+                        
+                        Log::info("✅ Nouveau formateur créé: MLE={$mleAffecteSyn}, Nom={$formateurSyn}, Masse horaire=910");
+                    }
+                    
                     $this->cachedFormateurs[$cacheKey] = $formateurSynObj;
                 } else {
                     $formateurSynObj = $this->cachedFormateurs[$cacheKey];
+                }
+                
+                if ($formateurSynObj) {
+                    $exists = DB::table('etablissement_formateur')
+                        ->where('code_efp', $codeEfp)
+                        ->where('formateur_id', $formateurSynObj->id)
+                        ->exists();
+                    
+                    if (!$exists) {
+                        DB::table('etablissement_formateur')->insert([
+                            'code_efp' => $codeEfp,
+                            'formateur_id' => $formateurSynObj->id,
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ]);
+                        
+                        Log::info("🔗 Formateur {$mleAffecteSyn} attaché à l'établissement {$codeEfp}");
+                    }
                 }
                 
                 if ($secteur && $formateurSynObj) {
@@ -396,7 +453,7 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                 }
             }
 
-            // 8. AFFECTATION
+            // 8. AFFECTATION AVEC CALCULS MH TOTALE DRIF
             if ($groupe && $module) {
                 $fusionGroupe = trim(
                     $row['fusiongroupe'] ?? 
@@ -418,6 +475,18 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                 if ($codeFusion === '0' || $codeFusion === '' || empty($codeFusion)) {
                     $codeFusion = null;
                 }
+                
+                // ✅ RÉCUPÉRATION DES VALEURS DEPUIS LE FICHIER
+                $mhpTotaleDrif = $this->parseDecimal($row['mhp_totale_drif'] ?? 0);
+                $mhsynTotaleDrif = $this->parseDecimal($row['mhsyn_totale_drif'] ?? 0);
+                
+                // ✅ CALCUL DE MH TOTALE DRIF SELON LES CONDITIONS
+                $mhTotaleDrif = $this->calculateMhTotaleDrif(
+                    $formation,
+                    $codeModule,
+                    $mhpTotaleDrif,
+                    $mhsynTotaleDrif
+                );
                 
                 $affectation = Affectation::create([
                     'groupe_id' => $groupe->id,
@@ -442,10 +511,10 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                     'mhasyn_s2_drif' => $this->parseDecimal($row['mhasyn_s2_drif'] ?? 0),
                     'mh_totale_s2_drif' => $this->parseDecimal($row['mh_totale_s2_drif'] ?? 0),
                     
-                    'mhp_totale_drif' => $this->parseDecimal($row['mhp_totale_drif'] ?? 0),
-                    'mhsyn_totale_drif' => $this->parseDecimal($row['mhsyn_totale_drif'] ?? 0),
+                    'mhp_totale_drif' => $mhpTotaleDrif,
+                    'mhsyn_totale_drif' => $mhsynTotaleDrif,
                     'mhasyn_totale_drif' => $this->parseDecimal($row['mhasyn_totale_drif'] ?? 0),
-                    'mh_totale_drif' => $this->parseDecimal($row['mh_totale_drif'] ?? 0),
+                    'mh_totale_drif' => $mhTotaleDrif, // ✅ VALEUR CALCULÉE
                     
                     'mh_affectee_presentiel' => $this->parseDecimal($row['mh_affectee_presentiel'] ?? 0),
                     'mh_affectee_sync' => $this->parseDecimal($row['mh_affectee_sync'] ?? 0),
@@ -477,7 +546,7 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                 
             } else {
                 $this->skipped++;
-                Log::warning("⚠️ Ligne {$lineNumber} ignorée: Groupe ou Module manquant");
+                Log::warning("⚠ Ligne {$lineNumber} ignorée: Groupe ou Module manquant");
             }
 
         } catch (\Exception $e) {
@@ -485,6 +554,51 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             Log::error("❌ Erreur ligne {$lineNumber}: " . $e->getMessage());
             throw $e;
         }
+    }
+
+    /**
+     * ✅ MÉTHODE MODIFIÉE: Calcule MH Totale DRIF selon les conditions demandées
+     * 
+     * Règle par défaut: mh_totale_drif = mhp_totale_drif + mhsyn_totale_drif
+     * Règle spéciale (Formation Alternée + Module Métier): mh_totale_drif = (mhp_totale_drif/2) + mhsyn_totale_drif
+     */
+    protected function calculateMhTotaleDrif($formation, $codeModule, $mhpTotale, $mhsynTotale)
+    {
+        // Vérifier si la formation est en mode "Alterné"
+        $isAlterne = $formation && 
+                     !empty($formation->mode) && 
+                     strtolower(trim($formation->mode)) === 'alterné';
+        
+        // Vérifier si le module est de type métier (commence par "M")
+        $codeModuleUpper = strtoupper(trim($codeModule ?? ''));
+        $isModuleMetier = !empty($codeModuleUpper) && 
+                          substr($codeModuleUpper, 0, 1) === 'M';
+        
+        // ✅ CONDITION SPÉCIALE: Formation alternée ET Module métier
+        if ($isAlterne && $isModuleMetier) {
+            $result = ($mhpTotale / 2) + $mhsynTotale;
+            
+            Log::info("🔄 Règle spéciale appliquée (Alterné + Métier M)", [
+                'mode' => $formation->mode,
+                'code_module' => $codeModuleUpper,
+                'calcul' => "({$mhpTotale} / 2) + {$mhsynTotale}",
+                'resultat' => $result
+            ]);
+            
+            return round($result, 2);
+        }
+        
+        // ✅ RÈGLE PAR DÉFAUT: Addition simple
+        $result = $mhpTotale + $mhsynTotale;
+        
+        Log::info("📊 Règle par défaut appliquée", [
+            'mode' => $formation->mode ?? 'N/A',
+            'code_module' => $codeModuleUpper,
+            'calcul' => "{$mhpTotale} + {$mhsynTotale}",
+            'resultat' => $result
+        ]);
+        
+        return round($result, 2);
     }
 
     protected function parseDate($dateString)

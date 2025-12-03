@@ -117,8 +117,13 @@ Route::middleware(['auth'])->group(function () {
         // CRUD des formateurs
         Route::resource('formateurs', FormateurController::class);
         // CRUD des affectations - À FAIRE
-        Route::resource('affectations', AffectationController::class);
-        // CRUD des avancements - À FAIRE
+        // ⚠️ IMPORTANT : Cette route DOIT être AVANT la ressource affectations
+    Route::get('affectations/formateurs/{mle}/modules', [AffectationController::class, 'getFormateurModules'])
+        ->name('affectations.formateurs.modules');
+    
+    // CRUD des affectations
+    Route::resource('affectations', AffectationController::class);
+        // CRUD des avancements - 
         Route::resource('avancements', AvancementController::class);
     });
 });
@@ -151,12 +156,4 @@ Route::post('/verify-code', [ForgotPasswordController::class, 'verifyCode'])->na
 
 Route::get('/reset-password', [ForgotPasswordController::class, 'showResetPasswordForm'])->name('forgot.password.reset.form');
 Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'])->name('forgot.password.reset');
-   
-
-// Formulaire pour entrer le code
-
-    
-    
- 
-    
 });

@@ -13,11 +13,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Formateur extends Model
 {
-    protected $fillable = ['mle', 'nom_complet', 'type', 'code_efp'];
+    protected $fillable = ['mle', 'nom_complet', 'type', 'code_efp','masse_horaire','description'];
 
-    public function etablissement()
+    public function etablissements()
     {
-        return $this->belongsTo(Etablissement::class, 'code_efp', 'code_efp');
+        return $this->belongsToMany(Etablissement::class, 'etablissement_formateur', 'formateur_id', 'code_efp')
+                    ->withTimestamps();
     }
 
     public function secteurs()

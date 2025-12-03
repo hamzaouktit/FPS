@@ -50,9 +50,11 @@ class Etablissement extends Model
         return $this->hasMany(Module::class, 'code_efp', 'code_efp');
     }
 
+    // ✅ NOUVELLE RELATION Many-to-Many avec Formateur
     public function formateurs()
     {
-        return $this->hasMany(Formateur::class, 'code_efp', 'code_efp');
+        return $this->belongsToMany(Formateur::class, 'etablissement_formateur', 'code_efp', 'formateur_id')
+                    ->withTimestamps();
     }
 
     public function affectations()

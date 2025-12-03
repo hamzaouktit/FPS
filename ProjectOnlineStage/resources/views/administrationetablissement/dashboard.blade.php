@@ -228,6 +228,7 @@
 </div>
 
 <!-- Analyse des Heures de Formation -->
+<!-- Analyse des Heures de Formation -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
@@ -239,12 +240,31 @@
             </div>
             <div class="card-body">
                 <div class="row g-4">
-                    <div class="col-md-3">
+                    <!-- ✅ NOUVELLE CARTE : Heures Réglementaires (Offre) -->
+                    <div class="col-md-2-4">
+                        <div class="stat-card info card border-0 bg-light h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <h6 class="text-muted mb-0">Heures Réglementaires</h6>
+                                        <h3 class="mb-0 mt-2">{{ number_format($statistics['heures_reglementaires'], 2) }}</h3>
+                                    </div>
+                                    <div class="bg-info bg-opacity-10 p-2 rounded">
+                                        <i class="fas fa-briefcase text-info fs-4"></i>
+                                    </div>
+                                </div>
+                                <small class="text-muted">Offre formateurs (910h/an)</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Heures Demandées -->
+                    <div class="col-md-2-4">
                         <div class="stat-card primary card border-0 bg-light h-100">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <div>
-                                        <h6 class="text-muted mb-0">Heures Requises</h6>
+                                        <h6 class="text-muted mb-0">Heures Demandées</h6>
                                         <h3 class="mb-0 mt-2">{{ number_format($statistics['heures_requises'], 2) }}</h3>
                                     </div>
                                     <div class="bg-primary bg-opacity-10 p-2 rounded">
@@ -255,7 +275,9 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+
+                    <!-- Heures Affectées -->
+                    <div class="col-md-2-4">
                         <div class="stat-card success card border-0 bg-light h-100">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
@@ -271,7 +293,9 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+
+                    <!-- Heures Réalisées -->
+                    <div class="col-md-2-4">
                         <div class="stat-card warning card border-0 bg-light h-100">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
@@ -287,7 +311,9 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+
+                    <!-- Différence -->
+                    <div class="col-md-2-4">
                         <div class="stat-card danger card border-0 bg-light h-100">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
@@ -307,6 +333,48 @@
                     </div>
                 </div>
                 
+                
+
+                <!-- ✅ NOUVEAU : Indicateur d'adéquation Offre/Demande -->
+                <div class="mt-3 p-3 bg-light rounded">
+                    <div class="row text-center">
+                        <div class="col-md-6">
+                            <strong class="d-block mb-2">
+                                <i class="fas fa-balance-scale text-primary me-2"></i>
+                                Ratio Offre/Demande
+                            </strong>
+                            @php
+                                $ratioOffreDemande = $statistics['heures_requises'] > 0 
+                                    ? ($statistics['heures_reglementaires'] / $statistics['heures_requises']) * 100 
+                                    : 0;
+                                $ratioClass = $ratioOffreDemande >= 100 ? 'success' : ($ratioOffreDemande >= 80 ? 'warning' : 'danger');
+                            @endphp
+                            <h4 class="text-{{ $ratioClass }} mb-0">{{ number_format($ratioOffreDemande, 1) }}%</h4>
+                            <small class="text-muted">
+                                {{ number_format($statistics['heures_reglementaires'], 0) }}h disponibles / 
+                                {{ number_format($statistics['heures_requises'], 0) }}h requises
+                            </small>
+                        </div>
+                        <div class="col-md-6">
+                            <strong class="d-block mb-2">
+                                <i class="fas fa-chart-line text-info me-2"></i>
+                                Taux d'Utilisation Formateurs
+                            </strong>
+                            @php
+                                $tauxUtilisation = $statistics['heures_reglementaires'] > 0 
+                                    ? ($statistics['heures_affectees'] / $statistics['heures_reglementaires']) * 100 
+                                    : 0;
+                                $utilisationClass = $tauxUtilisation >= 90 ? 'success' : ($tauxUtilisation >= 70 ? 'warning' : 'info');
+                            @endphp
+                            <h4 class="text-{{ $utilisationClass }} mb-0">{{ number_format($tauxUtilisation, 1) }}%</h4>
+                            <small class="text-muted">
+                                {{ number_format($statistics['heures_affectees'], 0) }}h affectées / 
+                                {{ number_format($statistics['heures_reglementaires'], 0) }}h disponibles
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <!-- Barre de progression globale -->
                 <div class="mt-4">
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">Progression globale</span>
@@ -825,15 +893,19 @@
     </div>
 </div>
 
-<!-- Liste des formateurs -->
+<!-- Liste des formateurs - SECTION AMÉLIORÉE -->
+<!-- Liste des formateurs - SECTION CORRIGÉE -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-light">
                 <h5 class="mb-0">
                     <i class="fas fa-users text-primary me-2"></i>
-                    Liste des Formateurs - Heures Requises / Affectées / Manquantes
+                    Liste des Formateurs - Charge Horaire et Affectations
                 </h5>
+                <small class="text-muted">
+                    Suivi de la masse horaire réglementaire (910h), des heures demandées (DRIF), et des heures affectées
+                </small>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -841,24 +913,96 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Formateur</th>
-                                <th class="text-end">Heures Requises</th>
+                                <th class="text-center">Type</th>
+                                <th class="text-end">Masse Horaire Réglementaire (offres)</th>
+                                <th class="text-end">Heures Demandées (DRIF)</th>
                                 <th class="text-end">Heures Affectées</th>
-                                <th class="text-end">Heures Manquantes</th>
+                                <th class="text-end">Heures Disponibles</th>
+                                <th class="text-center">Taux d'Occupation</th>
+                                <th class="text-center">Statut</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($formateursData as $item)
+                            @php
+                                $masseHoraire = $item['masse_horaire_formateur'] ?? 910;
+                                $heuresDemandees = $item['heures_demandees'];
+                                $heuresAffectees = $item['heures_affectees'];
+                                
+                                // ✅ CORRIGÉ : Disponibles = Demandées - Affectées
+                                $heuresDisponibles = max(0, $heuresDemandees - $heuresAffectees);
+                                
+                                // ✅ CORRIGÉ : Taux = (Affectées / Demandées) * 100
+                                $tauxOccupation = $heuresDemandees > 0 ? ($heuresAffectees / $heuresDemandees) * 100 : 0;
+                                
+                                // Déterminer le statut basé sur le taux d'occupation
+                                if ($tauxOccupation > 100) {
+                                    $statut = 'Surchargé';
+                                    $statutClass = 'danger';
+                                    $statutIcon = 'fa-exclamation-triangle';
+                                } elseif ($tauxOccupation >= 90) {
+                                    $statut = 'Complet';
+                                    $statutClass = 'success';
+                                    $statutIcon = 'fa-check-circle';
+                                } elseif ($tauxOccupation >= 70) {
+                                    $statut = 'En cours';
+                                    $statutClass = 'warning';
+                                    $statutIcon = 'fa-info-circle';
+                                } else {
+                                    $statut = 'Incomplet';
+                                    $statutClass = 'info';
+                                    $statutIcon = 'fa-clock';
+                                }
+                            @endphp
                             <tr>
-                                <td>{{ $item['nom_formateur'] }}</td>
-                                <td class="text-end">{{ number_format($item['heures_requises'], 2) }}h</td>
-                                <td class="text-end">{{ number_format($item['heures_affectees'], 2) }}h</td>
-                                <td class="text-end text-{{ $item['heures_manquantes'] > 0 ? 'danger' : 'success' }}">
-                                    {{ number_format($item['heures_manquantes'], 2) }}h
+                                <td>
+                                    <strong>{{ $item['nom_formateur'] }}</strong>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-secondary">Permanent</span>
+                                </td>
+                                <td class="text-end">
+                                    <strong>{{ number_format($masseHoraire, 2) }}h</strong>
+                                    <br><small class="text-muted">(Réglementaire)</small>
+                                </td>
+                                <td class="text-end">
+                                    <strong class="text-primary">{{ number_format($heuresDemandees, 2) }}h</strong>
+                                    <br><small class="text-muted">(Demandées)</small>
+                                </td>
+                                <td class="text-end">
+                                    <strong class="text-success">{{ number_format($heuresAffectees, 2) }}h</strong>
+                                    <br><small class="text-muted">(Affectées)</small>
+                                </td>
+                                <td class="text-end text-{{ $heuresDisponibles > 0 ? 'warning' : 'success' }}">
+                                    <strong>{{ number_format($heuresDisponibles, 2) }}h</strong>
+                                    <br><small class="text-muted">(Restantes)</small>
+                                </td>
+                                <td class="text-center">
+                                    <div class="mb-1">
+                                        <span class="badge bg-{{ $statutClass }} rounded-pill fs-6">
+                                            {{ number_format($tauxOccupation, 1) }}%
+                                        </span>
+                                    </div>
+                                    <div class="progress" style="height: 10px; width: 120px; margin: 0 auto;">
+                                        <div class="progress-bar bg-{{ $statutClass }}" 
+                                             role="progressbar" 
+                                             style="width: {{ min(100, $tauxOccupation) }}%"
+                                             aria-valuenow="{{ $tauxOccupation }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100">
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-{{ $statutClass }}">
+                                        <i class="fas {{ $statutIcon }} me-1"></i>
+                                        {{ $statut }}
+                                    </span>
                                 </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="4" class="text-center text-muted py-4">
+                                <td colspan="8" class="text-center text-muted py-4">
                                     <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
                                     Aucun formateur disponible
                                 </td>
@@ -867,15 +1011,76 @@
                         </tbody>
                         <tfoot>
                             <tr class="table-secondary fw-bold">
-                                <th>TOTAL</th>
-                                <th class="text-end">{{ number_format($totalFormateurs['heures_requises'], 2) }}h</th>
-                                <th class="text-end">{{ number_format($totalFormateurs['heures_affectees'], 2) }}h</th>
-                                <th class="text-end text-{{ $totalFormateurs['heures_manquantes'] > 0 ? 'danger' : 'success' }}">
-                                    {{ number_format($totalFormateurs['heures_manquantes'], 2) }}h
+                                <th colspan="2">TOTAL</th>
+                                <th class="text-end">
+                                    {{ number_format($totalFormateurs['masse_horaire_totale'], 2) }}h
                                 </th>
+                                <th class="text-end text-primary">
+                                    {{ number_format($totalFormateurs['heures_demandees'], 2) }}h
+                                </th>
+                                <th class="text-end text-success">
+                                    {{ number_format($totalFormateurs['heures_affectees'], 2) }}h
+                                </th>
+                                <th class="text-end text-{{ $totalFormateurs['heures_disponibles'] > 0 ? 'warning' : 'success' }}">
+                                    {{ number_format($totalFormateurs['heures_disponibles'], 2) }}h
+                                </th>
+                                <th class="text-center">
+                                    @php
+                                        $tauxOccupationTotal = $totalFormateurs['heures_demandees'] > 0 
+                                            ? ($totalFormateurs['heures_affectees'] / $totalFormateurs['heures_demandees']) * 100 
+                                            : 0;
+                                    @endphp
+                                    <span class="badge bg-primary rounded-pill fs-6">
+                                        {{ number_format($tauxOccupationTotal, 1) }}%
+                                    </span>
+                                </th>
+                                <th></th>
                             </tr>
                         </tfoot>
                     </table>
+                </div>
+                
+                <!-- Légende mise à jour -->
+                <div class="mt-3 p-3 bg-light rounded">
+                    <strong class="d-block mb-2"><i class="fas fa-info-circle text-primary me-2"></i>Légende :</strong>
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <span class="badge bg-info me-2">Incomplet (&lt; 70%)</span>
+                            <small class="text-muted">Moins de 70% des heures demandées sont affectées</small>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <span class="badge bg-warning me-2">En cours (70-89%)</span>
+                            <small class="text-muted">Entre 70% et 89% des heures sont affectées</small>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <span class="badge bg-success me-2">Complet (90-100%)</span>
+                            <small class="text-muted">Entre 90% et 100% des heures sont affectées</small>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <span class="badge bg-danger me-2">Surchargé (&gt; 100%)</span>
+                            <small class="text-muted">Plus de 100% des heures demandées sont affectées</small>
+                        </div>
+                    </div>
+                    <hr class="my-2">
+                    <div class="row small">
+                        <div class="col-md-4">
+                            <strong>Masse Horaire Réglementaire :</strong> Heures annuelles théoriques (910h par défaut)
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Heures Demandées :</strong> Heures DRIF requises pour les modules assignés
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Heures Affectées :</strong> Heures effectivement affectées au formateur
+                        </div>
+                    </div>
+                    <div class="row small mt-2">
+                        <div class="col-md-4">
+                            <strong>Heures Disponibles :</strong> Heures demandées - Heures affectées
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Taux d'Occupation :</strong> (Heures affectées ÷ Heures demandées) × 100
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1431,6 +1636,21 @@ document.addEventListener('DOMContentLoaded', function() {
     .d-flex.flex-column .text-muted {
         text-align: center;
         font-size: 0.8rem;
+    }
+}
+
+/* Grid 5 colonnes pour les cartes d'heures */
+@media (min-width: 768px) {
+    .col-md-2-4 {
+        flex: 0 0 auto;
+        width: 20%; /* 100% / 5 = 20% */
+    }
+}
+
+@media (max-width: 767px) {
+    .col-md-2-4 {
+        width: 100%;
+        margin-bottom: 1rem;
     }
 }
 

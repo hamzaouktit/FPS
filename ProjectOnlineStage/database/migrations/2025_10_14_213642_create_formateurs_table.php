@@ -17,11 +17,9 @@ return new class extends Migration
             $table->string('mle')->unique(); // Matricule
             $table->string('nom_complet');
             $table->string('type')->default('permanent'); // permanent, vacataire
-            $table->string('code_efp')->nullable();
-             $table->foreign('code_efp')
-                  ->references('code_efp')
-                  ->on('etablissements')
-                  ->onDelete('set null');
+            $table->decimal('masse_horaire', 8, 2)->default(910.00) ;// Masse horaire annuelle
+            $table->string('description')->default('Aucun description');
+
             $table->timestamps();
             $table->index('type');
         });

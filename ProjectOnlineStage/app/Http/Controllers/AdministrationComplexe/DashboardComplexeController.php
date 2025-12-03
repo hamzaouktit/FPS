@@ -272,6 +272,7 @@ class DashboardComplexeController extends Controller
             ->join('formations', 'groupes.formation_id', '=', 'formations.id')
             ->join('filieres', 'groupes.filiere_id', '=', 'filieres.id')
             ->join('secteurs', 'filieres.secteur_id', '=', 'secteurs.id')
+            ->join('modules', 'affectations.module_id', '=', 'modules.id')
             ->join('etablissements', 'affectations.code_efp', '=', 'etablissements.code_efp')
             ->leftJoin('avancements', 'affectations.id', '=', 'avancements.affectation_id')
             ->where('etablissements.complexe_id', $complexeId);
@@ -352,70 +353,67 @@ class DashboardComplexeController extends Controller
 
     private function getFilterOptions($complexeId)
     {
+        // Établissements
         $etablissements = Etablissement::where('complexe_id', $complexeId)
             ->select('code_efp', 'nom_efp')
             ->orderBy('nom_efp')
             ->get();
 
-        $secteurs = Secteur::whereHas('filieres.groupes.formation.etablissement', function($q) use ($complexeId) {
-            $q->where('complexe_id', $complexeId);
-        })
-        ->select('id', 'nom_secteur')
-        ->distinct()
-        ->orderBy('nom_secteur')
-        ->get();
-
-        $filieres = Filiere::whereHas('groupes.formation.etablissement', function($q) use ($complexeId) {
-            $q->where('complexe_id', $complexeId);
-        })
-        ->select('id', 'code_filiere', 'nom_filiere')
-        ->orderBy('nom_filiere')
-        ->get();
-
-        // Récupérer les formateurs via la table affectations
-        $formateursMle = Affectation::query()
-            ->join('etablissements', 'affectations.code_efp', '=', 'etablissements.code_efp')
-            ->where('etablissements.complexe_id', $complexeId)
-            ->where(function($q) {
-                $q->whereNotNull('affectations.mle_affecte_presentiel')
-                  ->orWhereNotNull('affectations.mle_affecte_syn');
+        // Secteurs via établissements du complexe
+        $secteurs = Secteur::whereIn('code_efp', function($query) use ($complexeId) {
+                $query->select('code_efp')
+                      ->from('etablissements')
+                      ->where('complexe_id', $complexeId);
             })
-            ->select('affectations.mle_affecte_presentiel', 'affectations.mle_affecte_syn')
+            ->select('id', 'nom_secteur')
             ->distinct()
+            ->orderBy('nom_secteur')
             ->get();
 
-        // Collecter tous les MLE uniques
-        $mleList = collect();
-        foreach ($formateursMle as $item) {
-            if (!empty($item->mle_affecte_presentiel)) {
-                $mleList->push($item->mle_affecte_presentiel);
-            }
-            if (!empty($item->mle_affecte_syn)) {
-                $mleList->push($item->mle_affecte_syn);
-            }
-        }
-        $mleList = $mleList->unique()->values();
+        // Filières via établissements du complexe
+        $filieres = Filiere::whereIn('code_efp', function($query) use ($complexeId) {
+                $query->select('code_efp')
+                      ->from('etablissements')
+                      ->where('complexe_id', $complexeId);
+            })
+            ->select('id', 'code_filiere', 'nom_filiere')
+            ->distinct()
+            ->orderBy('nom_filiere')
+            ->get();
 
-        // Récupérer les informations des formateurs
-        $formateurs = Formateur::whereIn('mle', $mleList)
-            ->select('mle', 'nom_complet')
+        // Formateurs via la table pivot etablissement_formateur
+        $formateurIds = DB::table('etablissement_formateur')
+            ->join('etablissements', 'etablissement_formateur.code_efp', '=', 'etablissements.code_efp')
+            ->where('etablissements.complexe_id', $complexeId)
+            ->pluck('etablissement_formateur.formateur_id')
+            ->unique();
+
+        $formateurs = Formateur::whereIn('id', $formateurIds)
+            ->select('id', 'mle', 'nom_complet')
             ->orderBy('nom_complet')
             ->get();
 
-        $modules = Module::whereHas('affectations', function($q) use ($complexeId) {
-            $q->join('etablissements', 'affectations.code_efp', '=', 'etablissements.code_efp')
-              ->where('etablissements.complexe_id', $complexeId);
-        })
-        ->select('id', 'code_module', 'nom_module')
-        ->orderBy('nom_module')
-        ->get();
+        // Modules via établissements du complexe
+        $modules = Module::whereIn('code_efp', function($query) use ($complexeId) {
+                $query->select('code_efp')
+                      ->from('etablissements')
+                      ->where('complexe_id', $complexeId);
+            })
+            ->select('id', 'code_module', 'nom_module')
+            ->distinct()
+            ->orderBy('nom_module')
+            ->get();
 
-        $groupes = Groupe::whereHas('formation.etablissement', function($q) use ($complexeId) {
-            $q->where('complexe_id', $complexeId);
-        })
-        ->select('id', 'code_groupe')
-        ->orderBy('code_groupe')
-        ->get();
+        // Groupes via établissements du complexe
+        $groupes = Groupe::whereIn('code_efp', function($query) use ($complexeId) {
+                $query->select('code_efp')
+                      ->from('etablissements')
+                      ->where('complexe_id', $complexeId);
+            })
+            ->select('id', 'code_groupe')
+            ->distinct()
+            ->orderBy('code_groupe')
+            ->get();
 
         return [
             'etablissements' => $etablissements,

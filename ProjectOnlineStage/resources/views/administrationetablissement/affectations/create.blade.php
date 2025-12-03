@@ -41,21 +41,125 @@
         <form action="{{ route('administration.etablissement.affectations.store') }}" method="POST" id="affectationForm">
             @csrf
             
-            <!-- Sélection Groupe et Module -->
+            <!-- Formateurs (EN PREMIER) -->
             <div class="card mb-4">
                 <div class="card-header bg-light">
-                    <h6 class="mb-0"><i class="fas fa-tasks me-2"></i>Affectation de Base</h6>
+                    <h6 class="mb-0">
+                        <i class="fas fa-chalkboard-teacher me-2"></i>
+                        <span class="badge bg-primary">ÉTAPE 1</span> Sélection des Formateurs
+                    </h6>
+                    <small class="text-muted">Sélectionnez d'abord le(s) formateur(s) pour filtrer les modules disponibles</small>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="groupe_id" class="form-label">Groupe <span class="text-danger">*</span></label>
+                                <label for="mle_affecte_presentiel" class="form-label">
+                                    Formateur Présentiel 
+                                    <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select @error('mle_affecte_presentiel') is-invalid @enderror" 
+                                        id="mle_affecte_presentiel" name="mle_affecte_presentiel" required>
+                                    <option value="">Sélectionner un formateur</option>
+                                    @foreach($formateurs as $formateur)
+                                        <option value="{{ $formateur->mle }}" 
+                                                {{ old('mle_affecte_presentiel') == $formateur->mle ? 'selected' : '' }}>
+                                            {{ $formateur->mle }} - {{ $formateur->nom_complet }} ({{ $formateur->type }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('mle_affecte_presentiel')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                                <small class="text-info">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Obligatoire pour filtrer les modules
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="mle_affecte_syn" class="form-label">
+                                    Formateur Synchrone
+                                    <span class="text-muted">(Optionnel)</span>
+                                </label>
+                                <select class="form-select @error('mle_affecte_syn') is-invalid @enderror" 
+                                        id="mle_affecte_syn" name="mle_affecte_syn">
+                                    <option value="">Sélectionner un formateur</option>
+                                    @foreach($formateurs as $formateur)
+                                        <option value="{{ $formateur->mle }}" 
+                                                {{ old('mle_affecte_syn') == $formateur->mle ? 'selected' : '' }}>
+                                            {{ $formateur->mle }} - {{ $formateur->nom_complet }} ({{ $formateur->type }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('mle_affecte_syn')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Module (EN DEUXIÈME) -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-book me-2"></i>
+                        <span class="badge bg-info">ÉTAPE 2</span> Sélection du Module
+                    </h6>
+                    <small class="text-muted">Choisissez le module parmi ceux enseignés par le(s) formateur(s)</small>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="module_id" class="form-label">
+                            Module 
+                            <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select @error('module_id') is-invalid @enderror" 
+                                id="module_id" name="module_id" required disabled>
+                            <option value="">Sélectionnez d'abord un formateur présentiel</option>
+                        </select>
+                        @error('module_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        <div id="module-loading" class="text-center mt-2" style="display:none;">
+                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                                <span class="visually-hidden">Chargement...</span>
+                            </div>
+                            Chargement des modules...
+                        </div>
+                        <small class="text-muted" id="module-info">
+                            <i class="fas fa-lightbulb me-1"></i>
+                            Seuls les modules enseignés par le formateur sélectionné seront affichés
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Groupe et Autres -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        <span class="badge bg-success">ÉTAPE 3</span> Groupe et Fusion
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="groupe_id" class="form-label">
+                                    Groupe <span class="text-danger">*</span>
+                                </label>
                                 <select class="form-select @error('groupe_id') is-invalid @enderror" 
                                         id="groupe_id" name="groupe_id" required>
                                     <option value="">Sélectionner un groupe</option>
                                     @foreach($groupes as $groupe)
-                                        <option value="{{ $groupe->id }}" {{ old('groupe_id') == $groupe->id ? 'selected' : '' }}
+                                        <option value="{{ $groupe->id }}" 
+                                                {{ old('groupe_id') == $groupe->id ? 'selected' : '' }}
                                                 data-filiere="{{ $groupe->filiere->nom_filiere ?? '' }}"
                                                 data-formation="{{ $groupe->formation->type ?? '' }}">
                                             {{ $groupe->code_groupe }} - {{ $groupe->filiere->nom_filiere ?? 'N/A' }} ({{ $groupe->formation->type ?? 'N/A' }})
@@ -67,34 +171,9 @@
                                 @enderror
                             </div>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="module_id" class="form-label">Module <span class="text-danger">*</span></label>
-                                <select class="form-select @error('module_id') is-invalid @enderror" 
-                                        id="module_id" name="module_id" required>
-                                    <option value="">Sélectionner un module</option>
-                                    @foreach($modules as $module)
-                                        <option value="{{ $module->id }}" {{ old('module_id') == $module->id ? 'selected' : '' }}>
-                                            {{ $module->code_module }} - {{ $module->nom_module }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('module_id')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Fusion de Groupe -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0"><i class="fas fa-object-group me-2"></i>Fusion de Groupe (Optionnel)</h6>
-                </div>
-                <div class="card-body">
+                    <!-- Fusion de Groupe -->
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -117,52 +196,6 @@
                                        value="{{ old('code_fusion') }}"
                                        placeholder="Ex: GRP-FUSION-001">
                                 @error('code_fusion')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Formateurs -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0"><i class="fas fa-chalkboard-teacher me-2"></i>Formateurs Assignés</h6>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="mle_affecte_presentiel" class="form-label">Formateur Présentiel</label>
-                                <select class="form-select @error('mle_affecte_presentiel') is-invalid @enderror" 
-                                        id="mle_affecte_presentiel" name="mle_affecte_presentiel">
-                                    <option value="">Sélectionner un formateur</option>
-                                    @foreach($formateurs as $formateur)
-                                        <option value="{{ $formateur->mle }}" {{ old('mle_affecte_presentiel') == $formateur->mle ? 'selected' : '' }}>
-                                            {{ $formateur->mle }} - {{ $formateur->nom_complet }} ({{ $formateur->type }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('mle_affecte_presentiel')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="mle_affecte_syn" class="form-label">Formateur Synchrone</label>
-                                <select class="form-select @error('mle_affecte_syn') is-invalid @enderror" 
-                                        id="mle_affecte_syn" name="mle_affecte_syn">
-                                    <option value="">Sélectionner un formateur</option>
-                                    @foreach($formateurs as $formateur)
-                                        <option value="{{ $formateur->mle }}" {{ old('mle_affecte_syn') == $formateur->mle ? 'selected' : '' }}>
-                                            {{ $formateur->mle }} - {{ $formateur->nom_complet }} ({{ $formateur->type }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('mle_affecte_syn')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
@@ -333,36 +366,118 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Fonction de calcul automatique
+    const formateurPresentielSelect = document.getElementById('mle_affecte_presentiel');
+    const formateurSynSelect = document.getElementById('mle_affecte_syn');
+    const moduleSelect = document.getElementById('module_id');
+    const moduleLoading = document.getElementById('module-loading');
+    const moduleInfo = document.getElementById('module-info');
+    
+    // ✅ URL CORRIGÉE - utilise la route nommée
+    const getModulesUrl = "{{ route('administration.etablissement.affectations.formateurs.modules', ':mle') }}";
+    
+    function loadModules() {
+        const mlePresentiel = formateurPresentielSelect.value;
+        
+        if (!mlePresentiel) {
+            moduleSelect.disabled = true;
+            moduleSelect.innerHTML = '<option value="">Sélectionnez d\'abord un formateur présentiel</option>';
+            return;
+        }
+        
+        moduleLoading.style.display = 'block';
+        moduleInfo.style.display = 'none';
+        moduleSelect.disabled = true;
+        moduleSelect.innerHTML = '<option value="">Chargement...</option>';
+        
+        // ✅ Construction correcte de l'URL
+        const url = getModulesUrl.replace(':mle', mlePresentiel);
+        
+        console.log('🔍 Chargement des modules pour MLE:', mlePresentiel);
+        console.log('📡 URL:', url);
+        
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+            }
+        })
+        .then(response => {
+            console.log('📥 Réponse statut:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('✅ Données reçues:', data);
+            
+            moduleSelect.innerHTML = '<option value="">Sélectionner un module</option>';
+            
+            if (!data.success || !data.modules || data.modules.length === 0) {
+                moduleSelect.innerHTML = '<option value="">Aucun module trouvé pour ce formateur</option>';
+                moduleLoading.style.display = 'none';
+                moduleInfo.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Ce formateur n\'a aucun module assigné';
+                moduleInfo.className = 'text-warning';
+                moduleInfo.style.display = 'block';
+            } else {
+                data.modules.forEach(module => {
+                    const option = document.createElement('option');
+                    option.value = module.id;
+                    option.textContent = module.text;
+                    moduleSelect.appendChild(option);
+                });
+                
+                moduleSelect.disabled = false;
+                moduleLoading.style.display = 'none';
+                moduleInfo.innerHTML = `<i class="fas fa-check-circle me-1"></i> ${data.modules.length} module(s) disponible(s)`;
+                moduleInfo.className = 'text-success';
+                moduleInfo.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('❌ Erreur:', error);
+            moduleSelect.innerHTML = '<option value="">Erreur lors du chargement des modules</option>';
+            moduleLoading.style.display = 'none';
+            moduleInfo.innerHTML = '<i class="fas fa-times-circle me-1"></i> Erreur: ' + error.message;
+            moduleInfo.className = 'text-danger';
+            moduleInfo.style.display = 'block';
+        });
+    }
+    
+    formateurPresentielSelect.addEventListener('change', loadModules);
+    formateurSynSelect.addEventListener('change', loadModules);
+    
+    if (formateurPresentielSelect.value) {
+        loadModules();
+    }
+    
+    // Calcul automatique des masses horaires
     function calculateTotals() {
-        // Semestre 1
         const mhpS1 = parseFloat(document.getElementById('mhp_s1_drif').value) || 0;
         const mhsynS1 = parseFloat(document.getElementById('mhsyn_s1_drif').value) || 0;
         const mhasynS1 = parseFloat(document.getElementById('mhasyn_s1_drif').value) || 0;
         const totalS1 = mhpS1 + mhsynS1 + mhasynS1;
         document.getElementById('mh_totale_s1_drif').value = totalS1.toFixed(2);
 
-        // Semestre 2
         const mhpS2 = parseFloat(document.getElementById('mhp_s2_drif').value) || 0;
         const mhsynS2 = parseFloat(document.getElementById('mhsyn_s2_drif').value) || 0;
         const mhasynS2 = parseFloat(document.getElementById('mhasyn_s2_drif').value) || 0;
         const totalS2 = mhpS2 + mhsynS2 + mhasynS2;
         document.getElementById('mh_totale_s2_drif').value = totalS2.toFixed(2);
 
-        // Affectées
         const mhPresentiel = parseFloat(document.getElementById('mh_affectee_presentiel').value) || 0;
         const mhSync = parseFloat(document.getElementById('mh_affectee_sync').value) || 0;
         const totalAffectee = mhPresentiel + mhSync;
         document.getElementById('mh_affectee_globale').value = totalAffectee.toFixed(2);
     }
 
-    // Écouter les changements
     const mhInputs = document.querySelectorAll('input[type="number"]');
     mhInputs.forEach(input => {
         input.addEventListener('input', calculateTotals);
     });
 
-    // Calcul initial
     calculateTotals();
 });
 </script>
@@ -393,6 +508,16 @@ document.addEventListener('DOMContentLoaded', function() {
     padding: 0.625rem 1.5rem;
     font-weight: 500;
     border-radius: 8px;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.25em 0.6em;
+}
+
+#module-loading .spinner-border {
+    width: 1rem;
+    height: 1rem;
 }
 </style>
 @endsection

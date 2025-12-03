@@ -20,7 +20,7 @@
     <!-- Cartes de statistiques -->
     <div class="row mb-4">
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="card border-0 shadow-sm stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                 <div class="card-body text-white">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -35,7 +35,7 @@
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="card border-0 shadow-sm stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
                 <div class="card-body text-white">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -50,7 +50,7 @@
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <div class="card border-0 shadow-sm stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
                 <div class="card-body text-white">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -66,9 +66,17 @@
         </div>
     </div>
 
+    <!-- Messages de succès/erreur -->
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             <i class="fas fa-check-circle me-2"></i>{{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>{{ session('error') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
@@ -180,6 +188,7 @@
                                     @endif
                                 </a>
                             </th>
+                            <th class="border-0">Masse Horaire</th>
                             <th class="border-0">Secteurs</th>
                             <th class="border-0">Modules</th>
                             <th class="border-0 pe-4 text-end">Actions</th>
@@ -211,27 +220,41 @@
                                     @endif
                                 </td>
                                 <td>
+                                    <span class="badge bg-info-subtle text-info border border-info">
+                                        {{ number_format($formateur->masse_horaire, 0) }} h
+                                    </span>
+                                </td>
+                                <td>
                                     <div class="d-flex flex-wrap gap-1">
-                                        @forelse($formateur->secteurs as $secteur)
-                                            <span class="badge bg-info-subtle text-info border border-info">
+                                        @forelse($formateur->secteurs->take(2) as $secteur)
+                                            <span class="badge bg-info-subtle text-info border border-info" 
+                                                  title="{{ $secteur->nom_secteur }}">
                                                 {{ Str::limit($secteur->nom_secteur, 20) }}
                                             </span>
                                         @empty
-                                            <span class="text-muted fst-italic">Aucun</span>
+                                            <span class="text-muted fst-italic small">Aucun</span>
                                         @endforelse
+                                        @if($formateur->secteurs->count() > 2)
+                                            <span class="badge bg-light text-dark border" 
+                                                  title="{{ $formateur->secteurs->skip(2)->pluck('nom_secteur')->join(', ') }}">
+                                                +{{ $formateur->secteurs->count() - 2 }}
+                                            </span>
+                                        @endif
                                     </div>
                                 </td>
                                 <td>
                                     <div class="d-flex flex-wrap gap-1">
                                         @forelse($formateur->modules->take(3) as $module)
-                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary">
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary"
+                                                  title="{{ $module->nom_module }}">
                                                 {{ $module->code_module }}
                                             </span>
                                         @empty
-                                            <span class="text-muted fst-italic">Aucun</span>
+                                            <span class="text-muted fst-italic small">Aucun</span>
                                         @endforelse
                                         @if($formateur->modules->count() > 3)
-                                            <span class="badge bg-light text-dark border">
+                                            <span class="badge bg-light text-dark border"
+                                                  title="{{ $formateur->modules->skip(3)->pluck('code_module')->join(', ') }}">
                                                 +{{ $formateur->modules->count() - 3 }}
                                             </span>
                                         @endif
@@ -241,7 +264,7 @@
                                     <div class="btn-group float-end">
                                         <a href="{{ route('administration.etablissement.formateurs.show', $formateur) }}" 
                                            class="btn btn-sm btn-outline-info" 
-                                           title="Voir">
+                                           title="Voir les détails">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         <a href="{{ route('administration.etablissement.formateurs.edit', $formateur) }}" 
@@ -252,7 +275,7 @@
                                         <form action="{{ route('administration.etablissement.formateurs.destroy', $formateur) }}" 
                                               method="POST" 
                                               class="d-inline"
-                                              onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce formateur ?')">
+                                              onsubmit="return confirm('⚠ Êtes-vous sûr de vouloir supprimer ce formateur ?\n\nCette action est irréversible et supprimera :\n- Toutes ses affectations\n- Toutes ses associations avec les secteurs et modules\n\nConfirmer la suppression ?')">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" 
@@ -266,15 +289,24 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center py-5">
-                                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                                    <p class="text-muted mb-0">Aucun formateur trouvé</p>
-                                    @if(request()->hasAny(['search', 'type', 'secteur_id', 'module_id']))
-                                        <a href="{{ route('administration.etablissement.formateurs.index') }}" 
-                                           class="btn btn-sm btn-outline-primary mt-2">
-                                            Réinitialiser les filtres
-                                        </a>
-                                    @endif
+                                <td colspan="7" class="text-center py-5">
+                                    <div class="py-4">
+                                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted mb-0 fs-5">Aucun formateur trouvé</p>
+                                        @if(request()->hasAny(['search', 'type', 'secteur_id', 'module_id']))
+                                            <p class="text-muted small mb-3">Essayez de modifier vos critères de recherche</p>
+                                            <a href="{{ route('administration.etablissement.formateurs.index') }}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-redo me-2"></i>Réinitialiser les filtres
+                                            </a>
+                                        @else
+                                            <p class="text-muted small mb-3">Commencez par ajouter votre premier formateur</p>
+                                            <a href="{{ route('administration.etablissement.formateurs.create') }}" 
+                                               class="btn btn-sm btn-primary">
+                                                <i class="fas fa-plus me-2"></i>Ajouter un formateur
+                                            </a>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @endforelse
@@ -288,7 +320,7 @@
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div class="text-muted small">
                         Affichage de <strong>{{ $formateurs->firstItem() }}</strong> à <strong>{{ $formateurs->lastItem() }}</strong> 
-                        sur <strong>{{ $formateurs->total() }}</strong> formateurs
+                        sur <strong>{{ $formateurs->total() }}</strong> formateur{{ $formateurs->total() > 1 ? 's' : '' }}
                     </div>
                     <nav aria-label="Pagination">
                         {{ $formateurs->appends(request()->except('page'))->links('pagination::bootstrap-5') }}
@@ -300,6 +332,19 @@
 </div>
 
 <style>
+/* Cartes de statistiques */
+.stat-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Avatar circulaire */
 .avatar-circle {
     width: 36px;
     height: 36px;
@@ -311,13 +356,19 @@
     justify-content: center;
     font-weight: bold;
     font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+/* Tableau */
+.table-hover tbody tr {
+    transition: background-color 0.2s ease;
 }
 
 .table-hover tbody tr:hover {
     background-color: #f8f9fa;
-    transition: background-color 0.2s ease;
 }
 
+/* Groupes de boutons */
 .btn-group .btn {
     border-radius: 0.375rem !important;
 }
@@ -326,20 +377,32 @@
     margin-right: 0.25rem;
 }
 
+/* Carte principale */
 .card {
     border-radius: 0.75rem;
     overflow: hidden;
 }
 
+/* Badges */
 .badge {
     font-weight: 500;
     padding: 0.35em 0.65em;
+    font-size: 0.75rem;
 }
 
+/* Formulaires */
 .form-select, .form-control {
     border-radius: 0.5rem;
+    border: 1px solid #dee2e6;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
+.form-select:focus, .form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+/* Couleurs de badge personnalisées */
 .bg-success-subtle {
     background-color: rgba(25, 135, 84, 0.1) !important;
 }
@@ -415,11 +478,79 @@
     box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
 }
 
-/* Style pour les icônes de navigation */
+/* Icônes de navigation dans la pagination */
 .pagination .page-link svg {
     width: 1rem;
     height: 1rem;
     vertical-align: middle;
 }
+
+/* Input group */
+.input-group-text {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem 0 0 0.5rem;
+}
+
+.input-group .form-control {
+    border-radius: 0 0.5rem 0.5rem 0;
+}
+
+/* Alertes */
+.alert {
+    border-radius: 0.75rem;
+    border: none;
+}
+
+/* Animation pour les tooltips */
+[title] {
+    cursor: help;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .avatar-circle {
+        width: 32px;
+        height: 32px;
+        font-size: 0.7rem;
+    }
+    
+    .badge {
+        font-size: 0.7rem;
+        padding: 0.25em 0.5em;
+    }
+    
+    .btn-group .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+}
 </style>
+
+<script>
+// Auto-submit du formulaire de filtrage lors du changement de valeur
+document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.getElementById('filterForm');
+    const selects = filterForm.querySelectorAll('select');
+    
+    selects.forEach(select => {
+        select.addEventListener('change', function() {
+            filterForm.submit();
+        });
+    });
+    
+    // Auto-submit sur recherche après 500ms d'inactivité
+    const searchInput = filterForm.querySelector('input[name="search"]');
+    let searchTimeout;
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                filterForm.submit();
+            }, 500);
+        });
+    }
+});
+</script>
 @endsection

@@ -9,9 +9,12 @@ use App\Models\Groupe;
 use App\Models\Module;
 use App\Models\Formateur;
 use App\Models\Avancement;
+use App\Models\Secteur;
+use App\Models\Filiere;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AffectationController extends Controller
 {
@@ -26,7 +29,6 @@ class AffectationController extends Controller
             return redirect()->back()->with('error', 'Aucun établissement associé à votre compte.');
         }
 
-        // Query de base avec eager loading optimisé
         $query = Affectation::where('code_efp', $etablissement->code_efp)
             ->with([
                 'groupe.filiere.secteur', 
@@ -37,71 +39,46 @@ class AffectationController extends Controller
                 'avancement'
             ]);
 
-        // Filtrage par secteur
         if ($request->filled('secteur_id')) {
             $query->whereHas('groupe.filiere.secteur', function($q) use ($request) {
                 $q->where('id', $request->secteur_id);
             });
         }
 
-        // Filtrage par filière
         if ($request->filled('filiere_id')) {
             $query->whereHas('groupe', function($q) use ($request) {
                 $q->where('filiere_id', $request->filiere_id);
             });
         }
 
-        // Filtrage par groupe
         if ($request->filled('groupe_id')) {
             $query->where('groupe_id', $request->groupe_id);
         }
 
-        // Filtrage par module
         if ($request->filled('module_id')) {
             $query->where('module_id', $request->module_id);
         }
 
-        // Filtrage par formateur présentiel
         if ($request->filled('formateur_presentiel')) {
             $query->where('mle_affecte_presentiel', $request->formateur_presentiel);
         }
 
-        // Filtrage par formateur synchrone
         if ($request->filled('formateur_syn')) {
             $query->where('mle_affecte_syn', $request->formateur_syn);
         }
 
-        // Filtrage par fusion de groupe
         if ($request->filled('fusion_groupe')) {
-            $query->where('fusion_groupe', $request->fusion_groupe);
+            $query->where('fusion_groupe', 'LIKE', '%' . $request->fusion_groupe . '%');
         }
 
-        // Récupération avec pagination
         $affectations = $query->orderBy('created_at', 'desc')->paginate(15);
 
-        // Données pour les filtres
-        $secteurs = \App\Models\Secteur::where('code_efp', $etablissement->code_efp)
-            ->orderBy('nom_secteur')
-            ->get();
-            
-        $filieres = \App\Models\Filiere::where('code_efp', $etablissement->code_efp)
-            ->orderBy('nom_filiere')
-            ->get();
-            
-        $groupes = \App\Models\Groupe::where('code_efp', $etablissement->code_efp)
-            ->where('statut', 'Actif')
-            ->orderBy('code_groupe')
-            ->get();
-            
-        $modules = \App\Models\Module::where('code_efp', $etablissement->code_efp)
-            ->orderBy('code_module')
-            ->get();
-            
-        $formateurs = \App\Models\Formateur::where('code_efp', $etablissement->code_efp)
-            ->orderBy('nom_complet')
-            ->get();
+        $secteurs = Secteur::where('code_efp', $etablissement->code_efp)->orderBy('nom_secteur')->get();
+        $filieres = Filiere::where('code_efp', $etablissement->code_efp)->orderBy('nom_filiere')->get();
+        $groupes = Groupe::where('code_efp', $etablissement->code_efp)->where('statut', 'Actif')->orderBy('code_groupe')->get();
+        $modules = Module::where('code_efp', $etablissement->code_efp)->orderBy('code_module')->get();
+        $formateurs = $etablissement->formateurs()->orderBy('nom_complet')->get();
 
-        // Statistiques pour le tableau de bord
         $stats = [
             'total' => $affectations->total(),
             'mh_totale_drif' => Affectation::where('code_efp', $etablissement->code_efp)->sum('mh_totale_drif'),
@@ -131,7 +108,6 @@ class AffectationController extends Controller
             return redirect()->back()->with('error', 'Aucun établissement associé à votre compte.');
         }
 
-        // Récupérer les données nécessaires
         $groupes = Groupe::where('code_efp', $etablissement->code_efp)
             ->where('statut', 'Actif')
             ->with(['filiere', 'formation'])
@@ -142,7 +118,7 @@ class AffectationController extends Controller
             ->orderBy('code_module')
             ->get();
         
-        $formateurs = Formateur::where('code_efp', $etablissement->code_efp)
+        $formateurs = $etablissement->formateurs()
             ->orderBy('nom_complet')
             ->get();
 
@@ -153,6 +129,66 @@ class AffectationController extends Controller
             'formateurs'
         ));
     }
+
+    /**
+     * Récupérer les modules d'un formateur via AJAX
+     * ✅ MÉTHODE CORRIGÉE
+     */
+    public function getFormateurModules($mle)
+    {
+        try {
+            $etablissement = Auth::user()->etablissement;
+            
+            if (!$mle) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'MLE manquant',
+                    'modules' => []
+                ], 400);
+            }
+
+            $formateur = Formateur::where('mle', $mle)
+                ->with(['modules' => function($query) use ($etablissement) {
+                    $query->where('code_efp', $etablissement->code_efp);
+                }])
+                ->first();
+            
+            if (!$formateur) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Formateur non trouvé',
+                    'modules' => []
+                ], 404);
+            }
+
+            $modules = $formateur->modules
+                ->map(function($module) {
+                    return [
+                        'id' => $module->id,
+                        'code_module' => $module->code_module,
+                        'nom_module' => $module->nom_module,
+                        'text' => $module->code_module . ' - ' . $module->nom_module
+                    ];
+                })
+                ->sortBy('code_module')
+                ->values();
+
+            return response()->json([
+                'success' => true,
+                'modules' => $modules,
+                'count' => $modules->count()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Erreur lors de la récupération des modules: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur serveur: ' . $e->getMessage(),
+                'modules' => []
+            ], 500);
+        }
+    }
+
 
     /**
      * Enregistrer une nouvelle affectation
@@ -172,15 +208,12 @@ class AffectationController extends Controller
             'mle_affecte_syn' => 'nullable|exists:formateurs,mle',
             'fusion_groupe' => 'nullable|string|max:255',
             'code_fusion' => 'nullable|string|max:255',
-            // Masses horaires Semestre 1
             'mhp_s1_drif' => 'nullable|numeric|min:0',
             'mhsyn_s1_drif' => 'nullable|numeric|min:0',
             'mhasyn_s1_drif' => 'nullable|numeric|min:0',
-            // Masses horaires Semestre 2
             'mhp_s2_drif' => 'nullable|numeric|min:0',
             'mhsyn_s2_drif' => 'nullable|numeric|min:0',
             'mhasyn_s2_drif' => 'nullable|numeric|min:0',
-            // Masses horaires Affectées
             'mh_affectee_presentiel' => 'nullable|numeric|min:0',
             'mh_affectee_sync' => 'nullable|numeric|min:0',
         ]);
@@ -198,6 +231,31 @@ class AffectationController extends Controller
                 return redirect()->back()
                     ->with('error', 'Cette affectation existe déjà pour ce groupe et ce module.')
                     ->withInput();
+            }
+
+            // Vérifier que le module appartient bien aux formateurs sélectionnés
+            if ($request->mle_affecte_presentiel) {
+                $formateurPresentiel = Formateur::where('mle', $request->mle_affecte_presentiel)->first();
+                $hasModule = $formateurPresentiel->modules()->where('modules.id', $request->module_id)->exists();
+                
+                if (!$hasModule) {
+                    DB::rollBack();
+                    return redirect()->back()
+                        ->with('error', 'Le module sélectionné n\'est pas assigné au formateur présentiel.')
+                        ->withInput();
+                }
+            }
+
+            if ($request->mle_affecte_syn) {
+                $formateurSyn = Formateur::where('mle', $request->mle_affecte_syn)->first();
+                $hasModule = $formateurSyn->modules()->where('modules.id', $request->module_id)->exists();
+                
+                if (!$hasModule) {
+                    DB::rollBack();
+                    return redirect()->back()
+                        ->with('error', 'Le module sélectionné n\'est pas assigné au formateur synchrone.')
+                        ->withInput();
+                }
             }
 
             // Récupérer les noms des formateurs
@@ -239,27 +297,22 @@ class AffectationController extends Controller
                 'code_efp' => $etablissement->code_efp,
                 'fusion_groupe' => $request->fusion_groupe,
                 'code_fusion' => $request->code_fusion,
-                // Formateurs
                 'mle_affecte_presentiel' => $request->mle_affecte_presentiel,
                 'formateur_affecte_presentiel' => $formateurPresentiel ? $formateurPresentiel->nom_complet : null,
                 'mle_affecte_syn' => $request->mle_affecte_syn,
                 'formateur_affecte_syn' => $formateurSyn ? $formateurSyn->nom_complet : null,
-                // Semestre 1
                 'mhp_s1_drif' => $mhpS1,
                 'mhsyn_s1_drif' => $mhsynS1,
                 'mhasyn_s1_drif' => $mhasynS1,
                 'mh_totale_s1_drif' => $mh_totale_s1_drif,
-                // Semestre 2
                 'mhp_s2_drif' => $mhpS2,
                 'mhsyn_s2_drif' => $mhsynS2,
                 'mhasyn_s2_drif' => $mhasynS2,
                 'mh_totale_s2_drif' => $mh_totale_s2_drif,
-                // Totaux
                 'mhp_totale_drif' => $mhp_totale_drif,
                 'mhsyn_totale_drif' => $mhsyn_totale_drif,
                 'mhasyn_totale_drif' => $mhasyn_totale_drif,
                 'mh_totale_drif' => $mh_totale_drif,
-                // Masses horaires affectées
                 'mh_affectee_presentiel' => $mhPresentiel,
                 'mh_affectee_sync' => $mhSync,
                 'mh_affectee_globale' => $mh_affectee_globale,
@@ -288,6 +341,7 @@ class AffectationController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error("Erreur création affectation: " . $e->getMessage());
             return redirect()->back()
                 ->with('error', 'Erreur lors de la création: ' . $e->getMessage())
                 ->withInput();
@@ -317,11 +371,11 @@ class AffectationController extends Controller
     /**
      * Afficher le formulaire d'édition
      */
-    public function edit($id)
+     public function edit($id)
     {
         $etablissement = Auth::user()->etablissement;
         $affectation = Affectation::where('code_efp', $etablissement->code_efp)
-            ->with(['groupe', 'module'])
+            ->with(['groupe.filiere.secteur', 'groupe.formation', 'module', 'formateurPresentiel', 'formateurSyn'])
             ->findOrFail($id);
 
         $groupes = Groupe::where('code_efp', $etablissement->code_efp)
@@ -330,22 +384,39 @@ class AffectationController extends Controller
             ->orderBy('code_groupe')
             ->get();
         
-        $modules = Module::where('code_efp', $etablissement->code_efp)
+        // Récupérer tous les modules de l'établissement
+        $allModules = Module::where('code_efp', $etablissement->code_efp)
             ->orderBy('code_module')
             ->get();
         
-        $formateurs = Formateur::where('code_efp', $etablissement->code_efp)
+        $formateurs = $etablissement->formateurs()
             ->orderBy('nom_complet')
             ->get();
+
+        // Récupérer les modules du formateur présentiel actuel
+        $currentModules = collect([]);
+        if ($affectation->mle_affecte_presentiel) {
+            $formateur = Formateur::where('mle', $affectation->mle_affecte_presentiel)
+                ->with('modules')
+                ->first();
+            if ($formateur) {
+                $currentModules = $formateur->modules()
+                    ->where('code_efp', $etablissement->code_efp)
+                    ->orderBy('code_module')
+                    ->get();
+            }
+        }
 
         return view('administrationetablissement.affectations.edit', compact(
             'affectation',
             'etablissement', 
             'groupes', 
-            'modules', 
+            'allModules',
+            'currentModules',
             'formateurs'
         ));
     }
+
 
     /**
      * Mettre à jour une affectation
@@ -362,7 +433,6 @@ class AffectationController extends Controller
             'mle_affecte_syn' => 'nullable|exists:formateurs,mle',
             'fusion_groupe' => 'nullable|string|max:255',
             'code_fusion' => 'nullable|string|max:255',
-            // Masses horaires
             'mhp_s1_drif' => 'nullable|numeric|min:0',
             'mhsyn_s1_drif' => 'nullable|numeric|min:0',
             'mhasyn_s1_drif' => 'nullable|numeric|min:0',
@@ -376,20 +446,54 @@ class AffectationController extends Controller
         try {
             DB::beginTransaction();
 
-            // Vérifier les doublons
+            // Vérifier si l'affectation existe déjà (sauf celle qu'on modifie)
             $existingAffectation = Affectation::where('groupe_id', $request->groupe_id)
                 ->where('module_id', $request->module_id)
                 ->where('id', '!=', $id)
+                ->where('code_efp', $etablissement->code_efp)
                 ->first();
 
             if ($existingAffectation) {
                 DB::rollBack();
                 return redirect()->back()
-                    ->with('error', 'Cette affectation existe déjà.')
+                    ->with('error', 'Cette affectation existe déjà pour ce groupe et ce module.')
                     ->withInput();
             }
 
-            // Récupérer formateurs
+            // Vérifier que le module appartient bien aux formateurs sélectionnés
+            if ($request->mle_affecte_presentiel) {
+                $formateurPresentiel = Formateur::where('mle', $request->mle_affecte_presentiel)->first();
+                if ($formateurPresentiel) {
+                    $hasModule = $formateurPresentiel->modules()
+                        ->where('modules.id', $request->module_id)
+                        ->exists();
+                    
+                    if (!$hasModule) {
+                        DB::rollBack();
+                        return redirect()->back()
+                            ->with('error', 'Le module sélectionné n\'est pas assigné au formateur présentiel.')
+                            ->withInput();
+                    }
+                }
+            }
+
+            if ($request->mle_affecte_syn) {
+                $formateurSyn = Formateur::where('mle', $request->mle_affecte_syn)->first();
+                if ($formateurSyn) {
+                    $hasModule = $formateurSyn->modules()
+                        ->where('modules.id', $request->module_id)
+                        ->exists();
+                    
+                    if (!$hasModule) {
+                        DB::rollBack();
+                        return redirect()->back()
+                            ->with('error', 'Le module sélectionné n\'est pas assigné au formateur synchrone.')
+                            ->withInput();
+                    }
+                }
+            }
+
+            // Récupérer les noms des formateurs
             $formateurPresentiel = null;
             $formateurSyn = null;
 
@@ -401,7 +505,7 @@ class AffectationController extends Controller
                 $formateurSyn = Formateur::where('mle', $request->mle_affecte_syn)->first();
             }
 
-            // Calculs
+            // Calculs automatiques
             $mhpS1 = $request->mhp_s1_drif ?? 0;
             $mhsynS1 = $request->mhsyn_s1_drif ?? 0;
             $mhasynS1 = $request->mhasyn_s1_drif ?? 0;
@@ -421,6 +525,7 @@ class AffectationController extends Controller
             $mhSync = $request->mh_affectee_sync ?? 0;
             $mh_affectee_globale = $mhPresentiel + $mhSync;
 
+            // Mettre à jour l'affectation
             $affectation->update([
                 'groupe_id' => $request->groupe_id,
                 'module_id' => $request->module_id,
@@ -454,11 +559,13 @@ class AffectationController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error("Erreur modification affectation: " . $e->getMessage());
             return redirect()->back()
-                ->with('error', 'Erreur: ' . $e->getMessage())
+                ->with('error', 'Erreur lors de la modification: ' . $e->getMessage())
                 ->withInput();
         }
     }
+
 
     /**
      * Supprimer une affectation
@@ -471,7 +578,6 @@ class AffectationController extends Controller
         try {
             DB::beginTransaction();
 
-            // Supprimer l'avancement associé (cascade)
             if ($affectation->avancement) {
                 $affectation->avancement->delete();
             }

@@ -28,27 +28,27 @@ class AvancementController extends Controller
             return redirect()->back()->with('error', 'Aucun établissement associé à votre compte.');
         }
 
-        // Récupérer les données pour les filtres
-        $groupes = Groupe::where('code_efp', $etablissement->code_efp)
+        // Récupérer les données pour les filtres depuis l'établissement
+        $groupes = $etablissement->groupes()
             ->orderBy('code_groupe')
             ->get();
             
-        $modules = Module::where('code_efp', $etablissement->code_efp)
+        $modules = $etablissement->modules()
             ->orderBy('code_module')
             ->get();
             
-        $formateurs = Formateur::where('code_efp', $etablissement->code_efp)
+        $formateurs = $etablissement->formateurs()
             ->orderBy('nom_complet')
             ->get();
 
-        // Query de base
-        $query = Avancement::with([
+        // Query de base - via la relation etablissement
+        $query = $etablissement->avancements()
+            ->with([
                 'affectation.groupe',
                 'affectation.module',
                 'affectation.formateurPresentiel',
                 'affectation.formateurSyn'
-            ])
-            ->where('code_efp', $etablissement->code_efp);
+            ]);
 
         // Filtrage par recherche (groupe ou module)
         if ($request->filled('search')) {
@@ -118,7 +118,7 @@ class AvancementController extends Controller
         // Récupérer tous les avancements pour les statistiques
         $avancementsCollection = $query->get();
 
-        // Calculer les statistiques sur tous les avancements
+        // Calculer les statistiques
         $stats = [
             'total' => $avancementsCollection->count(),
             'taux_moyen' => $avancementsCollection->count() > 0 
@@ -141,7 +141,7 @@ class AvancementController extends Controller
             }, SORT_NATURAL | SORT_FLAG_CASE);
 
         // Paginer les groupes
-        $perPage = $request->get('per_page', 10); // Nombre de groupes par page
+        $perPage = $request->get('per_page', 10);
         $currentPage = request()->get('page', 1);
         $offset = ($currentPage - 1) * $perPage;
         
@@ -178,9 +178,9 @@ class AvancementController extends Controller
             return redirect()->back()->with('error', 'Aucun établissement associé à votre compte.');
         }
 
-        // Récupérer les affectations de l'établissement qui n'ont pas encore d'avancement
-        $affectations = Affectation::with(['groupe', 'module', 'formateurPresentiel', 'formateurSyn'])
-            ->where('code_efp', $etablissement->code_efp)
+        // Récupérer les affectations via la relation etablissement
+        $affectations = $etablissement->affectations()
+            ->with(['groupe', 'module', 'formateurPresentiel', 'formateurSyn'])
             ->whereDoesntHave('avancement')
             ->get()
             ->sortBy(function($affectation) {
@@ -214,9 +214,9 @@ class AvancementController extends Controller
         $user = Auth::user();
         $etablissement = $user->etablissement;
 
-        // Vérifier que l'affectation appartient bien à l'établissement du directeur
-        $affectation = Affectation::where('id', $request->affectation_id)
-            ->where('code_efp', $etablissement->code_efp)
+        // Vérifier que l'affectation appartient à l'établissement
+        $affectation = $etablissement->affectations()
+            ->where('id', $request->affectation_id)
             ->first();
 
         if (!$affectation) {
@@ -249,10 +249,10 @@ class AvancementController extends Controller
      */
     public function show(Avancement $avancement)
     {
-        // Vérifier que l'avancement appartient à l'établissement du directeur
         $user = Auth::user();
         $etablissement = $user->etablissement;
 
+        // Vérifier l'accès via la relation
         if ($avancement->code_efp !== $etablissement->code_efp) {
             abort(403, 'Accès non autorisé.');
         }
@@ -272,7 +272,6 @@ class AvancementController extends Controller
      */
     public function edit(Avancement $avancement)
     {
-        // Vérifier que l'avancement appartient à l'établissement du directeur
         $user = Auth::user();
         $etablissement = $user->etablissement;
 
@@ -290,7 +289,6 @@ class AvancementController extends Controller
      */
     public function update(Request $request, Avancement $avancement)
     {
-        // Vérifier que l'avancement appartient à l'établissement du directeur
         $user = Auth::user();
         $etablissement = $user->etablissement;
 
@@ -324,7 +322,6 @@ class AvancementController extends Controller
      */
     public function destroy(Avancement $avancement)
     {
-        // Vérifier que l'avancement appartient à l'établissement du directeur
         $user = Auth::user();
         $etablissement = $user->etablissement;
 

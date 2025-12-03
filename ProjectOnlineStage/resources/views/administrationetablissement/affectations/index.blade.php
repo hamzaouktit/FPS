@@ -568,7 +568,7 @@
                         <th>Fusion</th>
                         <th>Formateur P.</th>
                         <th>Formateur S.</th>
-                        <th>MH DRIF</th>
+                        <th>MH Demandée</th>
                         <th>MH Affectée</th>
                         <th>Taux Réal.</th>
                         <th class="text-center">Actions</th>

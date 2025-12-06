@@ -216,31 +216,39 @@ class DashboardEtablissementController extends Controller
 
 // ✅ CORRECTION : Liste des formateurs avec totaux (utilisant la relation Many-to-Many)
 // ✅ CORRECTION COMPLÈTE : Liste des formateurs avec totaux
-$formateursData = $filterOptions['formateurs']->map(function ($formateur) use ($affectations) {
+// ✅ CORRECTION : Remplacez cette section dans votre méthode index()
+// Cherchez la section "Liste des formateurs avec totaux" et remplacez-la par :
+
+// ✅ CORRECTION COMPLÈTE : Liste des formateurs avec totaux
+$formateursData = $etablissement->formateurs()->get()->map(function ($formateur) use ($affectations) {
     // Récupérer toutes les affectations du formateur (présentiel + synchrone)
     $affForForm = $affectations->filter(function ($aff) use ($formateur) {
         return $aff->mle_affecte_presentiel == $formateur->mle || $aff->mle_affecte_syn == $formateur->mle;
     });
     
-    // ✅ CORRECTION : Heures demandées = Total des heures DRIF requises
+    // ✅ Heures Réglementaires = masse_horaire du formateur (910h par défaut)
+    $heuresReglementaires = $formateur->masse_horaire ?? 910;
+    
+    // ✅ Heures Demandées = Total mh_totale_drif (heures DRIF requises)
     $heuresDemandees = $affForForm->sum('mh_totale_drif');
     
-    // ✅ CORRECTION : Heures affectées = Total des heures affectées globalement
+    // ✅ Heures Affectées = Total mh_affectee_globale
     $heuresAffectees = $affForForm->sum('mh_affectee_globale');
     
-    // ✅ CORRECTION : Heures disponibles = Demandées - Affectées
-    $heuresDisponibles = max(0, $heuresDemandees - $heuresAffectees);
+    // ✅ Heures Manquantes = Demandées - Affectées (ce qui reste à affecter)
+    $heuresManquantes = max(0, $heuresDemandees - $heuresAffectees);
     
-    // ✅ CORRECTION : Taux d'occupation = (Affectées / Demandées) * 100
-    $tauxOccupation = $heuresDemandees > 0 ? ($heuresAffectees / $heuresDemandees) * 100 : 0;
+    // ✅ Taux d'Affectation = (Affectées / Demandées) * 100
+    $tauxAffectation = $heuresDemandees > 0 ? ($heuresAffectees / $heuresDemandees) * 100 : 0;
     
     return [
         'nom_formateur' => $formateur->nom_complet,
-        'masse_horaire_formateur' => $formateur->masse_horaire, // ✅ Offre (910h)
+        'type' => $formateur->type ?? 'permanent',
+        'masse_horaire_reglementaire' => $heuresReglementaires, // ✅ Offre (910h)
         'heures_demandees' => $heuresDemandees, // ✅ mh_totale_drif
         'heures_affectees' => $heuresAffectees, // ✅ mh_affectee_globale
-        'heures_disponibles' => $heuresDisponibles, // ✅ Demandées - Affectées
-        'taux_occupation' => $tauxOccupation, // ✅ Basé sur Demandées
+        'heures_manquantes' => $heuresManquantes, // ✅ Demandées - Affectées
+        'taux_affectation' => $tauxAffectation, // ✅ Basé sur Demandées
     ];
 })->filter(function ($data) {
     // Afficher uniquement les formateurs qui ont des heures demandées ou affectées
@@ -249,10 +257,10 @@ $formateursData = $filterOptions['formateurs']->map(function ($formateur) use ($
 
 // Calculer les totaux des formateurs
 $totalFormateurs = [
-    'masse_horaire_totale' => $formateursData->sum('masse_horaire_formateur'), // ✅ Total offre
+    'masse_horaire_reglementaire' => $formateursData->sum('masse_horaire_reglementaire'), // ✅ Total offre
     'heures_demandees' => $formateursData->sum('heures_demandees'), // ✅ Total DRIF
     'heures_affectees' => $formateursData->sum('heures_affectees'), // ✅ Total affectées
-    'heures_disponibles' => $formateursData->sum('heures_disponibles'), // ✅ Total disponibles
+    'heures_manquantes' => $formateursData->sum('heures_manquantes'), // ✅ Total manquantes
 ];
 
         // ✅ CORRECTION : Entités sans affectation (Formateurs sans affectation)

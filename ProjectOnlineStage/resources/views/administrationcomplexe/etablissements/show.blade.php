@@ -448,7 +448,149 @@
     @endif
 </div>
 
-
+{{-- ✅ NOUVELLE SECTION : Détails formateurs avec groupes et modules --}}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom">
+        <h5 class="mb-0">
+            <i class="bi bi-person-lines-fill text-primary"></i> Détails des formateurs par groupe et module
+            <span class="badge bg-primary">{{ count($formateursDetailsAvecGroupes) }}</span>
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-wrapper" style="max-height: 700px; overflow: auto;">
+            <table class="table table-sm table-hover table-bordered mb-0">
+                <thead class="table-light" style="position: sticky; top: 0; z-index: 10;">
+                    <tr>
+                        <th style="width: 15%;">Formateur</th>
+                        <th style="width: 8%;">Type</th>
+                        <th style="width: 10%;">Groupe</th>
+                        <th style="width: 8%;">Effectif</th>
+                        <th style="width: 12%;">Code Module</th>
+                        <th style="width: 22%;">Module</th>
+                        <th style="width: 8%;">Mode</th>
+                        <th class="text-end" style="width: 8%;">MH Requise</th>
+                        <th class="text-end" style="width: 8%;">MH Réalisée</th>
+                        <th class="text-end" style="width: 8%;">Avancement</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($formateursDetailsAvecGroupes as $formateurData)
+                        @php
+                            $firstRow = true;
+                            $rowspan = count($formateurData['affectations']);
+                            $tauxGlobal = $formateurData['taux_global'];
+                            $bgClass = $tauxGlobal < 50 ? 'table-danger' : ($tauxGlobal < 80 ? 'table-warning' : '');
+                        @endphp
+                        
+                        @foreach($formateurData['affectations'] as $index => $affectation)
+                            <tr class="{{ $bgClass }}">
+                                @if($firstRow)
+                                    <td rowspan="{{ $rowspan }}" class="align-middle">
+                                        <strong>{{ $formateurData['nom_complet'] }}</strong><br>
+                                        <small class="text-muted">MLE: {{ $formateurData['mle'] }}</small>
+                                    </td>
+                                    <td rowspan="{{ $rowspan }}" class="align-middle">
+                                        <span class="badge bg-{{ $formateurData['type'] == 'permanent' ? 'success' : 'warning' }}">
+                                            {{ ucfirst($formateurData['type']) }}
+                                        </span>
+                                    </td>
+                                    @php $firstRow = false; @endphp
+                                @endif
+                                
+                                <td>
+                                    <span class="badge bg-info">{{ $affectation['groupe'] }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark">{{ $affectation['effectif'] }}</span>
+                                </td>
+                                <td>
+                                    <code class="small">{{ $affectation['module_code'] }}</code>
+                                </td>
+                                <td>
+                                    <small>{{ $affectation['module_nom'] }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ $affectation['mode'] == 'Présentiel' ? 'primary' : 'secondary' }} small">
+                                        {{ $affectation['mode'] }}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <small>{{ number_format($affectation['mh_requise'], 1) }}h</small>
+                                </td>
+                                <td class="text-end">
+                                    <small>{{ number_format($affectation['mh_realisee'], 1) }}h</small>
+                                </td>
+                                <td class="text-end">
+                                    @php
+                                        $taux = $affectation['taux_realisation'];
+                                        $badgeColor = $taux < 50 ? 'danger' : ($taux < 80 ? 'warning' : 'success');
+                                    @endphp
+                                    <span class="badge bg-{{ $badgeColor }}">
+                                        {{ number_format($taux, 1) }}%
+                                    </span>
+                                </td>
+                            </tr>
+                        @endforeach
+                        
+                        {{-- Ligne de total pour le formateur --}}
+                        <tr class="table-secondary fw-bold">
+                            <td colspan="7" class="text-end">
+                                <strong>TOTAL {{ $formateurData['nom_complet'] }}:</strong>
+                            </td>
+                            <td class="text-end">
+                                {{ number_format($formateurData['total_heures_requises'], 2) }}h
+                            </td>
+                            <td class="text-end">
+                                {{ number_format($formateurData['total_heures_realisees'], 2) }}h
+                            </td>
+                            <td class="text-end">
+                                @php
+                                    $badgeColor = $tauxGlobal < 50 ? 'danger' : ($tauxGlobal < 80 ? 'warning' : 'success');
+                                @endphp
+                                <span class="badge bg-{{ $badgeColor }} fs-6">
+                                    {{ number_format($tauxGlobal, 2) }}%
+                                </span>
+                            </td>
+                        </tr>
+                        
+                        {{-- Ligne de séparation --}}
+                        <tr style="height: 10px; background-color: #f8f9fa;">
+                            <td colspan="10"></td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="10" class="text-center py-5">
+                                <i class="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
+                                <p class="text-muted mb-0">Aucun formateur avec des affectations</p>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @if(count($formateursDetailsAvecGroupes) > 0)
+    <div class="card-footer bg-light border-top">
+        <div class="row">
+            <div class="col-md-6">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Légende :</strong> 
+                    <span class="badge bg-danger">Rouge</span> = Moins de 50% |
+                    <span class="badge bg-warning text-dark">Jaune</span> = 50-79% |
+                    <span class="badge bg-success">Vert</span> = 80% et plus
+                </small>
+            </div>
+            <div class="col-md-6 text-end">
+                <small class="text-muted">
+                    <i class="bi bi-sort-down"></i>
+                    Trié par taux de réalisation croissant (formateurs en retard en premier)
+                </small>
+            </div>
+        </div>
+    </div>
+    @endif
+</div>
 
     {{-- Graphiques --}}
     <div class="row g-3 mb-4">

@@ -299,55 +299,13 @@
                                             <i class="fas fa-edit"></i>
                                         </a>
                                         <button type="button" 
-                                                class="btn btn-sm btn-outline-danger" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#deleteModal{{ $etablissement->code_efp }}"
-                                                title="Supprimer">
+                                                class="btn btn-sm btn-outline-danger btn-delete-etablissement" 
+                                                data-bs-toggle="tooltip"
+                                                title="Supprimer"
+                                                data-code-efp="{{ $etablissement->code_efp }}"
+                                                data-nom-efp="{{ $etablissement->nom_efp }}">
                                             <i class="fas fa-trash"></i>
                                         </button>
-                                    </div>
-
-                                    {{-- Modal de confirmation de suppression --}}
-                                    <div class="modal fade" id="deleteModal{{ $etablissement->code_efp }}" tabindex="-1">
-                                        <div class="modal-dialog modal-dialog-centered">
-                                            <div class="modal-content border-0 shadow-lg">
-                                                <div class="modal-header bg-danger text-white">
-                                                    <h5 class="modal-title">
-                                                        <i class="fas fa-exclamation-triangle me-2"></i>
-                                                        Confirmer la suppression
-                                                    </h5>
-                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                                </div>
-                                                <div class="modal-body p-4">
-                                                    <p class="mb-3">Êtes-vous sûr de vouloir supprimer cet établissement ?</p>
-                                                    <div class="alert alert-warning d-flex align-items-start mb-3">
-                                                        <i class="fas fa-building fs-4 me-3 text-warning"></i>
-                                                        <div>
-                                                            <strong class="d-block">{{ $etablissement->nom_efp }}</strong>
-                                                            <small class="text-muted">Code: {{ $etablissement->code_efp }}</small>
-                                                        </div>
-                                                    </div>
-                                                    <div class="alert alert-danger d-flex align-items-start mb-0">
-                                                        <i class="fas fa-exclamation-circle me-2"></i>
-                                                        <small>Cette action est irréversible et supprimera toutes les données associées (formations, groupes, modules, etc.).</small>
-                                                    </div>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                                        <i class="fas fa-times"></i> Annuler
-                                                    </button>
-                                                    <form action="{{ route('administration.complexe.etablissements.destroy', $etablissement->code_efp) }}" 
-                                                          method="POST" 
-                                                          class="d-inline">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" class="btn btn-danger">
-                                                            <i class="fas fa-trash"></i> Supprimer définitivement
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
                                     </div>
                                 </td>
                             </tr>
@@ -391,6 +349,47 @@
     </div>
 </div>
 
+{{-- ✅ Modal de confirmation de suppression UNIQUE (en dehors de la boucle) --}}
+<div class="modal fade" id="deleteEtablissementModal" tabindex="-1" aria-labelledby="deleteEtablissementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteEtablissementModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Confirmer la suppression
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="mb-3">Êtes-vous sûr de vouloir supprimer cet établissement ?</p>
+                <div class="alert alert-warning d-flex align-items-start mb-3">
+                    <i class="fas fa-building fs-4 me-3 text-warning"></i>
+                    <div>
+                        <strong class="d-block" id="modal-nom-efp"></strong>
+                        <small class="text-muted">Code: <span id="modal-code-efp"></span></small>
+                    </div>
+                </div>
+                <div class="alert alert-danger d-flex align-items-start mb-0">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <small>Cette action est irréversible et supprimera toutes les données associées (formations, groupes, modules, etc.).</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annuler
+                </button>
+                <form id="delete-etablissement-form" method="POST" class="d-inline">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Supprimer définitivement
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
     /* Statistiques Cards */
     .stat-card {
@@ -403,34 +402,18 @@
         box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15) !important;
     }
     
-    .stat-icon-box {
+    .stat-icon-wrapper {
         width: 60px;
         height: 60px;
         border-radius: 12px;
-        display: flex !important;
+        display: flex;
         align-items: center;
         justify-content: center;
-        flex-shrink: 0;
+        color: white;
     }
     
-    .stat-icon-box svg {
-        display: block !important;
-    }
-    
-    .bg-primary-gradient {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    }
-    
-    .bg-info-gradient {
-        background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
-    }
-    
-    .bg-warning-gradient {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    }
-    
-    .bg-success-gradient {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    .stat-icon {
+        font-size: 26px;
     }
     
     .stat-number {
@@ -575,11 +558,39 @@
 
 @push('scripts')
 <script>
-    // Initialiser les tooltips Bootstrap
     document.addEventListener('DOMContentLoaded', function() {
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        // Initialiser les tooltips Bootstrap
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl)
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        
+        // ✅ Gérer le clic sur le bouton de suppression
+        const deleteButtons = document.querySelectorAll('.btn-delete-etablissement');
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteEtablissementModal'));
+        const deleteForm = document.getElementById('delete-etablissement-form');
+        const modalCodeEfp = document.getElementById('modal-code-efp');
+        const modalNomEfp = document.getElementById('modal-nom-efp');
+        
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Récupérer les données de l'établissement
+                const codeEfp = this.getAttribute('data-code-efp');
+                const nomEfp = this.getAttribute('data-nom-efp');
+                
+                // Mettre à jour le contenu du modal
+                modalCodeEfp.textContent = codeEfp;
+                modalNomEfp.textContent = nomEfp;
+                
+                // Mettre à jour l'action du formulaire
+                const deleteUrl = "{{ route('administration.complexe.etablissements.destroy', ':code_efp') }}";
+                deleteForm.action = deleteUrl.replace(':code_efp', codeEfp);
+                
+                // Afficher le modal
+                deleteModal.show();
+            });
         });
     });
 </script>

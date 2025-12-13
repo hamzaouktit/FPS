@@ -448,14 +448,152 @@
     @endif
 </div>
 
-{{-- ✅ NOUVELLE SECTION : Détails formateurs avec groupes et modules --}}
+{{-- ✅ NOUVELLE SECTION : Détails formateurs avec groupes et modules + FILTRES --}}
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white border-bottom">
-        <h5 class="mb-0">
-            <i class="bi bi-person-lines-fill text-primary"></i> Détails des formateurs par groupe et module
-            <span class="badge bg-primary">{{ count($formateursDetailsAvecGroupes) }}</span>
-        </h5>
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-person-lines-fill text-primary"></i> Détails des formateurs par groupe et module
+                <span class="badge bg-primary">{{ count($formateursDetailsAvecGroupes) }}</span>
+            </h5>
+            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filterFormateursDetails" aria-expanded="false">
+                <i class="bi bi-funnel"></i> Options de Filtres 
+            </button>
+        </div>
     </div>
+
+    {{-- ✅ FORMULAIRE DE FILTRES --}}
+    <div class="collapse {{ array_filter(array_intersect_key($filters, array_flip(['formateur_detail', 'type_formateur', 'groupe_detail', 'module_detail', 'taux_min', 'taux_max']))) ? 'show' : '' }}" id="filterFormateursDetails">
+        <div class="card-body bg-light border-bottom">
+            <form method="GET" action="{{ route('administration.complexe.etablissements.show', $etablissement->code_efp) }}" id="filterFormateursDetailsForm">
+                {{-- ✅ Conserver les filtres du tableau principal --}}
+                @if(!empty($filters['formateur']))
+                    <input type="hidden" name="formateur" value="{{ $filters['formateur'] }}">
+                @endif
+                @if(!empty($filters['module']))
+                    <input type="hidden" name="module" value="{{ $filters['module'] }}">
+                @endif
+                @if(!empty($filters['groupe']))
+                    <input type="hidden" name="groupe" value="{{ $filters['groupe'] }}">
+                @endif
+                @if(!empty($filters['filiere']))
+                    <input type="hidden" name="filiere" value="{{ $filters['filiere'] }}">
+                @endif
+                @if(!empty($filters['secteur']))
+                    <input type="hidden" name="secteur" value="{{ $filters['secteur'] }}">
+                @endif
+
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">
+                            <i class="bi bi-person"></i> Formateur
+                        </label>
+                        <select name="formateur_detail" class="form-select form-select-sm">
+                            <option value="">Tous les formateurs</option>
+                            @foreach($filterOptions['formateurs'] as $formateur)
+                                <option value="{{ $formateur->mle }}" {{ ($filters['formateur_detail'] ?? '') == $formateur->mle ? 'selected' : '' }}>
+                                    {{ $formateur->nom_formateur }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">
+                            <i class="bi bi-tag"></i> Type formateur
+                        </label>
+                        <select name="type_formateur" class="form-select form-select-sm">
+                            <option value="">Tous les types</option>
+                            <option value="permanent" {{ ($filters['type_formateur'] ?? '') == 'permanent' ? 'selected' : '' }}>Permanent</option>
+                            <option value="vacataire" {{ ($filters['type_formateur'] ?? '') == 'vacataire' ? 'selected' : '' }}>Vacataire</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">
+                            <i class="bi bi-people"></i> Groupe
+                        </label>
+                        <select name="groupe_detail" class="form-select form-select-sm">
+                            <option value="">Tous les groupes</option>
+                            @foreach($filterOptions['groupes'] as $groupe)
+                                <option value="{{ $groupe->groupe }}" {{ ($filters['groupe_detail'] ?? '') == $groupe->groupe ? 'selected' : '' }}>
+                                    {{ $groupe->groupe }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">
+                            <i class="bi bi-book"></i> Module
+                        </label>
+                        <select name="module_detail" class="form-select form-select-sm">
+                            <option value="">Tous les modules</option>
+                            @foreach($filterOptions['modules'] as $module)
+                                <option value="{{ $module->code_module }}" {{ ($filters['module_detail'] ?? '') == $module->code_module ? 'selected' : '' }}>
+                                    {{ $module->nom_module }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">
+                            <i class="bi bi-percent"></i> Taux min/max
+                        </label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" name="taux_min" class="form-control" placeholder="Min" min="0" max="100" value="{{ $filters['taux_min'] ?? '' }}">
+                            <span class="input-group-text">-</span>
+                            <input type="number" name="taux_max" class="form-control" placeholder="Max" min="0" max="100" value="{{ $filters['taux_max'] ?? '' }}">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="bi bi-search"></i> Appliquer les filtres
+                        </button>
+                        
+                        @if(array_filter(array_intersect_key($filters, array_flip(['formateur_detail', 'type_formateur', 'groupe_detail', 'module_detail', 'taux_min', 'taux_max']))))
+                            <a href="{{ route('administration.complexe.etablissements.show', $etablissement->code_efp) }}?{{ http_build_query(array_intersect_key($filters, array_flip(['formateur', 'module', 'groupe', 'filiere', 'secteur']))) }}" 
+                               class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-x-circle"></i> Réinitialiser ces filtres
+                            </a>
+                        @endif
+
+                        {{-- ✅ Badge récapitulatif des filtres actifs --}}
+                        @php
+                            $activeFilters = array_filter([
+                                'formateur_detail' => $filters['formateur_detail'] ?? null,
+                                'type_formateur' => $filters['type_formateur'] ?? null,
+                                'groupe_detail' => $filters['groupe_detail'] ?? null,
+                                'module_detail' => $filters['module_detail'] ?? null,
+                                'taux_min' => $filters['taux_min'] ?? null,
+                                'taux_max' => $filters['taux_max'] ?? null,
+                            ]);
+                        @endphp
+
+                        @if(count($activeFilters) > 0)
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle"></i> 
+                                    <strong>{{ count($activeFilters) }}</strong> filtre(s) actif(s) :
+                                </small>
+                                @foreach($activeFilters as $key => $value)
+                                    <span class="badge bg-info text-dark ms-1">
+                                        {{ ucfirst(str_replace('_', ' ', $key)) }}: {{ $value }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{-- ✅ TABLEAU (inchangé) --}}
     <div class="card-body p-0">
         <div class="table-wrapper" style="max-height: 700px; overflow: auto;">
             <table class="table table-sm table-hover table-bordered mb-0">
@@ -561,7 +699,13 @@
                         <tr>
                             <td colspan="10" class="text-center py-5">
                                 <i class="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
-                                <p class="text-muted mb-0">Aucun formateur avec des affectations</p>
+                                <p class="text-muted mb-0">
+                                    @if(array_filter(array_intersect_key($filters, array_flip(['formateur_detail', 'type_formateur', 'groupe_detail', 'module_detail', 'taux_min', 'taux_max']))))
+                                        Aucun formateur ne correspond aux critères de filtrage
+                                    @else
+                                        Aucun formateur avec des affectations
+                                    @endif
+                                </p>
                             </td>
                         </tr>
                     @endforelse
@@ -569,6 +713,7 @@
             </table>
         </div>
     </div>
+    
     @if(count($formateursDetailsAvecGroupes) > 0)
     <div class="card-footer bg-light border-top">
         <div class="row">

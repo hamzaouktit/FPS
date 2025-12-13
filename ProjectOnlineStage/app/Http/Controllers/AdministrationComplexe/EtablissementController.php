@@ -131,12 +131,21 @@ class EtablissementController extends Controller
             ->with(['user', 'complexe'])
             ->firstOrFail();
 
+        // ✅ FILTRES COMPLETS (tableau principal + détails formateurs)
         $filters = [
+            // Filtres du tableau principal
             'formateur' => $request->input('formateur'),
             'module' => $request->input('module'),
             'groupe' => $request->input('groupe'),
             'filiere' => $request->input('filiere'),
             'secteur' => $request->input('secteur'),
+            // Filtres de la section formateurs détaillés
+            'formateur_detail' => $request->input('formateur_detail'),
+            'type_formateur' => $request->input('type_formateur'),
+            'groupe_detail' => $request->input('groupe_detail'),
+            'module_detail' => $request->input('module_detail'),
+            'taux_min' => $request->input('taux_min'),
+            'taux_max' => $request->input('taux_max'),
         ];
 
         $query = $this->buildDetailedQuery($code_efp, $filters);
@@ -147,7 +156,7 @@ class EtablissementController extends Controller
         $modulesNonAffectesParFiliere = $this->getModulesNonAffectesParFiliere($code_efp);
         $modulesNonAffectesParGroupe = $this->getModulesNonAffectesParGroupe($code_efp);
         $formateursStats = $this->getFormateursStats($code_efp);
-        $formateursDetailsAvecGroupes = $this->getFormateursDetailsAvecGroupes($code_efp);
+        $formateursDetailsAvecGroupes = $this->getFormateursDetailsAvecGroupes($code_efp, $filters);
 
         return view('administrationcomplexe.etablissements.show', compact(
             'user', 
@@ -161,7 +170,7 @@ class EtablissementController extends Controller
             'modulesNonAffectesParFiliere',
             'modulesNonAffectesParGroupe',
             'formateursStats',
-            'formateursDetailsAvecGroupes' // ✅ AJOUTÉ
+            'formateursDetailsAvecGroupes'
         ));
     }
 
@@ -294,7 +303,7 @@ class EtablissementController extends Controller
     }
 
     /**
-     * ✅ Stats des formateurs - CORRIGÉ
+     * ✅ Stats des formateurs
      */
     private function getFormateursStats($code_efp)
     {
@@ -365,132 +374,186 @@ class EtablissementController extends Controller
             ];
         });
     }
+
     /**
- * ✅ Stats détaillées des formateurs avec leurs groupes et modules
- */
-private function getFormateursDetailsAvecGroupes($code_efp)
-{
-    $cacheKey = "formateurs_details_groupes_{$code_efp}";
-    
-    return Cache::remember($cacheKey, 300, function() use ($code_efp) {
-        $formateurs = Formateur::whereHas('etablissements', function($query) use ($code_efp) {
-                $query->where('etablissements.code_efp', $code_efp);
-            })
-            ->with([
-                'affectationsPresentiel' => function($query) use ($code_efp) {
-                    $query->where('code_efp', $code_efp)
-                          ->with([
-                              'groupe:id,code_groupe,effectif_groupe',
-                              'module:id,code_module,nom_module',
-                              'avancement:id,affectation_id,mh_realisee_globale,taux_realisation_globale,mh_realisee_presentiel,taux_realisation_presentiel'
-                          ]);
-                },
-                'affectationsSyn' => function($query) use ($code_efp) {
-                    $query->where('code_efp', $code_efp)
-                          ->with([
-                              'groupe:id,code_groupe,effectif_groupe',
-                              'module:id,code_module,nom_module',
-                              'avancement:id,affectation_id,mh_realisee_globale,taux_realisation_globale,mh_realisee_sync,taux_realisation_syn'
-                          ]);
+     * ✅ Stats détaillées des formateurs avec leurs groupes et modules - AVEC FILTRES
+     */
+    private function getFormateursDetailsAvecGroupes($code_efp, $filters = [])
+    {
+        // Créer une clé de cache unique basée sur les filtres
+        $filterKey = md5(json_encode(array_intersect_key($filters, array_flip([
+            'formateur_detail', 'type_formateur', 'groupe_detail', 'module_detail', 'taux_min', 'taux_max'
+        ]))));
+        $cacheKey = "formateurs_details_groupes_{$code_efp}_{$filterKey}";
+        
+        return Cache::remember($cacheKey, 300, function() use ($code_efp, $filters) {
+            $query = Formateur::whereHas('etablissements', function($query) use ($code_efp) {
+                    $query->where('etablissements.code_efp', $code_efp);
+                });
+
+            // ✅ FILTRE par formateur spécifique
+            if (!empty($filters['formateur_detail'])) {
+                $query->where('mle', $filters['formateur_detail']);
+            }
+
+            // ✅ FILTRE par type de formateur
+            if (!empty($filters['type_formateur'])) {
+                $query->where('type', $filters['type_formateur']);
+            }
+
+            $formateurs = $query->with([
+                    'affectationsPresentiel' => function($query) use ($code_efp, $filters) {
+                        $query->where('code_efp', $code_efp);
+                        
+                        // ✅ FILTRE par groupe
+                        if (!empty($filters['groupe_detail'])) {
+                            $query->whereHas('groupe', function($q) use ($filters) {
+                                $q->where('code_groupe', $filters['groupe_detail']);
+                            });
+                        }
+                        
+                        // ✅ FILTRE par module
+                        if (!empty($filters['module_detail'])) {
+                            $query->whereHas('module', function($q) use ($filters) {
+                                $q->where('code_module', $filters['module_detail']);
+                            });
+                        }
+                        
+                        $query->with([
+                            'groupe:id,code_groupe,effectif_groupe',
+                            'module:id,code_module,nom_module',
+                            'avancement:id,affectation_id,mh_realisee_globale,taux_realisation_globale,mh_realisee_presentiel,taux_realisation_presentiel'
+                        ]);
+                    },
+                    'affectationsSyn' => function($query) use ($code_efp, $filters) {
+                        $query->where('code_efp', $code_efp);
+                        
+                        // ✅ FILTRE par groupe
+                        if (!empty($filters['groupe_detail'])) {
+                            $query->whereHas('groupe', function($q) use ($filters) {
+                                $q->where('code_groupe', $filters['groupe_detail']);
+                            });
+                        }
+                        
+                        // ✅ FILTRE par module
+                        if (!empty($filters['module_detail'])) {
+                            $query->whereHas('module', function($q) use ($filters) {
+                                $q->where('code_module', $filters['module_detail']);
+                            });
+                        }
+                        
+                        $query->with([
+                            'groupe:id,code_groupe,effectif_groupe',
+                            'module:id,code_module,nom_module',
+                            'avancement:id,affectation_id,mh_realisee_globale,taux_realisation_globale,mh_realisee_sync,taux_realisation_syn'
+                        ]);
+                    }
+                ])
+                ->get();
+
+            $formateursData = [];
+
+            foreach ($formateurs as $formateur) {
+                $affectationsDetails = [];
+                $totalHeuresRealisees = 0;
+                $totalHeuresRequises = 0;
+
+                // Traiter les affectations présentiel
+                foreach ($formateur->affectationsPresentiel as $affectation) {
+                    if (!$affectation->groupe || !$affectation->module) continue;
+                    
+                    $mhRequise = $affectation->mhp_totale_drif;
+                    $mhRealisee = $affectation->avancement 
+                        ? $affectation->avancement->mh_realisee_presentiel 
+                        : 0;
+                    $tauxRealisation = $affectation->avancement 
+                        ? $affectation->avancement->taux_realisation_presentiel 
+                        : 0;
+
+                    $affectationsDetails[] = [
+                        'groupe' => $affectation->groupe->code_groupe,
+                        'effectif' => $affectation->groupe->effectif_groupe,
+                        'module_code' => $affectation->module->code_module,
+                        'module_nom' => $affectation->module->nom_module,
+                        'mode' => 'Présentiel',
+                        'mh_requise' => $mhRequise,
+                        'mh_realisee' => $mhRealisee,
+                        'taux_realisation' => $tauxRealisation,
+                    ];
+
+                    $totalHeuresRealisees += $mhRealisee;
+                    $totalHeuresRequises += $mhRequise;
                 }
-            ])
-            ->get();
 
-        $formateursData = [];
+                // Traiter les affectations synchrone
+                foreach ($formateur->affectationsSyn as $affectation) {
+                    if (!$affectation->groupe || !$affectation->module) continue;
+                    
+                    $mhRequise = $affectation->mhsyn_totale_drif;
+                    $mhRealisee = $affectation->avancement 
+                        ? $affectation->avancement->mh_realisee_sync 
+                        : 0;
+                    $tauxRealisation = $affectation->avancement 
+                        ? $affectation->avancement->taux_realisation_syn 
+                        : 0;
 
-        foreach ($formateurs as $formateur) {
-            $affectationsDetails = [];
-            $totalHeuresRealisees = 0;
-            $totalHeuresRequises = 0;
+                    $affectationsDetails[] = [
+                        'groupe' => $affectation->groupe->code_groupe,
+                        'effectif' => $affectation->groupe->effectif_groupe,
+                        'module_code' => $affectation->module->code_module,
+                        'module_nom' => $affectation->module->nom_module,
+                        'mode' => 'Synchrone',
+                        'mh_requise' => $mhRequise,
+                        'mh_realisee' => $mhRealisee,
+                        'taux_realisation' => $tauxRealisation,
+                    ];
 
-            // Traiter les affectations présentiel
-            foreach ($formateur->affectationsPresentiel as $affectation) {
-                if (!$affectation->groupe || !$affectation->module) continue;
-                
-                $mhRequise = $affectation->mhp_totale_drif;
-                $mhRealisee = $affectation->avancement 
-                    ? $affectation->avancement->mh_realisee_presentiel 
+                    $totalHeuresRealisees += $mhRealisee;
+                    $totalHeuresRequises += $mhRequise;
+                }
+
+                // Calculer le taux global du formateur
+                $tauxGlobal = $totalHeuresRequises > 0 
+                    ? ($totalHeuresRealisees / $totalHeuresRequises) * 100 
                     : 0;
-                $tauxRealisation = $affectation->avancement 
-                    ? $affectation->avancement->taux_realisation_presentiel 
-                    : 0;
 
-                $affectationsDetails[] = [
-                    'groupe' => $affectation->groupe->code_groupe,
-                    'effectif' => $affectation->groupe->effectif_groupe,
-                    'module_code' => $affectation->module->code_module,
-                    'module_nom' => $affectation->module->nom_module,
-                    'mode' => 'Présentiel',
-                    'mh_requise' => $mhRequise,
-                    'mh_realisee' => $mhRealisee,
-                    'taux_realisation' => $tauxRealisation,
-                ];
+                // ✅ FILTRE par taux de réalisation
+                if (!empty($filters['taux_min']) && $tauxGlobal < $filters['taux_min']) {
+                    continue;
+                }
+                if (!empty($filters['taux_max']) && $tauxGlobal > $filters['taux_max']) {
+                    continue;
+                }
 
-                $totalHeuresRealisees += $mhRealisee;
-                $totalHeuresRequises += $mhRequise;
+                // Trier les affectations par groupe puis module
+                usort($affectationsDetails, function($a, $b) {
+                    $groupeCompare = strcmp($a['groupe'], $b['groupe']);
+                    if ($groupeCompare !== 0) return $groupeCompare;
+                    return strcmp($a['module_nom'], $b['module_nom']);
+                });
+
+                if (!empty($affectationsDetails)) {
+                    $formateursData[] = [
+                        'mle' => $formateur->mle,
+                        'nom_complet' => $formateur->nom_complet,
+                        'type' => $formateur->type,
+                        'affectations' => $affectationsDetails,
+                        'total_heures_requises' => round($totalHeuresRequises, 2),
+                        'total_heures_realisees' => round($totalHeuresRealisees, 2),
+                        'taux_global' => round($tauxGlobal, 2),
+                        'nb_affectations' => count($affectationsDetails),
+                    ];
+                }
             }
 
-            // Traiter les affectations synchrone
-            foreach ($formateur->affectationsSyn as $affectation) {
-                if (!$affectation->groupe || !$affectation->module) continue;
-                
-                $mhRequise = $affectation->mhsyn_totale_drif;
-                $mhRealisee = $affectation->avancement 
-                    ? $affectation->avancement->mh_realisee_sync 
-                    : 0;
-                $tauxRealisation = $affectation->avancement 
-                    ? $affectation->avancement->taux_realisation_syn 
-                    : 0;
-
-                $affectationsDetails[] = [
-                    'groupe' => $affectation->groupe->code_groupe,
-                    'effectif' => $affectation->groupe->effectif_groupe,
-                    'module_code' => $affectation->module->code_module,
-                    'module_nom' => $affectation->module->nom_module,
-                    'mode' => 'Synchrone',
-                    'mh_requise' => $mhRequise,
-                    'mh_realisee' => $mhRealisee,
-                    'taux_realisation' => $tauxRealisation,
-                ];
-
-                $totalHeuresRealisees += $mhRealisee;
-                $totalHeuresRequises += $mhRequise;
-            }
-
-            // Calculer le taux global du formateur
-            $tauxGlobal = $totalHeuresRequises > 0 
-                ? ($totalHeuresRealisees / $totalHeuresRequises) * 100 
-                : 0;
-
-            // Trier les affectations par groupe puis module
-            usort($affectationsDetails, function($a, $b) {
-                $groupeCompare = strcmp($a['groupe'], $b['groupe']);
-                if ($groupeCompare !== 0) return $groupeCompare;
-                return strcmp($a['module_nom'], $b['module_nom']);
+            // Trier par taux de réalisation croissant (formateurs en retard en premier)
+            usort($formateursData, function($a, $b) {
+                return $a['taux_global'] <=> $b['taux_global'];
             });
 
-            if (!empty($affectationsDetails)) {
-                $formateursData[] = [
-                    'mle' => $formateur->mle,
-                    'nom_complet' => $formateur->nom_complet,
-                    'type' => $formateur->type,
-                    'affectations' => $affectationsDetails,
-                    'total_heures_requises' => round($totalHeuresRequises, 2),
-                    'total_heures_realisees' => round($totalHeuresRealisees, 2),
-                    'taux_global' => round($tauxGlobal, 2),
-                    'nb_affectations' => count($affectationsDetails),
-                ];
-            }
-        }
-
-        // Trier par taux de réalisation croissant (formateurs en retard en premier)
-        usort($formateursData, function($a, $b) {
-            return $a['taux_global'] <=> $b['taux_global'];
+            return $formateursData;
         });
-
-        return $formateursData;
-    });
-}
+    }
 
     /**
      * Construction de la requête détaillée avec filtres
@@ -566,7 +629,7 @@ private function getFormateursDetailsAvecGroupes($code_efp)
                 'avancements.date_maj'
             );
 
-        // Appliquer les filtres
+        // Appliquer les filtres (uniquement les filtres du tableau principal)
         if (!empty($filters['secteur'])) {
             $query->where('secteurs.nom_secteur', $filters['secteur']);
         }
@@ -753,7 +816,7 @@ private function getFormateursDetailsAvecGroupes($code_efp)
     }
 
     /**
-     * Options de filtrage - CORRIGÉ
+     * Options de filtrage
      */
     private function getFilterOptions($code_efp)
     {

@@ -24,289 +24,375 @@ use Illuminate\Pagination\Paginator;
 
 class DashboardEtablissementController extends Controller
 {
-    public function index(Request $request)
-    {
-        $user = Auth::user();
-        $etablissement = $user->etablissement;
-
-        if (!$etablissement) {
-            return redirect()->route('welcome')->with('error', 'Aucun établissement associé à cet utilisateur.');
-        }
-        
-        // Récupération des filtres
-        $filters = [
-            'groupe' => $request->input('groupe'),
-            'module' => $request->input('module'),
-            'formateur' => $request->input('formateur'),
-            'niveau' => $request->input('niveau'),
-            'filiere' => $request->input('filiere'),
-            'annee' => $request->input('annee'),
-        ];
-
-        // Récupérer tous les groupes de l'établissement
-        $groupesQuery = Groupe::where('code_efp', $etablissement->code_efp);
-        
-        // Application des filtres sur les groupes
-        if ($filters['groupe']) {
-            $groupesQuery->where('id', $filters['groupe']);
-        }
-        if ($filters['filiere']) {
-            $groupesQuery->where('filiere_id', $filters['filiere']);
-        }
-        if ($filters['annee']) {
-            $groupesQuery->where('annee_formation', $filters['annee']);
-        }
-        
-        $groupes = $groupesQuery->get();
-        $groupeIds = $groupes->pluck('id');
-
-        // Construction de la requête des affectations avec avancements
-        $affectationsQuery = Affectation::whereIn('groupe_id', $groupeIds)
-            ->with([
-                'groupe.filiere.secteur',
-                'groupe.formation.niveau',
-                'groupe.formation',
-                'module',
-                'formateurPresentiel',
-                'formateurSyn',
-                'avancement'
-            ]);
-
-        // Application des filtres sur les affectations
-        if ($filters['module']) {
-            $affectationsQuery->where('module_id', $filters['module']);
-        }
-        if ($filters['formateur']) {
-            $affectationsQuery->where(function($query) use ($filters) {
-                $query->where('mle_affecte_presentiel', $filters['formateur'])
-                      ->orWhere('mle_affecte_syn', $filters['formateur']);
-            });
-        }
-        if ($filters['niveau']) {
-            $affectationsQuery->whereHas('groupe.formation', function($query) use ($filters) {
-                $query->where('niveau_id', $filters['niveau']);
-            });
-        }
-
-        $affectations = $affectationsQuery->get();
-
-        // Statistiques principales
-        $statistics = $this->calculateStatistics($affectations, $etablissement, $filters);
-
-        // Analyse des heures par type
-        $heuresAnalysis = $this->calculateHeuresAnalysis($affectations);
-        
-        // Données pour l'analyse des heures
-        $heuresData = $this->calculateHeuresData($affectations);
-        
-        // Graphiques de taux
-        $tauxChartData = $this->getTauxChartData($affectations);
-        
-        // Données détaillées par groupe et module - AVEC PAGINATION
-        $detailedData = $this->getDetailedGroupeModuleData($affectations);
-        
-        // Pagination pour les données détaillées
-        $perPage = 15;
-        $currentPage = LengthAwarePaginator::resolveCurrentPage();
-        $currentItems = $detailedData->slice(($currentPage - 1) * $perPage, $perPage)->all();
-        $paginatedDetailedData = new LengthAwarePaginator($currentItems, $detailedData->count(), $perPage);
-        $paginatedDetailedData->setPath($request->url());
-        $paginatedDetailedData->appends($request->query());
-        
-        // Top 10 modules avec meilleurs taux
-        $topModules = $this->getTopModules($affectations);
-        
-        // Données pour les graphiques
-        $chartData = $this->getChartData($affectations);
-        
-        // Taux de réalisation par formateur
-        $formateurStats = $this->getFormateurStats($affectations);
-        
-        // Options pour les filtres
-        $filterOptions = $this->getFilterOptions($etablissement);
-
-        // ✅ CORRECTION : Modules non affectés
-        $affectationsNonAffectes = $affectations->filter(function ($affectation) {
-            $aucunFormateur = is_null($affectation->mle_affecte_presentiel) && is_null($affectation->mle_affecte_syn);
-            $heuresNonAffectees = ($affectation->mh_affectee_globale == 0 || is_null($affectation->mh_affectee_globale)) 
-                                  && $affectation->mh_totale_drif > 0;
-            
-            return $aucunFormateur || $heuresNonAffectees;
-        });
-
-        // Ajouter la raison à chaque affectation non affectée
-        $affectationsNonAffectes = $affectationsNonAffectes->map(function ($affectation) {
-            $raisons = [];
-            if (is_null($affectation->mle_affecte_presentiel) && is_null($affectation->mle_affecte_syn)) {
-                $raisons[] = 'Aucun formateur affecté';
-            }
-            if (($affectation->mh_affectee_globale == 0 || is_null($affectation->mh_affectee_globale)) && $affectation->mh_totale_drif > 0) {
-                $raisons[] = 'Masse horaire non affectée';
-            }
-            $affectation->raison = implode(', ', $raisons) ?: 'Autres raisons';
-            return $affectation;
-        });
-
-        // Par module
-        $nonAffectesParModule = $affectationsNonAffectes->groupBy('module_id')->map(function ($group) {
-            $firstAffectation = $group->first();
-            return [
-                'code_module' => $firstAffectation->module ? $firstAffectation->module->code_module : 'N/A',
-                'nom_module' => $firstAffectation->module ? $firstAffectation->module->nom_module : 'N/A',
-                'groupes' => $group->pluck('groupe.code_groupe')->unique()->implode(', '),
-                'masse_horaire' => $group->sum('mh_totale_drif'),
-                'formateur' => 'Non affecté',
-                'raisons' => $group->pluck('raison')->unique()->implode(', '),
-            ];
-        })->values();
-
-        $totalNonAffectesModule = $affectationsNonAffectes->sum('mh_totale_drif');
-
-        // Par filière avec modules
-        $nonAffectesParFiliere = $affectationsNonAffectes->groupBy(function ($affectation) {
-            return $affectation->groupe && $affectation->groupe->filiere ? $affectation->groupe->filiere->id : null;
-        })->map(function ($group) {
-            $firstAffectation = $group->first();
-            $filiere = ($firstAffectation->groupe && $firstAffectation->groupe->filiere) ? $firstAffectation->groupe->filiere : null;
-            
-            $modules = $group->groupBy('module_id')->map(function ($moduleGroup) {
-                return $moduleGroup->first()->module ? $moduleGroup->first()->module->nom_module : 'N/A';
-            })->implode(', ');
-            
-            return [
-                'code_filiere' => $filiere ? $filiere->code_filiere : 'N/A',
-                'nom_filiere' => $filiere ? $filiere->nom_filiere : 'N/A',
-                'modules' => $modules,
-                'masse_horaire' => $group->sum('mh_totale_drif'),
-                'raisons' => $group->pluck('raison')->unique()->implode(', '),
-            ];
-        })->filter(function($item) {
-            return $item['code_filiere'] !== null;
-        })->values();
-
-        $totalNonAffectesFiliere = $affectationsNonAffectes->sum('mh_totale_drif');
-
-      // ✅ CORRECTION COMPLÈTE : Liste des formateurs avec totaux
-// Cherchez cette section dans votre méthode index() et remplacez-la
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ✅ CORRECTION : Liste des formateurs avec totaux (utilisant la relation Many-to-Many)
-// ✅ CORRECTION COMPLÈTE : Liste des formateurs avec totaux
-// ✅ CORRECTION : Remplacez cette section dans votre méthode index()
-// Cherchez la section "Liste des formateurs avec totaux" et remplacez-la par :
-
-// ✅ CORRECTION COMPLÈTE : Liste des formateurs avec totaux
-$formateursData = $etablissement->formateurs()->get()->map(function ($formateur) use ($affectations) {
-    // Récupérer toutes les affectations du formateur (présentiel + synchrone)
-    $affForForm = $affectations->filter(function ($aff) use ($formateur) {
-        return $aff->mle_affecte_presentiel == $formateur->mle || $aff->mle_affecte_syn == $formateur->mle;
-    });
     
-    // ✅ Heures Réglementaires = masse_horaire du formateur (910h par défaut)
-    $heuresReglementaires = $formateur->masse_horaire ?? 910;
-    
-    // ✅ Heures Demandées = Total mh_totale_drif (heures DRIF requises)
-    $heuresDemandees = $affForForm->sum('mh_totale_drif');
-    
-    // ✅ Heures Affectées = Total mh_affectee_globale
-    $heuresAffectees = $affForForm->sum('mh_affectee_globale');
-    
-    // ✅ Heures Manquantes = Demandées - Affectées (ce qui reste à affecter)
-    $heuresManquantes = max(0, $heuresDemandees - $heuresAffectees);
-    
-    // ✅ Taux d'Affectation = (Affectées / Demandées) * 100
-    $tauxAffectation = $heuresDemandees > 0 ? ($heuresAffectees / $heuresDemandees) * 100 : 0;
-    
-    return [
-        'nom_formateur' => $formateur->nom_complet,
-        'type' => $formateur->type ?? 'permanent',
-        'masse_horaire_reglementaire' => $heuresReglementaires, // ✅ Offre (910h)
-        'heures_demandees' => $heuresDemandees, // ✅ mh_totale_drif
-        'heures_affectees' => $heuresAffectees, // ✅ mh_affectee_globale
-        'heures_manquantes' => $heuresManquantes, // ✅ Demandées - Affectées
-        'taux_affectation' => $tauxAffectation, // ✅ Basé sur Demandées
-    ];
-})->filter(function ($data) {
-    // Afficher uniquement les formateurs qui ont des heures demandées ou affectées
-    return $data['heures_demandees'] > 0 || $data['heures_affectees'] > 0;
-})->values();
+public function index(Request $request)
+{
+    $user = Auth::user();
+    $etablissement = $user->etablissement;
 
-// Calculer les totaux des formateurs
-$totalFormateurs = [
-    'masse_horaire_reglementaire' => $formateursData->sum('masse_horaire_reglementaire'), // ✅ Total offre
-    'heures_demandees' => $formateursData->sum('heures_demandees'), // ✅ Total DRIF
-    'heures_affectees' => $formateursData->sum('heures_affectees'), // ✅ Total affectées
-    'heures_manquantes' => $formateursData->sum('heures_manquantes'), // ✅ Total manquantes
-];
-
-        // ✅ CORRECTION : Entités sans affectation (Formateurs sans affectation)
-        // Formateurs rattachés à cet établissement mais sans aucune affectation
-        $formateursSansAffectation = $etablissement->formateurs()
-            ->whereDoesntHave('affectationsPresentiel')
-            ->whereDoesntHave('affectationsSyn')
-            ->get();
-
-        // Groupes sans aucune affectation
-        $groupesSansAffectation = Groupe::where('code_efp', $etablissement->code_efp)
-            ->whereDoesntHave('affectations')
-            ->get();
-
-        // Modules sans aucune affectation
-        $modulesSansAffectation = Module::where('code_efp', $etablissement->code_efp)
-            ->whereDoesntHave('affectations')
-            ->get();
-
-            
-
-
-        return view('administrationetablissement.dashboard', compact(
-            'etablissement',
-            'statistics',
-            'heuresAnalysis',
-            'heuresData',
-            'tauxChartData',
-            'detailedData',
-            'paginatedDetailedData',
-            'topModules',
-            'chartData',
-            'formateurStats',
-            'filterOptions',
-            'filters',
-            'nonAffectesParModule',
-            'totalNonAffectesModule',
-            'nonAffectesParFiliere',
-            'totalNonAffectesFiliere',
-            'formateursData',
-            'totalFormateurs',
-            'groupesSansAffectation',
-            'modulesSansAffectation',
-            'formateursSansAffectation'
-        ));
+    if (!$etablissement) {
+        return redirect()->route('welcome')->with('error', 'Aucun établissement associé à cet utilisateur.');
     }
+    
+    // ✅ MODIFICATION : Ajouter les nouveaux filtres
+    $filters = [
+        'groupe' => $request->input('groupe'),
+        'module' => $request->input('module'),
+        'formateur' => $request->input('formateur'),
+        'niveau' => $request->input('niveau'),
+        'filiere' => $request->input('filiere'),
+        'annee' => $request->input('annee'),
+        // ✅ NOUVEAUX FILTRES pour les détails formateurs
+        'formateur_detail' => $request->input('formateur_detail'),
+        'type_formateur' => $request->input('type_formateur'),
+        'groupe_detail' => $request->input('groupe_detail'),
+        'module_detail' => $request->input('module_detail'),
+        'taux_min' => $request->input('taux_min'),
+        'taux_max' => $request->input('taux_max'),
+    ];
+
+    // Récupérer tous les groupes de l'établissement
+    $groupesQuery = Groupe::where('code_efp', $etablissement->code_efp);
+    
+    // Application des filtres sur les groupes
+    if ($filters['groupe']) {
+        $groupesQuery->where('id', $filters['groupe']);
+    }
+    if ($filters['filiere']) {
+        $groupesQuery->where('filiere_id', $filters['filiere']);
+    }
+    if ($filters['annee']) {
+        $groupesQuery->where('annee_formation', $filters['annee']);
+    }
+    
+    $groupes = $groupesQuery->get();
+    $groupeIds = $groupes->pluck('id');
+
+    // Construction de la requête des affectations avec avancements
+    $affectationsQuery = Affectation::whereIn('groupe_id', $groupeIds)
+        ->with([
+            'groupe.filiere.secteur',
+            'groupe.formation.niveau',
+            'groupe.formation',
+            'module',
+            'formateurPresentiel',
+            'formateurSyn',
+            'avancement'
+        ]);
+
+    // Application des filtres sur les affectations
+    if ($filters['module']) {
+        $affectationsQuery->where('module_id', $filters['module']);
+    }
+    if ($filters['formateur']) {
+        $affectationsQuery->where(function($query) use ($filters) {
+            $query->where('mle_affecte_presentiel', $filters['formateur'])
+                  ->orWhere('mle_affecte_syn', $filters['formateur']);
+        });
+    }
+    if ($filters['niveau']) {
+        $affectationsQuery->whereHas('groupe.formation', function($query) use ($filters) {
+            $query->where('niveau_id', $filters['niveau']);
+        });
+    }
+
+    $affectations = $affectationsQuery->get();
+
+    // Statistiques principales
+    $statistics = $this->calculateStatistics($affectations, $etablissement, $filters);
+
+    // Analyse des heures par type
+    $heuresAnalysis = $this->calculateHeuresAnalysis($affectations);
+    
+    // Données pour l'analyse des heures
+    $heuresData = $this->calculateHeuresData($affectations);
+    
+    // Graphiques de taux
+    $tauxChartData = $this->getTauxChartData($affectations);
+    
+    // Données détaillées par groupe et module - AVEC PAGINATION
+    $detailedData = $this->getDetailedGroupeModuleData($affectations);
+    
+    // Pagination pour les données détaillées
+    $perPage = 15;
+    $currentPage = LengthAwarePaginator::resolveCurrentPage();
+    $currentItems = $detailedData->slice(($currentPage - 1) * $perPage, $perPage)->all();
+    $paginatedDetailedData = new LengthAwarePaginator($currentItems, $detailedData->count(), $perPage);
+    $paginatedDetailedData->setPath($request->url());
+    $paginatedDetailedData->appends($request->query());
+    
+    // Top 10 modules avec meilleurs taux
+    $topModules = $this->getTopModules($affectations);
+    
+    // Données pour les graphiques
+    $chartData = $this->getChartData($affectations);
+    
+    // Taux de réalisation par formateur
+    $formateurStats = $this->getFormateurStats($affectations);
+    
+    // Options pour les filtres
+    $filterOptions = $this->getFilterOptions($etablissement);
+
+    // Modules non affectés
+    $affectationsNonAffectes = $affectations->filter(function ($affectation) {
+        $aucunFormateur = is_null($affectation->mle_affecte_presentiel) && is_null($affectation->mle_affecte_syn);
+        $heuresNonAffectees = ($affectation->mh_affectee_globale == 0 || is_null($affectation->mh_affectee_globale)) 
+                              && $affectation->mh_totale_drif > 0;
+        
+        return $aucunFormateur || $heuresNonAffectees;
+    });
+
+    // Ajouter la raison à chaque affectation non affectée
+    $affectationsNonAffectes = $affectationsNonAffectes->map(function ($affectation) {
+        $raisons = [];
+        if (is_null($affectation->mle_affecte_presentiel) && is_null($affectation->mle_affecte_syn)) {
+            $raisons[] = 'Aucun formateur affecté';
+        }
+        if (($affectation->mh_affectee_globale == 0 || is_null($affectation->mh_affectee_globale)) && $affectation->mh_totale_drif > 0) {
+            $raisons[] = 'Masse horaire non affectée';
+        }
+        $affectation->raison = implode(', ', $raisons) ?: 'Autres raisons';
+        return $affectation;
+    });
+
+    // Par module
+    $nonAffectesParModule = $affectationsNonAffectes->groupBy('module_id')->map(function ($group) {
+        $firstAffectation = $group->first();
+        return [
+            'code_module' => $firstAffectation->module ? $firstAffectation->module->code_module : 'N/A',
+            'nom_module' => $firstAffectation->module ? $firstAffectation->module->nom_module : 'N/A',
+            'groupes' => $group->pluck('groupe.code_groupe')->unique()->implode(', '),
+            'masse_horaire' => $group->sum('mh_totale_drif'),
+            'formateur' => 'Non affecté',
+            'raisons' => $group->pluck('raison')->unique()->implode(', '),
+        ];
+    })->values();
+
+    $totalNonAffectesModule = $affectationsNonAffectes->sum('mh_totale_drif');
+
+    // Par filière avec modules
+    $nonAffectesParFiliere = $affectationsNonAffectes->groupBy(function ($affectation) {
+        return $affectation->groupe && $affectation->groupe->filiere ? $affectation->groupe->filiere->id : null;
+    })->map(function ($group) {
+        $firstAffectation = $group->first();
+        $filiere = ($firstAffectation->groupe && $firstAffectation->groupe->filiere) ? $firstAffectation->groupe->filiere : null;
+        
+        $modules = $group->groupBy('module_id')->map(function ($moduleGroup) {
+            return $moduleGroup->first()->module ? $moduleGroup->first()->module->nom_module : 'N/A';
+        })->implode(', ');
+        
+        return [
+            'code_filiere' => $filiere ? $filiere->code_filiere : 'N/A',
+            'nom_filiere' => $filiere ? $filiere->nom_filiere : 'N/A',
+            'modules' => $modules,
+            'masse_horaire' => $group->sum('mh_totale_drif'),
+            'raisons' => $group->pluck('raison')->unique()->implode(', '),
+        ];
+    })->filter(function($item) {
+        return $item['code_filiere'] !== null;
+    })->values();
+
+    $totalNonAffectesFiliere = $affectationsNonAffectes->sum('mh_totale_drif');
+
+    // Liste des formateurs avec totaux
+    $formateursData = $etablissement->formateurs()->get()->map(function ($formateur) use ($affectations) {
+        $affForForm = $affectations->filter(function ($aff) use ($formateur) {
+            return $aff->mle_affecte_presentiel == $formateur->mle || $aff->mle_affecte_syn == $formateur->mle;
+        });
+        
+        $heuresReglementaires = $formateur->masse_horaire ?? 910;
+        $heuresDemandees = $affForForm->sum('mh_totale_drif');
+        $heuresAffectees = $affForForm->sum('mh_affectee_globale');
+        $heuresManquantes = max(0, $heuresDemandees - $heuresAffectees);
+        $tauxAffectation = $heuresDemandees > 0 ? ($heuresAffectees / $heuresDemandees) * 100 : 0;
+        
+        return [
+            'nom_formateur' => $formateur->nom_complet,
+            'type' => $formateur->type ?? 'permanent',
+            'masse_horaire_reglementaire' => $heuresReglementaires,
+            'heures_demandees' => $heuresDemandees,
+            'heures_affectees' => $heuresAffectees,
+            'heures_manquantes' => $heuresManquantes,
+            'taux_affectation' => $tauxAffectation,
+        ];
+    })->filter(function ($data) {
+        return $data['heures_demandees'] > 0 || $data['heures_affectees'] > 0;
+    })->values();
+
+    // Calculer les totaux des formateurs
+    $totalFormateurs = [
+        'masse_horaire_reglementaire' => $formateursData->sum('masse_horaire_reglementaire'),
+        'heures_demandees' => $formateursData->sum('heures_demandees'),
+        'heures_affectees' => $formateursData->sum('heures_affectees'),
+        'heures_manquantes' => $formateursData->sum('heures_manquantes'),
+    ];
+
+    // Entités sans affectation
+    $formateursSansAffectation = $etablissement->formateurs()
+        ->whereDoesntHave('affectationsPresentiel')
+        ->whereDoesntHave('affectationsSyn')
+        ->get();
+
+    $groupesSansAffectation = Groupe::where('code_efp', $etablissement->code_efp)
+        ->whereDoesntHave('affectations')
+        ->get();
+
+    $modulesSansAffectation = Module::where('code_efp', $etablissement->code_efp)
+        ->whereDoesntHave('affectations')
+        ->get();
+
+    // ✅ NOUVEAU : Récupération des détails formateurs avec groupes et modules
+    $formateursDetailsAvecGroupes = $this->getFormateursDetailsAvecGroupes($affectations, $filters);
+
+    return view('administrationetablissement.dashboard', compact(
+        'etablissement',
+        'statistics',
+        'heuresAnalysis',
+        'heuresData',
+        'tauxChartData',
+        'detailedData',
+        'paginatedDetailedData',
+        'topModules',
+        'chartData',
+        'formateurStats',
+        'filterOptions',
+        'filters',
+        'nonAffectesParModule',
+        'totalNonAffectesModule',
+        'nonAffectesParFiliere',
+        'totalNonAffectesFiliere',
+        'formateursData',
+        'totalFormateurs',
+        'groupesSansAffectation',
+        'modulesSansAffectation',
+        'formateursSansAffectation',
+        'formateursDetailsAvecGroupes' // ✅ NOUVELLE VARIABLE
+    ));
+}
+      
+// ============================================================================
+ // ÉTAPE 2 : AJOUTER CES TROIS NOUVELLES MÉTHODES PRIVÉES À LA FIN DU CONTRÔLEUR
+// ============================================================================
+
+            /**
+             * Récupère les détails des formateurs avec leurs groupes et modules
+             * avec application des filtres
+             */
+            private function getFormateursDetailsAvecGroupes($affectations, $filters = [])
+            {
+                $details = collect();
+                
+                // Parcourir toutes les affectations
+                foreach ($affectations as $affectation) {
+                    // Traiter le formateur présentiel
+                    if ($affectation->mle_affecte_presentiel) {
+                        $formateur = $affectation->formateurPresentiel;
+                        if ($formateur) {
+                            $detail = $this->buildFormateurDetail(
+                                $formateur,
+                                $affectation,
+                                'Présentiel',
+                                $affectation->mh_affectee_presentiel,
+                                $affectation->avancement ? $affectation->avancement->mh_realisee_presentiel : 0
+                            );
+                            
+                            if ($this->matchesDetailFilters($detail, $filters)) {
+                                $details->push($detail);
+                            }
+                        }
+                    }
+                    
+                    // Traiter le formateur synchrone
+                    if ($affectation->mle_affecte_syn) {
+                        $formateur = $affectation->formateurSyn;
+                        if ($formateur) {
+                            $detail = $this->buildFormateurDetail(
+                                $formateur,
+                                $affectation,
+                                'Synchrone',
+                                $affectation->mh_affectee_sync,
+                                $affectation->avancement ? $affectation->avancement->mh_realisee_sync : 0
+                            );
+                            
+                            if ($this->matchesDetailFilters($detail, $filters)) {
+                                $details->push($detail);
+                            }
+                        }
+                    }
+                }
+                
+                return $details->sortBy([
+                    ['nom_formateur', 'asc'],
+                    ['groupe', 'asc'],
+                    ['nom_module', 'asc']
+                ])->values();
+            }
+
+            /**
+             * Construit les détails d'un formateur pour un groupe/module donné
+             */
+            private function buildFormateurDetail($formateur, $affectation, $mode, $heuresAffectees, $heuresRealisees)
+            {
+                $groupe = $affectation->groupe;
+                $module = $affectation->module;
+                
+                $tauxRealisation = $heuresAffectees > 0 
+                    ? ($heuresRealisees / $heuresAffectees) * 100 
+                    : 0;
+                
+                return [
+                    'mle' => $formateur->mle,
+                    'nom_formateur' => $formateur->nom_complet,
+                    'type' => $formateur->type ?? 'permanent',
+                    'groupe' => $groupe ? $groupe->code_groupe : 'N/A',
+                    'groupe_id' => $groupe ? $groupe->id : null,
+                    'code_module' => $module ? $module->code_module : 'N/A',
+                    'nom_module' => $module ? $module->nom_module : 'N/A',
+                    'module_id' => $module ? $module->id : null,
+                    'heures_affectees' => $heuresAffectees,
+                    'heures_realisees' => $heuresRealisees,
+                    'taux_realisation' => round($tauxRealisation, 2),
+                    'mode' => $mode,
+                ];
+            }
+
+        /**
+         * Vérifie si un détail correspond aux filtres appliqués
+         */
+        private function matchesDetailFilters($detail, $filters)
+        {
+            // Filtre formateur
+            if (!empty($filters['formateur_detail']) && $detail['mle'] != $filters['formateur_detail']) {
+                return false;
+            }
+            
+            // Filtre type formateur
+            if (!empty($filters['type_formateur']) && $detail['type'] != $filters['type_formateur']) {
+                return false;
+            }
+            
+            // Filtre groupe
+            if (!empty($filters['groupe_detail']) && $detail['groupe'] != $filters['groupe_detail']) {
+                return false;
+            }
+            
+            // Filtre module
+            if (!empty($filters['module_detail']) && $detail['code_module'] != $filters['module_detail']) {
+                return false;
+            }
+            
+            // Filtre taux minimum
+            if (!empty($filters['taux_min']) && $detail['taux_realisation'] < $filters['taux_min']) {
+                return false;
+            }
+            
+            // Filtre taux maximum
+            if (!empty($filters['taux_max']) && $detail['taux_realisation'] > $filters['taux_max']) {
+                return false;
+            }
+            
+            return true;
+        }
 
     private function calculateStatistics($affectations, $etablissement, $filters = [])
     {
@@ -709,7 +795,7 @@ $totalFormateurs = [
             'annees' => $annees,
         ];
     }
-
+    
     public function getFilteredOptions(Request $request)
     {
         $user = Auth::user();

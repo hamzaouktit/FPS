@@ -897,25 +897,37 @@
 
 
 
-{{-- ✅ NOUVELLE SECTION : Détails formateurs avec groupes et modules + FILTRES --}}
+{{-- ✅ SECTION AMÉLIORÉE : Détails formateurs avec scroll et style moderne --}}
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white border-bottom">
-        <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
-                <i class="bi bi-person-lines-fill text-primary"></i> Détails des formateurs par groupe et module
-                <span class="badge bg-primary">{{ count($formateursDetailsAvecGroupes) }}</span>
-            </h5>
-            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filterFormateursDetails" aria-expanded="false">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1">
+                    <i class="bi bi-person-lines-fill text-primary"></i> 
+                    Détails des formateurs par groupe et module
+                    <span class="badge bg-primary">{{ count($formateursDetailsAvecGroupes) }}</span>
+                </h5>
+                <small class="text-muted">
+                    <i class="bi bi-info-circle"></i> 
+                    Glissez horizontalement pour voir toutes les colonnes
+                </small>
+            </div>
+            <button class="btn btn-sm btn-outline-primary" 
+                    type="button" 
+                    data-bs-toggle="collapse" 
+                    data-bs-target="#filterFormateursDetails" 
+                    aria-expanded="false">
                 <i class="bi bi-funnel"></i> Options de Filtres
             </button>
         </div>
     </div>
 
     {{-- ✅ FORMULAIRE DE FILTRES --}}
-    <div class="collapse {{ array_filter(array_intersect_key($filters, array_flip(['formateur_detail', 'type_formateur', 'groupe_detail', 'module_detail', 'taux_min', 'taux_max']))) ? 'show' : '' }}" id="filterFormateursDetails">
+    <div class="collapse {{ array_filter(array_intersect_key($filters, array_flip(['formateur_detail', 'type_formateur', 'groupe_detail', 'module_detail', 'taux_min', 'taux_max']))) ? 'show' : '' }}" 
+         id="filterFormateursDetails">
         <div class="card-body bg-light border-bottom">
             <form method="GET" action="{{ route('administration.etablissement.dashboard') }}" id="filterFormateursDetailsForm">
-                {{-- ✅ Conserver les filtres du tableau principal --}}
+                {{-- Conserver les filtres du tableau principal --}}
                 @if(!empty($filters['formateur']))
                     <input type="hidden" name="formateur" value="{{ $filters['formateur'] }}">
                 @endif
@@ -1011,7 +1023,7 @@
                             </a>
                         @endif
 
-                        {{-- ✅ Badge récapitulatif des filtres actifs --}}
+                        {{-- Badge récapitulatif des filtres actifs --}}
                         @php
                             $activeFilters = array_filter([
                                 'formateur_detail' => $filters['formateur_detail'] ?? null,
@@ -1042,72 +1054,156 @@
         </div>
     </div>
 
-    {{-- ✅ TABLEAU DES RÉSULTATS --}}
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover table-sm align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Formateur</th>
-                        <th class="text-center">Type</th>
-                        <th>Groupe</th>
-                        <th>Module</th>
-                        <th class="text-end">H. Affectées</th>
-                        <th class="text-end">H. Réalisées</th>
-                        <th class="text-center">Taux</th>
-                        <th class="text-center">Mode</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($formateursDetailsAvecGroupes as $detail)
-                    <tr>
-                        <td>
-                            <strong>{{ $detail['nom_formateur'] }}</strong>
-                        </td>
-                        <td class="text-center">
-                            <span class="badge bg-{{ $detail['type'] == 'permanent' ? 'primary' : 'secondary' }}">
-                                {{ ucfirst($detail['type']) }}
-                            </span>
-                        </td>
-                        <td>{{ $detail['groupe'] }}</td>
-                        <td>
-                            <code>{{ $detail['code_module'] }}</code><br>
-                            <small class="text-muted">{{ Str::limit($detail['nom_module'], 30) }}</small>
-                        </td>
-                        <td class="text-end">{{ number_format($detail['heures_affectees'], 2) }}h</td>
-                        <td class="text-end">{{ number_format($detail['heures_realisees'], 2) }}h</td>
-                        <td class="text-center">
-                            <span class="badge rounded-pill fw-bold {{ $detail['taux_realisation'] >= 80 ? 'bg-success' : ($detail['taux_realisation'] >= 50 ? 'bg-warning text-dark' : 'bg-danger') }}">
-                                {{ number_format($detail['taux_realisation'], 1) }}%
-                            </span>
-                        </td>
-                        <td class="text-center">
-                            <span class="badge bg-{{ $detail['mode'] == 'Présentiel' ? 'info' : 'success' }}">
-                                {{ $detail['mode'] }}
-                            </span>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="8" class="text-center text-muted py-4">
-                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                            Aucune donnée disponible
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-                @if(count($formateursDetailsAvecGroupes) > 0)
-                <tfoot class="table-secondary fw-bold">
-                    <tr>
-                        <th colspan="4">TOTAL</th>
-                        <th class="text-end">{{ number_format(collect($formateursDetailsAvecGroupes)->sum('heures_affectees'), 2) }}h</th>
-                        <th class="text-end">{{ number_format(collect($formateursDetailsAvecGroupes)->sum('heures_realisees'), 2) }}h</th>
-                        <th colspan="2"></th>
-                    </tr>
-                </tfoot>
-                @endif
-            </table>
+    {{-- ✅ TABLEAU DES RÉSULTATS AVEC SCROLL --}}
+    <div class="card-body p-0 position-relative">
+        {{-- Indicateur de scroll --}}
+        @if(count($formateursDetailsAvecGroupes) > 0)
+        <div class="scroll-indicator d-none d-md-block">
+            <i class="bi bi-arrow-left-right text-primary" style="font-size: 1.5rem;"></i>
         </div>
+        @endif
+
+        {{-- Wrapper avec scroll --}}
+        <div class="formateurs-details-wrapper">
+            <div class="formateurs-table-scroll">
+                <table class="table table-hover table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Formateur</th>
+                            <th class="text-center">Type</th>
+                            <th>Groupe</th>
+                            <th>Module</th>
+                            <th class="text-end">H. Affectées</th>
+                            <th class="text-end">H. Réalisées</th>
+                            <th class="text-center">Taux</th>
+                            <th class="text-center">Mode</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($formateursDetailsAvecGroupes as $detail)
+                        <tr>
+                            <td>
+                                <strong class="text-primary">{{ $detail['nom_formateur'] }}</strong>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-{{ $detail['type'] == 'permanent' ? 'primary' : 'secondary' }}">
+                                    {{ ucfirst($detail['type']) }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">{{ $detail['groupe'] }}</span>
+                            </td>
+                            <td>
+                                <div>
+                                    <code class="bg-light px-2 py-1 rounded">{{ $detail['code_module'] }}</code>
+                                    <br>
+                                    <small class="text-muted">{{ Str::limit($detail['nom_module'], 30) }}</small>
+                                </div>
+                            </td>
+                            <td class="text-end">
+                                <span class="badge bg-info text-white">{{ number_format($detail['heures_affectees'], 2) }}h</span>
+                            </td>
+                            <td class="text-end">
+                                <span class="badge bg-success text-white">{{ number_format($detail['heures_realisees'], 2) }}h</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge rounded-pill fw-bold {{ $detail['taux_realisation'] >= 80 ? 'bg-success' : ($detail['taux_realisation'] >= 50 ? 'bg-warning text-dark' : 'bg-danger') }}" 
+                                      data-bs-toggle="tooltip" 
+                                      data-bs-placement="top" 
+                                      title="Taux de réalisation">
+                                    {{ number_format($detail['taux_realisation'], 1) }}%
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-{{ $detail['mode'] == 'Présentiel' ? 'info' : 'success' }}">
+                                    <i class="bi bi-{{ $detail['mode'] == 'Présentiel' ? 'person-standing' : 'camera-video' }}"></i>
+                                    {{ $detail['mode'] }}
+                                </span>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-5">
+                                <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                                <p class="mb-0">Aucune donnée disponible</p>
+                                <small>Essayez de modifier les filtres</small>
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                    @if(count($formateursDetailsAvecGroupes) > 0)
+                    <tfoot class="table-secondary fw-bold">
+                        <tr>
+                            <th colspan="4" class="text-end">TOTAL</th>
+                            <th class="text-end">
+                                <span class="badge bg-info text-white fs-6">
+                                    {{ number_format(collect($formateursDetailsAvecGroupes)->sum('heures_affectees'), 2) }}h
+                                </span>
+                            </th>
+                            <th class="text-end">
+                                <span class="badge bg-success text-white fs-6">
+                                    {{ number_format(collect($formateursDetailsAvecGroupes)->sum('heures_realisees'), 2) }}h
+                                </span>
+                            </th>
+                            <th colspan="2"></th>
+                        </tr>
+                    </tfoot>
+                    @endif
+                </table>
+            </div>
+        </div>
+
+        {{-- Statistiques rapides en bas --}}
+        @if(count($formateursDetailsAvecGroupes) > 0)
+        <div class="border-top bg-light px-4 py-3">
+            <div class="row text-center g-3">
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <i class="bi bi-check-circle-fill text-success me-2 fs-4"></i>
+                        <div class="text-start">
+                            <small class="text-muted d-block">Taux moyen</small>
+                            <strong class="text-success">
+                                {{ number_format(collect($formateursDetailsAvecGroupes)->avg('taux_realisation'), 1) }}%
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <i class="bi bi-people-fill text-primary me-2 fs-4"></i>
+                        <div class="text-start">
+                            <small class="text-muted d-block">Formateurs uniques</small>
+                            <strong class="text-primary">
+                                {{ collect($formateursDetailsAvecGroupes)->pluck('nom_formateur')->unique()->count() }}
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <i class="bi bi-diagram-3-fill text-info me-2 fs-4"></i>
+                        <div class="text-start">
+                            <small class="text-muted d-block">Groupes concernés</small>
+                            <strong class="text-info">
+                                {{ collect($formateursDetailsAvecGroupes)->pluck('groupe')->unique()->count() }}
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <i class="bi bi-book-fill text-warning me-2 fs-4"></i>
+                        <div class="text-start">
+                            <small class="text-muted d-block">Modules différents</small>
+                            <strong class="text-warning">
+                                {{ collect($formateursDetailsAvecGroupes)->pluck('code_module')->unique()->count() }}
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
     </div>
 </div>
 
@@ -1801,6 +1897,27 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.removeChild(downloadLink);
         }
     };
+    /* fghjklòàljhgftyc */
+    document.addEventListener('DOMContentLoaded', function() {
+    // Initialiser les tooltips Bootstrap
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Animation lors du scroll
+    const scrollWrapper = document.querySelector('.formateurs-details-wrapper');
+    if (scrollWrapper) {
+        scrollWrapper.addEventListener('scroll', function() {
+            const indicator = document.querySelector('.scroll-indicator');
+            if (indicator && this.scrollLeft > 50) {
+                indicator.style.opacity = '0';
+            } else if (indicator) {
+                indicator.style.opacity = '0.7';
+            }
+        });
+    }
+});
 });
 </script>
 
@@ -1909,6 +2026,220 @@ document.addEventListener('DOMContentLoaded', function() {
 .page-link:focus {
     box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
 }
+/* fghjòkljghcvuiophkg*/
+/* === Amélioration Section Détails Formateurs === */
 
+/* Container avec scroll horizontal */
+.formateurs-details-wrapper {
+    max-height: 600px;
+    overflow-y: auto;
+    border-radius: 0.5rem;
+}
+
+/* Style du scroll personnalisé */
+.formateurs-details-wrapper::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.formateurs-details-wrapper::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.formateurs-details-wrapper::-webkit-scrollbar-thumb {
+    background: #0d6efd;
+    border-radius: 10px;
+}
+
+.formateurs-details-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #0b5ed7;
+}
+
+/* Table responsive avec scroll horizontal */
+.formateurs-table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Sticky header pour la table */
+.formateurs-details-wrapper table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #f8f9fa;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Style amélioré pour les cellules */
+.formateurs-details-wrapper table th,
+.formateurs-details-wrapper table td {
+    white-space: nowrap;
+    padding: 0.75rem;
+    font-size: 0.875rem;
+}
+
+/* Colonne formateur plus large */
+.formateurs-details-wrapper table th:first-child,
+.formateurs-details-wrapper table td:first-child {
+    min-width: 180px;
+    position: sticky;
+    left: 0;
+    background-color: #fff;
+    z-index: 9;
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+}
+
+.formateurs-details-wrapper table thead th:first-child {
+    background-color: #f8f9fa;
+    z-index: 11;
+}
+
+/* Hover effect sur les lignes */
+.formateurs-details-wrapper table tbody tr {
+    transition: all 0.2s ease;
+}
+
+.formateurs-details-wrapper table tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+    transform: scale(1.01);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Badge amélioré */
+.formateurs-details-wrapper .badge {
+    padding: 0.35em 0.65em;
+    font-weight: 600;
+    border-radius: 0.375rem;
+}
+
+/* Footer sticky */
+.formateurs-details-wrapper table tfoot {
+    position: sticky;
+    bottom: 0;
+    background-color: #f8f9fa;
+    z-index: 10;
+    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Animation pour le collapse */
+#filterFormateursDetails {
+    transition: all 0.3s ease;
+}
+
+/* Bouton toggle filtres */
+.btn-outline-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(13, 110, 253, 0.2);
+}
+
+/* Badge compteur */
+.card-header .badge {
+    font-size: 0.9rem;
+    padding: 0.4em 0.7em;
+    margin-left: 0.5rem;
+}
+
+/* Indicateur de scroll */
+.scroll-indicator {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.7;
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(-50%);
+    }
+    40% {
+        transform: translateY(-45%);
+    }
+    60% {
+        transform: translateY(-48%);
+    }
+}
+
+/* Empty state amélioré */
+.formateurs-details-wrapper .bi-inbox {
+    color: #6c757d;
+    opacity: 0.5;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .formateurs-details-wrapper {
+        max-height: 500px;
+    }
+    
+    .formateurs-details-wrapper table th,
+    .formateurs-details-wrapper table td {
+        font-size: 0.8rem;
+        padding: 0.5rem;
+    }
+    
+    .formateurs-details-wrapper table th:first-child,
+    .formateurs-details-wrapper table td:first-child {
+        min-width: 140px;
+    }
+}
+
+/* Mode sombre (optionnel) */
+@media (prefers-color-scheme: dark) {
+    .formateurs-details-wrapper table thead,
+    .formateurs-details-wrapper table tfoot {
+        background-color: #212529;
+        color: #fff;
+    }
+    
+    .formateurs-details-wrapper table th:first-child,
+    .formateurs-details-wrapper table td:first-child {
+        background-color: #2c3034;
+    }
+    
+    .formateurs-details-wrapper::-webkit-scrollbar-track {
+        background: #2c3034;
+    }
+}
+
+/* Indicateur de chargement */
+.loading-spinner {
+    display: none;
+    text-align: center;
+    padding: 2rem;
+}
+
+.loading-spinner.active {
+    display: block;
+}
+
+/* Highlight pour les filtres actifs */
+.filter-active {
+    border-left: 3px solid #0d6efd;
+    padding-left: 0.75rem;
+}
+
+/* Tooltip personnalisé */
+[data-bs-toggle="tooltip"] {
+    cursor: help;
+}
+
+/* Transition smooth pour l'apparition */
+.formateurs-details-wrapper table tbody tr {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 </style>
 @endpush

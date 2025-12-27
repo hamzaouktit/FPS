@@ -38,9 +38,11 @@ public function index(Request $request)
         'groupe' => $request->input('groupe'),
         'module' => $request->input('module'),
         'formateur' => $request->input('formateur'),
+        'formateur_text' => $request->input('formateur_text'),
         'niveau' => $request->input('niveau'),
         'filiere' => $request->input('filiere'),
         'annee' => $request->input('annee'),
+        'type_formation' => $request->input('type_formation'),
         'formateur_detail' => $request->input('formateur_detail'),
         'type_formateur' => $request->input('type_formateur'),
         'groupe_detail' => $request->input('groupe_detail'),
@@ -59,6 +61,12 @@ public function index(Request $request)
     }
     if ($filters['annee']) {
         $groupesQuery->where('annee_formation', $filters['annee']);
+    }
+
+    if (!empty($filters['type_formation'])) {
+        $groupesQuery->whereHas('formation', function($q) use ($filters) {
+            $q->where('type', $filters['type_formation']);
+        });
     }
     
     $groupes = $groupesQuery->get();
@@ -84,6 +92,20 @@ public function index(Request $request)
                   ->orWhere('mle_affecte_syn', $filters['formateur']);
         });
     }
+
+    // Recherche textuelle sur le formateur (nom ou MLE) dans les affectations
+    if (!empty($filters['formateur_text'])) {
+        $affectationsQuery->where(function($query) use ($filters) {
+            $query->whereHas('formateurPresentiel', function($q2) use ($filters) {
+                $q2->where('nom_complet', 'like', '%' . $filters['formateur_text'] . '%')
+                   ->orWhere('mle', 'like', '%' . $filters['formateur_text'] . '%');
+            })->orWhereHas('formateurSyn', function($q2) use ($filters) {
+                $q2->where('nom_complet', 'like', '%' . $filters['formateur_text'] . '%')
+                   ->orWhere('mle', 'like', '%' . $filters['formateur_text'] . '%');
+            });
+        });
+    }
+
     if ($filters['niveau']) {
         $affectationsQuery->whereHas('groupe.formation', function($query) use ($filters) {
             $query->where('niveau_id', $filters['niveau']);
@@ -791,6 +813,9 @@ private function getTauxChartData($affectations)
         $formations = Formation::whereIn('id', $formationsIds)->get();
         $niveaux = Niveau::whereIn('id', $formations->pluck('niveau_id'))->get();
         
+        // Récupérer les types de formation (ex: initiale/continue, etc.)
+        $typesFormation = $formations->pluck('type')->filter()->unique()->values();
+        
         // Récupérer les filières
         $filieresIds = $groupes->pluck('filiere_id')->unique();
         $filieres = Filiere::whereIn('id', $filieresIds)->get();
@@ -803,6 +828,7 @@ private function getTauxChartData($affectations)
             'modules' => $modules,
             'formateurs' => $formateurs, // ✅ Maintenant récupéré via la relation Many-to-Many
             'niveaux' => $niveaux,
+            'types_formation' => $typesFormation,
             'filieres' => $filieres,
             'annees' => $annees,
         ];

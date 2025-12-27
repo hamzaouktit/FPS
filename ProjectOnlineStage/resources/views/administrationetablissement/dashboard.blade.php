@@ -214,6 +214,31 @@
                             </select>
                         </div>
                     </div>
+
+                    <div class="row g-3 mt-3">
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">Type de formation</label>
+                            <select name="type_formation" class="form-select" onchange="this.form.submit()">
+                                <option value="">Tous</option>
+                                @if(isset($filterOptions['types_formation']))
+                                    @foreach($filterOptions['types_formation'] as $type)
+                                        <option value="{{ $type }}" {{ (isset($filters['type_formation']) && $filters['type_formation'] == $type) ? 'selected' : '' }}>
+                                            {{ ucfirst($type) }}
+                                        </option>
+                                    @endforeach
+                                @endif
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Formateur (nom / MLE)</label>
+                            <div class="input-group">
+                                <input type="text" name="formateur_text" class="form-control" value="{{ $filters['formateur_text'] ?? '' }}" placeholder="Nom ou MLE">
+                                <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="row mt-3">
                         <div class="col-12">
                             <a href="{{ route('administration.etablissement.dashboard') }}" class="btn btn-outline-secondary">
@@ -1897,13 +1922,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.removeChild(downloadLink);
         }
     };
-    /* fghjklòàljhgftyc */
-    document.addEventListener('DOMContentLoaded', function() {
-    // Initialiser les tooltips Bootstrap
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
 
     // Animation lors du scroll
     const scrollWrapper = document.querySelector('.formateurs-details-wrapper');
@@ -1917,6 +1935,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    /* fghjklòàljhgftyc */
+    document.addEventListener('DOMContentLoaded', function() {
+    // Initialiser les tooltips Bootstrap
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    
 });
 });
 </script>

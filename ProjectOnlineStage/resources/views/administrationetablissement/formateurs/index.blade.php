@@ -189,6 +189,7 @@
                                 </a>
                             </th>
                             <th class="border-0">Masse Horaire</th>
+                            <th class="border-0">Description</th>
                             <th class="border-0">Secteurs</th>
                             <th class="border-0">Modules</th>
                             <th class="border-0 pe-4 text-end">Actions</th>
@@ -222,6 +223,11 @@
                                 <td>
                                     <span class="badge bg-info-subtle text-info border border-info">
                                         {{ number_format($formateur->masse_horaire, 0) }} h
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info-subtle text-info border border-info">
+                                        {{ $formateur->description }} 
                                     </span>
                                 </td>
                                 <td>

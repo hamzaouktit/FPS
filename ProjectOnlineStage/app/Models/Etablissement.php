@@ -66,4 +66,11 @@ class Etablissement extends Model
     {
         return $this->hasMany(Avancement::class, 'code_efp', 'code_efp');
     }
+    /**
+     * ✅ NOUVELLE RELATION: Historiques des avancements
+     */
+    public function historiquesAvancements()
+    {
+        return $this->hasMany(HistoriqueAvancement::class, 'code_efp', 'code_efp');
+    }
 }

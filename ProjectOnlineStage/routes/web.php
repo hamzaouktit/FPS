@@ -17,6 +17,7 @@ use App\Http\Controllers\AdministrationEtablissement\AffectationController;
 use App\Http\Controllers\AdministrationEtablissement\AvancementController; // À FAIRE
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\VisitorController;
+use App\Http\Controllers\AdministrationEtablissement\HistoriqueController;
 
 /*
 |--------------------------------------------------------------------------
@@ -125,10 +126,17 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('affectations', AffectationController::class);
         // CRUD des avancements - 
         Route::resource('avancements', AvancementController::class);
+        
+        // Routes pour l'historique des avancements
+        Route::prefix('historique')->name('historique.')->group(function () {
+            Route::get('/', [HistoriqueController::class, 'index'])->name('index');
+            Route::get('/show/{id}', [HistoriqueController::class, 'show'])->name('show');
+            Route::get('/compare', [HistoriqueController::class, 'compare'])->name('compare');
+            Route::get('/export', [HistoriqueController::class, 'export'])->name('export');
+        }); // Ces routes s'appelleront administration.etablissement.historique.*
     });
+
 });
-
-
 
 
 /*

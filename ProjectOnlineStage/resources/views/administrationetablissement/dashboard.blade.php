@@ -181,6 +181,18 @@
                             </select>
                         </div>
                         <div class="col-md-2">
+                            <label class="form-label fw-bold">Mode de Formation</label>
+                            <select name="mode_formation" class="form-select" onchange="this.form.submit()">
+                                <option value="">Tous</option>
+                                <option value="residentiel" {{ $filters['mode_formation'] == 'residentiel' ? 'selected' : '' }}>
+                                    Résidentiel
+                                </option>
+                                <option value="alterne" {{ $filters['mode_formation'] == 'alterne' ? 'selected' : '' }}>
+                                    Alterné
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
                             <label class="form-label fw-bold">Groupe</label>
                             <select name="groupe" class="form-select" onchange="this.form.submit()">
                                 <option value="">Tous</option>
@@ -191,8 +203,11 @@
                                 @endforeach
                             </select>
                         </div>
+                    </div>
+
+                    <div class="row g-3 mt-2">
                         <div class="col-md-2">
-                            <label class="form-label fw-bold">Module</label>
+                            <label class="form-label fw-bold">Module (dropdown)</label>
                             <select name="module" class="form-select" onchange="this.form.submit()">
                                 <option value="">Tous</option>
                                 @foreach($filterOptions['modules'] as $module)
@@ -213,9 +228,16 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Module (nom ou code)</label>
+                            <div class="input-group">
+                                <input type="text" name="module_text" class="form-control" value="{{ $filters['module_text'] ?? '' }}" placeholder="Nom ou code du module">
+                                <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i></button>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="row g-3 mt-3">
+                    <div class="row g-3 mt-2">
                         <div class="col-md-2">
                             <label class="form-label fw-bold">Type de formation</label>
                             <select name="type_formation" class="form-select" onchange="this.form.submit()">

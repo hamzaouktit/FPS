@@ -11,6 +11,7 @@ use App\Models\Module;
 use App\Models\Formateur;
 use App\Models\Avancement;
 use App\Models\Affectation;
+use App\Models\HistoriqueAvancement; // ✅ NOUVEAU
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -50,8 +51,13 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
         DB::beginTransaction();
         
         try {
+            // ✅ NOUVELLE ÉTAPE 1: Sauvegarder l'historique AVANT la suppression
+            $this->saveHistoriqueBeforeImport();
+            
+            // ÉTAPE 2: Suppression des données existantes (inchangée)
             $this->deleteExistingData();
             
+            // ÉTAPE 3: Importation des nouvelles données (inchangée)
             foreach ($rows as $index => $row) {
                 $this->processRow($row, $index + 2);
             }
@@ -66,6 +72,99 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
             throw $e;
         }
     }
+
+    /**
+     * ✅ NOUVELLE MÉTHODE: Sauvegarde de l'historique avant importation
+     * Cette méthode capture l'état actuel des avancements avant toute modification
+     */
+    protected function saveHistoriqueBeforeImport()
+    {
+        try {
+            $dateCapture = Carbon::today();
+            
+            Log::info("📸 Début de la capture de l'historique pour la date: {$dateCapture->format('Y-m-d')}");
+            
+            // Vérifier si un historique existe déjà pour cette date
+            $existingCount = HistoriqueAvancement::where('code_efp', $this->codeEfp)
+                ->whereDate('date_capture', $dateCapture)
+                ->count();
+            
+            if ($existingCount > 0) {
+                Log::warning("⚠️ Un historique existe déjà pour la date {$dateCapture->format('Y-m-d')}. Suppression avant nouvelle capture.");
+                HistoriqueAvancement::where('code_efp', $this->codeEfp)
+                    ->whereDate('date_capture', $dateCapture)
+                    ->delete();
+            }
+            
+            // Récupérer tous les avancements actuels avec leurs relations
+            $avancements = Avancement::where('code_efp', $this->codeEfp)
+                ->with([
+                    'affectation.groupe',
+                    'affectation.module',
+                    'affectation.formateurPresentiel',
+                    'affectation.formateurSyn',
+                    'affectation.groupe.filiere'
+                ])
+                ->get();
+            
+            $historiqueCount = 0;
+            
+            foreach ($avancements as $avancement) {
+                $affectation = $avancement->affectation;
+                
+                if (!$affectation) {
+                    continue;
+                }
+                
+                // Créer l'enregistrement d'historique
+                HistoriqueAvancement::create([
+                    'date_capture' => $dateCapture,
+                    'affectation_id' => $affectation->id,
+                    'code_efp' => $this->codeEfp,
+                    
+                    // Informations contextuelles
+                    'formateur_presentiel' => $affectation->formateur_affecte_presentiel,
+                    'mle_presentiel' => $affectation->mle_affecte_presentiel,
+                    'formateur_syn' => $affectation->formateur_affecte_syn,
+                    'mle_syn' => $affectation->mle_affecte_syn,
+                    'nom_module' => $affectation->module->nom_module ?? null,
+                    'code_module' => $affectation->module->code_module ?? null,
+                    'code_groupe' => $affectation->groupe->code_groupe ?? null,
+                    'nom_filiere' => $affectation->groupe->filiere->nom_filiere ?? null,
+                    
+                    // Masses horaires affectées
+                    'mh_affectee_presentiel' => $affectation->mh_affectee_presentiel,
+                    'mh_affectee_sync' => $affectation->mh_affectee_sync,
+                    'mh_affectee_globale' => $affectation->mh_affectee_globale,
+                    
+                    // Données d'avancement
+                    'mh_realisee_presentiel' => $avancement->mh_realisee_presentiel,
+                    'mh_realisee_sync' => $avancement->mh_realisee_sync,
+                    'mh_realisee_globale' => $avancement->mh_realisee_globale,
+                    'taux_realisation_presentiel' => $avancement->taux_realisation_presentiel,
+                    'taux_realisation_syn' => $avancement->taux_realisation_syn,
+                    'taux_realisation_globale' => $avancement->taux_realisation_globale,
+                    'moyenne_absence' => $avancement->moyenne_absence,
+                    'nb_cc' => $avancement->nb_cc,
+                    'seance_efm' => $avancement->seance_efm,
+                    'validation_efm' => $avancement->validation_efm,
+                    'classe_teams' => $avancement->classe_teams
+                ]);
+                
+                $historiqueCount++;
+            }
+            
+            Log::info("✅ Historique capturé avec succès: {$historiqueCount} enregistrements sauvegardés");
+            
+        } catch (\Exception $e) {
+            Log::error('❌ Erreur lors de la sauvegarde de l\'historique: ' . $e->getMessage());
+            throw new \Exception("Erreur lors de la sauvegarde de l'historique: " . $e->getMessage());
+        }
+    }
+
+    // ======================================
+    // TOUT LE RESTE DU CODE RESTE INCHANGÉ
+    // ======================================
 
     protected function deleteExistingData()
     {
@@ -291,15 +390,12 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                     ]);
                     
                     $this->cachedModules[$cacheKey] = $module;
-                    
-                    Log::info("✅ Nouveau module créé: ID={$module->id}, Code={$codeModule}, Nom={$nomModule}, Filière={$filiere->nom_filiere}");
                 } else {
                     $module = $this->cachedModules[$cacheKey];
-                    Log::info("♻ Module réutilisé: ID={$module->id}, Code={$codeModule}, Nom={$nomModule}");
                 }
             }
 
-            // 7. FORMATEURS - AVEC MASSE HORAIRE PAR DÉFAUT 910
+            // 7. FORMATEURS
             $mleAffectePresentiel = trim($row['mle_affecte_presentiel_actif'] ?? '');
             $formateurPresentiel = trim($row['formateur_affecte_presentiel_actif'] ?? '');
             $mleAffecteSyn = trim($row['mle_affecte_syn_actif'] ?? '');
@@ -319,8 +415,6 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                             'type' => $this->determineTypeFormateur($mleAffectePresentiel),
                             'masse_horaire' => 910.00
                         ]);
-                        
-                        Log::info("✅ Nouveau formateur créé: MLE={$mleAffectePresentiel}, Nom={$formateurPresentiel}, Masse horaire=910");
                     }
                     
                     $this->cachedFormateurs[$cacheKey] = $formateurPresObj;
@@ -341,8 +435,6 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                             'created_at' => now(),
                             'updated_at' => now()
                         ]);
-                        
-                        Log::info("🔗 Formateur {$mleAffectePresentiel} attaché à l'établissement {$codeEfp}");
                     }
                 }
                 
@@ -393,8 +485,6 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                             'type' => $this->determineTypeFormateur($mleAffecteSyn),
                             'masse_horaire' => 910.00
                         ]);
-                        
-                        Log::info("✅ Nouveau formateur créé: MLE={$mleAffecteSyn}, Nom={$formateurSyn}, Masse horaire=910");
                     }
                     
                     $this->cachedFormateurs[$cacheKey] = $formateurSynObj;
@@ -415,8 +505,6 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                             'created_at' => now(),
                             'updated_at' => now()
                         ]);
-                        
-                        Log::info("🔗 Formateur {$mleAffecteSyn} attaché à l'établissement {$codeEfp}");
                     }
                 }
                 
@@ -453,7 +541,7 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                 }
             }
 
-            // 8. AFFECTATION AVEC CALCULS MH TOTALE DRIF
+            // 8. AFFECTATION
             if ($groupe && $module) {
                 $fusionGroupe = trim(
                     $row['fusiongroupe'] ?? 
@@ -476,11 +564,9 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                     $codeFusion = null;
                 }
                 
-                // ✅ RÉCUPÉRATION DES VALEURS DEPUIS LE FICHIER
                 $mhpTotaleDrif = $this->parseDecimal($row['mhp_totale_drif'] ?? 0);
                 $mhsynTotaleDrif = $this->parseDecimal($row['mhsyn_totale_drif'] ?? 0);
                 
-                // ✅ CALCUL DE MH TOTALE DRIF SELON LES CONDITIONS
                 $mhTotaleDrif = $this->calculateMhTotaleDrif(
                     $formation,
                     $codeModule,
@@ -514,7 +600,7 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                     'mhp_totale_drif' => $mhpTotaleDrif,
                     'mhsyn_totale_drif' => $mhsynTotaleDrif,
                     'mhasyn_totale_drif' => $this->parseDecimal($row['mhasyn_totale_drif'] ?? 0),
-                    'mh_totale_drif' => $mhTotaleDrif, // ✅ VALEUR CALCULÉE
+                    'mh_totale_drif' => $mhTotaleDrif,
                     
                     'mh_affectee_presentiel' => $this->parseDecimal($row['mh_affectee_presentiel'] ?? 0),
                     'mh_affectee_sync' => $this->parseDecimal($row['mh_affectee_sync'] ?? 0),
@@ -556,49 +642,21 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
         }
     }
 
-    /**
-     * ✅ MÉTHODE MODIFIÉE: Calcule MH Totale DRIF selon les conditions demandées
-     * 
-     * Règle par défaut: mh_totale_drif = mhp_totale_drif + mhsyn_totale_drif
-     * Règle spéciale (Formation Alternée + Module Métier): mh_totale_drif = (mhp_totale_drif/2) + mhsyn_totale_drif
-     */
     protected function calculateMhTotaleDrif($formation, $codeModule, $mhpTotale, $mhsynTotale)
     {
-        // Vérifier si la formation est en mode "Alterné"
         $isAlterne = $formation && 
                      !empty($formation->mode) && 
                      strtolower(trim($formation->mode)) === 'alterné';
         
-        // Vérifier si le module est de type métier (commence par "M")
         $codeModuleUpper = strtoupper(trim($codeModule ?? ''));
         $isModuleMetier = !empty($codeModuleUpper) && 
                           substr($codeModuleUpper, 0, 1) === 'M';
         
-        // ✅ CONDITION SPÉCIALE: Formation alternée ET Module métier
         if ($isAlterne && $isModuleMetier) {
-            $result = ($mhpTotale / 2) + $mhsynTotale;
-            
-            Log::info("🔄 Règle spéciale appliquée (Alterné + Métier M)", [
-                'mode' => $formation->mode,
-                'code_module' => $codeModuleUpper,
-                'calcul' => "({$mhpTotale} / 2) + {$mhsynTotale}",
-                'resultat' => $result
-            ]);
-            
-            return round($result, 2);
+            return round(($mhpTotale / 2) + $mhsynTotale, 2);
         }
         
-        // ✅ RÈGLE PAR DÉFAUT: Addition simple
-        $result = $mhpTotale + $mhsynTotale;
-        
-        Log::info("📊 Règle par défaut appliquée", [
-            'mode' => $formation->mode ?? 'N/A',
-            'code_module' => $codeModuleUpper,
-            'calcul' => "{$mhpTotale} + {$mhsynTotale}",
-            'resultat' => $result
-        ]);
-        
-        return round($result, 2);
+        return round($mhpTotale + $mhsynTotale, 2);
     }
 
     protected function parseDate($dateString)

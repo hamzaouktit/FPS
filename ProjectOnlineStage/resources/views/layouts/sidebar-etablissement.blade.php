@@ -141,6 +141,19 @@
                 </div>
             </a>
         </div>
+        <div class="sidebar-nav-item">
+            <a href="{{ route('administration.etablissement.historique.index') }}" 
+               class="sidebar-nav-link {{ request()->routeIs('administration.etablissement.historique.*') ? 'active' : '' }}">
+                <div class="nav-icon-wrapper">
+                    <i class="fas fa-history sidebar-nav-icon"></i>
+                </div>
+                <span>Historique Avancements</span>
+                <div class="nav-arrow">
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </a>
+        </div>
+
     </nav>
 
     <div class="sidebar-footer">

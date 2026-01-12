@@ -37,12 +37,14 @@ public function index(Request $request)
     $filters = [
         'groupe' => $request->input('groupe'),
         'module' => $request->input('module'),
+        'module_text' => $request->input('module_text'),
         'formateur' => $request->input('formateur'),
         'formateur_text' => $request->input('formateur_text'),
         'niveau' => $request->input('niveau'),
         'filiere' => $request->input('filiere'),
         'annee' => $request->input('annee'),
         'type_formation' => $request->input('type_formation'),
+        'mode_formation' => $request->input('mode_formation'),
         'formateur_detail' => $request->input('formateur_detail'),
         'type_formateur' => $request->input('type_formateur'),
         'groupe_detail' => $request->input('groupe_detail'),
@@ -86,11 +88,29 @@ public function index(Request $request)
     if ($filters['module']) {
         $affectationsQuery->where('module_id', $filters['module']);
     }
+    
+    // Recherche textuelle sur le module (nom ou code)
+    if (!empty($filters['module_text'])) {
+        $affectationsQuery->whereHas('module', function($query) use ($filters) {
+            $query->where('nom_module', 'like', '%' . $filters['module_text'] . '%')
+                  ->orWhere('code_module', 'like', '%' . $filters['module_text'] . '%');
+        });
+    }
+    
     if ($filters['formateur']) {
         $affectationsQuery->where(function($query) use ($filters) {
             $query->where('mle_affecte_presentiel', $filters['formateur'])
                   ->orWhere('mle_affecte_syn', $filters['formateur']);
         });
+    }
+
+    // Filtre par mode de formation
+    if (!empty($filters['mode_formation'])) {
+        if ($filters['mode_formation'] == 'residentiel') {
+            $affectationsQuery->where('mh_affectee_presentiel', '>', 0);
+        } elseif ($filters['mode_formation'] == 'alterne') {
+            $affectationsQuery->where('mh_affectee_sync', '>', 0);
+        }
     }
 
     // Recherche textuelle sur le formateur (nom ou MLE) dans les affectations

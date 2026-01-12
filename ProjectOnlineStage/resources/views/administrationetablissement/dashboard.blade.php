@@ -77,7 +77,7 @@
 @endif
 
 <!-- Statistiques Générales -->
-<div class="row mb-4">
+<div class="row mb-4" id="statistiques-generales">
     <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body text-center">
@@ -254,7 +254,7 @@
 
 <!-- Analyse des Heures de Formation -->
 <!-- Analyse des Heures de Formation -->
-<div class="row mb-4">
+<div class="row mb-4" id="analyse-heures">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-light border-0">
@@ -418,7 +418,7 @@
 </div>
 
 <!-- Graphiques des Taux -->
-<div class="row mb-4">
+<div class="row mb-4" id="graphiques-taux">
     <div class="col-md-4 mb-3">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-light">
@@ -535,7 +535,7 @@
 </div>
 
 <!-- Top 10 Modules -->
-<div class="row mb-4">
+<div class="row mb-4" id="top-modules">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-light">
@@ -600,7 +600,7 @@
 </div>
 
 <!-- Top Formateurs -->
-<div class="row mb-4">
+<div class="row mb-4"  id="top-formateurs">
     <div class="col-lg-6 mb-3">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-light">
@@ -693,7 +693,7 @@
 </div>
 
 <!-- Taux de réalisation par filière -->
-<div class="row mb-4">
+<div class="row mb-4" id="taux-filiere">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-light">
@@ -712,7 +712,7 @@
 </div>
 
 <!-- Modules non affectés par module -->
-<div class="row mb-4">
+<div class="row mb-4" id="modules-non-affectes">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-light">
@@ -822,7 +822,7 @@
      
 
 <!-- Nouvelle table : Entités sans affectation -->
-<div class="row mb-4">
+<div class="row mb-4" id="entites-sans-affectation">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-light">
@@ -923,7 +923,7 @@
 
 
 {{-- ✅ SECTION AMÉLIORÉE : Détails formateurs avec scroll et style moderne --}}
-<div class="card border-0 shadow-sm mb-4">
+<div class="card border-0 shadow-sm mb-4" id="details-formateurs">
     <div class="card-header bg-white border-bottom">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
@@ -1236,7 +1236,7 @@
 <!-- Liste des formateurs - SECTION CORRIGÉE -->
 <!-- ✅ REMPLACEZ la section "Liste des formateurs" dans votre vue par ceci : -->
 <!-- Liste des formateurs - SECTION CORRIGÉE -->
-<div class="row mb-4">
+<div class="row mb-4" id="liste-formateurs">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-light">
@@ -1462,7 +1462,7 @@
 </div>
 <!-- Données détaillées -->
 <!-- Données détaillées -->
-<div class="row mb-4">
+<div class="row mb-4" id="donnees-detaillees">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
@@ -1634,7 +1634,7 @@
 </div>
 
 <!-- Indicateurs supplémentaires -->
-<div class="row mb-4">
+<div class="row mb-4" id="indicateurs-supplementaires">
     <div class="col-lg-3 col-md-6 mb-3">
         <div class="card bg-gradient-success text-white border-0 shadow-sm">
             <div class="card-body">
@@ -1669,11 +1669,157 @@
     </div>
 </div>
 
-@endsection
+{{-- ========================================== --}}
+{{-- NOUVEAU : Menu de Navigation Latéral Toggle Compact --}}
+{{-- ====================================================== --}}
 
+<!-- Toggle Button -->
+<button class="nav-menu-toggle" onclick="toggleNavMenu()" title="Navigation">
+    <i class="fas fa-bars"></i>
+</button>
+
+<!-- Overlay très léger (optionnel, presque invisible) -->
+<div class="nav-menu-overlay" onclick="toggleNavMenu()"></div>
+
+<!-- Menu de Navigation Compact Sidebar -->
+<div class="dashboard-nav-menu" id="dashboardNavMenu">
+    <!-- Header du menu avec bouton close -->
+    <div class="nav-menu-header">
+        <div class="nav-menu-title">
+            <i class="fas fa-compass me-2"></i>
+            <span>Menu</span>
+        </div>
+        <button class="nav-menu-close" onclick="toggleNavMenu()" title="Fermer">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    
+    <!-- Contenu du menu -->
+    <div class="nav-menu-content">
+        <a href="#statistiques-generales" class="nav-menu-item" onclick="navigateToSection(event, this)">
+            <i class="fas fa-chart-pie"></i>
+            <span>Statistiques</span>
+        </a>
+        
+        <a href="#analyse-heures" class="nav-menu-item" onclick="navigateToSection(event, this)">
+            <i class="fas fa-clock"></i>
+            <span>Analyse Heures</span>
+        </a>
+        
+        <a href="#graphiques-taux" class="nav-menu-item" onclick="navigateToSection(event, this)">
+            <i class="fas fa-chart-line"></i>
+            <span>Graphiques Taux</span>
+        </a>
+        
+        <a href="#top-modules" class="nav-menu-item" onclick="navigateToSection(event, this)">
+            <i class="fas fa-trophy"></i>
+            <span>Top Modules</span>
+            <span class="badge bg-warning">10</span>
+        </a>
+        
+        <a href="#top-formateurs" class="nav-menu-item" onclick="navigateToSection(event, this)">
+            <i class="fas fa-chalkboard-teacher"></i>
+            <span>Top Formateurs</span>
+        </a>
+        
+        <a href="#taux-filiere" class="nav-menu-item" onclick="navigateToSection(event, this)">
+            <i class="fas fa-graduation-cap"></i>
+            <span>Taux par Filière</span>
+        </a>
+        
+        <a href="#modules-non-affectes" class="nav-menu-item" onclick="navigateToSection(event, this)">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>Non Affectés</span>
+        </a>
+        
+        <a href="#entites-sans-affectation" class="nav-menu-item" onclick="navigateToSection(event, this)">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>Entités Sans Affect.</span>
+        </a>
+        
+        <div class="nav-menu-divider"></div>
+        
+        <a href="#details-formateurs" class="nav-menu-item" onclick="navigateToSection(event, this)">
+            <i class="fas fa-user-tie"></i>
+            <span>Détails Formateurs</span>
+        </a>
+        
+        <a href="#liste-formateurs" class="nav-menu-item" onclick="navigateToSection(event, this)">
+            <i class="fas fa-users"></i>
+            <span>Liste Formateurs</span>
+        </a>
+        
+        <a href="#donnees-detaillees" class="nav-menu-item" onclick="navigateToSection(event, this)">
+            <i class="fas fa-table"></i>
+            <span>Données Détaillées</span>
+        </a>
+        
+        <a href="#indicateurs-supplementaires" class="nav-menu-item" onclick="navigateToSection(event, this)">
+            <i class="fas fa-chart-bar"></i>
+            <span>Indicateurs</span>
+        </a>
+    </div>
+</div>
+
+@endsection
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+// ========================================
+// Navigation Menu Functions (Global)
+// ========================================
+
+// Toggle menu - DOIT ÊTRE GLOBAL
+window.toggleNavMenu = function() {
+    const menu = document.getElementById('dashboardNavMenu');
+    const overlay = document.querySelector('.nav-menu-overlay');
+    const toggle = document.querySelector('.nav-menu-toggle');
+    
+    if (!menu || !overlay) return;
+    
+    menu.classList.toggle('show');
+    overlay.classList.toggle('show');
+    
+    // Animation du bouton
+    if (menu.classList.contains('show')) {
+        toggle.style.opacity = '0.7';
+    } else {
+        toggle.style.opacity = '1';
+    }
+};
+
+// Navigation vers section - DOIT ÊTRE GLOBAL
+window.navigateToSection = function(event, element) {
+    event.preventDefault();
+    
+    // Fermer le menu sur mobile/tablette
+    if (window.innerWidth <= 768) {
+        toggleNavMenu();
+    }
+    
+    // Retirer la classe active de tous les items
+    document.querySelectorAll('.nav-menu-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    // Ajouter la classe active à l'item cliqué
+    element.classList.add('active');
+    
+    // Scroller vers la section
+    const targetId = element.getAttribute('href');
+    const targetSection = document.querySelector(targetId);
+    
+    if (targetSection) {
+        // Petit délai pour l'animation
+        setTimeout(() => {
+            targetSection.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }, 100);
+    }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     Chart.defaults.font.family = "'Segoe UI', 'Roboto', 'Arial', sans-serif";
     Chart.defaults.font.size = 12;
@@ -1938,15 +2084,92 @@ document.addEventListener('DOMContentLoaded', function() {
     /* fghjklòàljhgftyc */
     document.addEventListener('DOMContentLoaded', function() {
     // Initialiser les tooltips Bootstrap
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
-
     
-});
+    // ========================================
+    // Navigation Menu - Event Listeners
+    // ========================================
+    
+    // Fermer le menu au clic sur Escape
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const menu = document.getElementById('dashboardNavMenu');
+            if (menu && menu.classList.contains('show')) {
+                toggleNavMenu();
+            }
+        }
+    });
+
+    // Détection de la section active au scroll
+    let isScrolling;
+    window.addEventListener('scroll', function() {
+        clearTimeout(isScrolling);
+        
+        isScrolling = setTimeout(function() {
+            const sections = document.querySelectorAll('[id]');
+            let currentSection = '';
+            
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                
+                if (window.pageYOffset >= (sectionTop - 200)) {
+                    currentSection = section.getAttribute('id');
+                }
+            });
+            
+            // Mettre à jour l'item actif
+            document.querySelectorAll('.nav-menu-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('href') === '#' + currentSection) {
+                    item.classList.add('active');
+                }
+            });
+        }, 100);
+    });
+
+    // Activer la première section au chargement
+    const firstItem = document.querySelector('.nav-menu-item');
+    if (firstItem) {
+        firstItem.classList.add('active');
+    }
+
+    // Fermer le menu si on clique en dehors sur mobile
+    document.addEventListener('click', function(event) {
+        const menu = document.getElementById('dashboardNavMenu');
+        const toggle = document.querySelector('.nav-menu-toggle');
+        
+        if (menu && menu.classList.contains('show') && 
+            !menu.contains(event.target) && 
+            !toggle.contains(event.target)) {
+            
+            if (window.innerWidth <= 768) {
+                toggleNavMenu();
+            }
+        }
+    });
+    
+    // Gestion du resize pour adapter le comportement
+    let resizeTimer;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
+            const menu = document.getElementById('dashboardNavMenu');
+            
+            // Fermer le menu si on passe en desktop
+            if (window.innerWidth > 768 && menu && menu.classList.contains('show')) {
+                // Garder le menu visible en desktop
+            }
+        }, 250);
+    });
+    });
+
 });
 </script>
+
+
 
 <style>
 .chart-container { position: relative; width: 100%; }
@@ -2266,6 +2489,302 @@ document.addEventListener('DOMContentLoaded', function() {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+/* ============================================= */
+/* NOUVEAU : Menu de Navigation Compact à Droite */
+/* ============================================= */
+
+.dashboard-nav-menu {
+    position: fixed;
+    right: -360px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-left: 2px solid #e9ecef;
+    border-radius: 12px 0 0 12px;
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.12);
+    z-index: 1000;
+    transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 320px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.dashboard-nav-menu.show {
+    right: 20px;
+}
+
+/* Header du menu */
+.nav-menu-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 15px;
+    border-bottom: 2px solid #e9ecef;
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+    color: white;
+    flex-shrink: 0;
+    border-radius: 12px 0 0 0;
+}
+
+.nav-menu-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-menu-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+    padding: 0;
+}
+
+.nav-menu-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: rotate(90deg);
+}
+
+/* Contenu du menu avec scroll */
+.nav-menu-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 8px;
+}
+
+.nav-menu-content::-webkit-scrollbar {
+    width: 5px;
+}
+
+.nav-menu-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.nav-menu-content::-webkit-scrollbar-thumb {
+    background: #0d6efd;
+    border-radius: 10px;
+}
+
+.nav-menu-content::-webkit-scrollbar-thumb:hover {
+    background: #0b5ed7;
+}
+
+/* Items du menu */
+.nav-menu-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    margin: 4px 0;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #495057;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+    gap: 10px;
+}
+
+.nav-menu-item:hover {
+    background: #e7f3ff;
+    color: #0d6efd;
+    padding-left: 14px;
+}
+
+.nav-menu-item.active {
+    background: linear-gradient(90deg, #0d6efd 0%, #0b5ed7 100%);
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 3px 10px rgba(13, 110, 253, 0.3);
+}
+
+.nav-menu-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 55%;
+    background: white;
+    border-radius: 0 2px 2px 0;
+}
+
+.nav-menu-item i {
+    width: 18px;
+    text-align: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.nav-menu-item span {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nav-menu-item .badge {
+    margin-left: auto;
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    flex-shrink: 0;
+}
+
+/* Divider dans le menu */
+.nav-menu-divider {
+    height: 1px;
+    background: #e9ecef;
+    margin: 8px 0;
+    border: none;
+}
+
+/* Bouton toggle (hamburger) */
+.nav-menu-toggle {
+    position: fixed;
+    right: 20px;
+    top: 20px;
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+    z-index: 1001;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 1.25rem;
+}
+
+.nav-menu-toggle:hover {
+    transform: scale(1.08);
+    box-shadow: 0 6px 16px rgba(13, 110, 253, 0.4);
+}
+
+.nav-menu-toggle:active {
+    transform: scale(0.95);
+}
+
+/* Overlay très léger - presque invisible */
+.nav-menu-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.1);
+    z-index: 999;
+    transition: all 0.3s ease;
+}
+
+.nav-menu-overlay.show {
+    display: block;
+}
+
+/* Smooth scroll behavior */
+html {
+    scroll-behavior: smooth;
+}
+
+.dashboard-section {
+    scroll-margin-top: 100px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .dashboard-nav-menu {
+        width: 280px;
+        right: -300px;
+        max-height: 65vh;
+    }
+    
+    .nav-menu-item {
+        padding: 9px 11px;
+        font-size: 0.85rem;
+    }
+    
+    .nav-menu-toggle {
+        right: 15px;
+        top: 15px;
+        width: 44px;
+        height: 44px;
+        font-size: 1.1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .dashboard-nav-menu {
+        width: 260px;
+        right: -280px;
+        max-height: 60vh;
+        border-radius: 8px;
+    }
+    
+    .nav-menu-header {
+        padding: 14px 12px;
+        border-radius: 8px 0 0 0;
+    }
+    
+    .nav-menu-item {
+        padding: 8px 10px;
+        font-size: 0.8rem;
+        gap: 8px;
+    }
+    
+    .nav-menu-toggle {
+        right: 12px;
+        top: 12px;
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+}
+
+/* Mode sombre optionnel */
+@media (prefers-color-scheme: dark) {
+    .dashboard-nav-menu {
+        background: linear-gradient(135deg, #1e1e1e 0%, #252526 100%);
+        border-left-color: #3e3e42;
+    }
+    
+    .nav-menu-item {
+        color: #d4d4d4;
+    }
+    
+    .nav-menu-item:hover {
+        background: rgba(13, 110, 253, 0.15);
+        color: #58a6ff;
+    }
+    
+    .nav-menu-divider {
+        background: #3e3e42;
     }
 }
 </style>

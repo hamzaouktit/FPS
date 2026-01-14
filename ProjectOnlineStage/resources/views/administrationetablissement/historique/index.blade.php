@@ -57,7 +57,10 @@
                             @foreach($modules as $module)
                                 <option value="{{ $module->code_module }}" 
                                     {{ request('module') == $module->code_module ? 'selected' : '' }}>
-                                    {{ $module->code_module }} - {{ $module->nom_module }}
+                                    {{ $module->code_module }} - {{ $module->nom_module }} 
+                                    @if($module->filieres->isNotEmpty())
+                                        ({{ $module->filieres->pluck('nom_filiere')->join(', ') }})
+                                    @endif
                                 </option>
                             @endforeach
                         </select>
@@ -189,41 +192,118 @@
     </div>
 </div>
 
-<!-- Modal Comparaison -->
+<!-- Modal Comparaison Amélioré -->
 <div class="modal fade" id="compareModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-info text-white">
-                <h5 class="modal-title">Comparer deux dates</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title">
+                    <i class="fas fa-exchange-alt"></i> Comparer deux dates
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="GET" action="{{ route('administration.etablissement.historique.compare') }}">
+            <form method="GET" action="{{ route('administration.etablissement.historique.compare') }}" id="compareForm">
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="date1" class="form-label">Date initiale</label>
-                        <select name="date1" id="date1" class="form-select" required>
-                            <option value="">Sélectionner...</option>
-                            @foreach($datesDisponibles as $date)
-                                <option value="{{ $date->format('Y-m-d') }}">
-                                    {{ $date->format('d/m/Y') }}
-                                </option>
-                            @endforeach
-                        </select>
+                    <!-- Section Dates -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-primary"><i class="fas fa-calendar-alt"></i> Sélection des dates</h6>
+                            <hr>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="date1" class="form-label">Date initiale <span class="text-danger">*</span></label>
+                            <select name="date1" id="date1" class="form-select" required>
+                                <option value="">Sélectionner...</option>
+                                @foreach($datesDisponibles as $date)
+                                    <option value="{{ $date->format('Y-m-d') }}">
+                                        {{ $date->format('d/m/Y') }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="date2" class="form-label">Date de comparaison <span class="text-danger">*</span></label>
+                            <select name="date2" id="date2" class="form-select" required>
+                                <option value="">Sélectionner...</option>
+                                @foreach($datesDisponibles as $date)
+                                    <option value="{{ $date->format('Y-m-d') }}">
+                                        {{ $date->format('d/m/Y') }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="date2" class="form-label">Date de comparaison</label>
-                        <select name="date2" id="date2" class="form-select" required>
-                            <option value="">Sélectionner...</option>
-                            @foreach($datesDisponibles as $date)
-                                <option value="{{ $date->format('Y-m-d') }}">
-                                    {{ $date->format('d/m/Y') }}
-                                </option>
-                            @endforeach
-                        </select>
+
+                    <!-- Section Filtres Optionnels -->
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="text-secondary">
+                                <i class="fas fa-filter"></i> Filtres optionnels
+                                <small class="text-muted">(Laisser vide pour comparer tout)</small>
+                            </h6>
+                            <hr>
+                        </div>
+                        
+                        <!-- Filtre Formateur -->
+                        <div class="col-md-12 mb-3">
+                            <label for="compare_formateur" class="form-label">
+                                <i class="fas fa-user-tie"></i> Formateur spécifique
+                            </label>
+                            <select name="formateur" id="compare_formateur" class="form-select">
+                                <option value="">Tous les formateurs</option>
+                                @foreach($formateurs as $formateur)
+                                    <option value="{{ $formateur->mle }}">
+                                        {{ $formateur->nom_complet }} ({{ $formateur->mle }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            <small class="form-text text-muted">
+                                Comparez l'avancement d'un formateur spécifique entre deux dates
+                            </small>
+                        </div>
+
+                        <!-- Filtre Module -->
+                        <div class="col-md-6 mb-3">
+                            <label for="compare_module" class="form-label">
+                                <i class="fas fa-book"></i> Module spécifique
+                            </label>
+                            <select name="module" id="compare_module" class="form-select">
+                                <option value="">Tous les modules</option>
+                                @foreach($modules as $module)
+                                    <option value="{{ $module->code_module }}">
+                                        {{ $module->code_module }} - {{ Str::limit($module->nom_module, 40) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Filtre Groupe -->
+                        <div class="col-md-6 mb-3">
+                            <label for="compare_groupe" class="form-label">
+                                <i class="fas fa-users"></i> Groupe spécifique
+                            </label>
+                            <select name="groupe" id="compare_groupe" class="form-select">
+                                <option value="">Tous les groupes</option>
+                                @foreach($groupes as $groupe)
+                                    <option value="{{ $groupe->code_groupe }}">
+                                        {{ $groupe->code_groupe }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Info Box -->
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Astuce:</strong> Utilisez les filtres pour analyser l'évolution d'un formateur, 
+                        module ou groupe spécifique entre deux dates.
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Annuler
+                    </button>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-exchange-alt"></i> Comparer
                     </button>
@@ -237,12 +317,35 @@
 
 @push('scripts')
 <script>
-    // Auto-submit sur changement de filtre (optionnel)
-    document.querySelectorAll('#filterForm select').forEach(select => {
-        select.addEventListener('change', function() {
-            // Optionnel: décommenter pour auto-submit
-            // document.getElementById('filterForm').submit();
-        });
+    // Validation des dates dans le modal
+    document.getElementById('compareForm').addEventListener('submit', function(e) {
+        const date1 = document.getElementById('date1').value;
+        const date2 = document.getElementById('date2').value;
+        
+        if (!date1 || !date2) {
+            e.preventDefault();
+            alert('Veuillez sélectionner les deux dates');
+            return false;
+        }
+        
+        if (date1 >= date2) {
+            e.preventDefault();
+            alert('La date de comparaison doit être postérieure à la date initiale');
+            return false;
+        }
     });
+    
+    // Auto-remplissage du formateur si déjà filtré
+    @if(request('formateur'))
+        document.getElementById('compare_formateur').value = '{{ request('formateur') }}';
+    @endif
+    
+    @if(request('module'))
+        document.getElementById('compare_module').value = '{{ request('module') }}';
+    @endif
+    
+    @if(request('groupe'))
+        document.getElementById('compare_groupe').value = '{{ request('groupe') }}';
+    @endif
 </script>
 @endpush

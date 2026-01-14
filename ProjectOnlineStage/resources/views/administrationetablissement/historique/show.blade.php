@@ -268,7 +268,7 @@
                             <div class="card bg-light border-0 mb-3">
                                 <div class="card-body text-center">
                                     <small class="text-muted d-block mb-2">Séance EFM</small>
-                                    @if($historique->seance_efm)
+                                    @if($historique->seance_efm === 'Oui')
                                         <span class="badge bg-success fs-6">Oui</span>
                                     @else
                                         <span class="badge bg-secondary fs-6">Non</span>
@@ -280,7 +280,7 @@
                             <div class="card bg-light border-0 mb-3">
                                 <div class="card-body text-center">
                                     <small class="text-muted d-block mb-2">Validation EFM</small>
-                                    @if($historique->validation_efm)
+                                    @if($historique->validation_efm === 'oui')
                                         <span class="badge bg-success fs-6">Validée</span>
                                     @else
                                         <span class="badge bg-warning text-dark fs-6">En attente</span>

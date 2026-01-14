@@ -31,19 +31,16 @@ class HistoriqueController extends Controller
                 return Carbon::parse($date);
             });
         
-        // ✅ FIX: Spécifier la table pour éviter l'ambiguïté
         $formateurs = Formateur::whereHas('etablissements', function($q) use ($codeEfp) {
                 $q->where('etablissements.code_efp', $codeEfp);
             })
             ->orderBy('nom_complet')
             ->get();
         
-        // Récupérer les modules de l'établissement
         $modules = Module::where('code_efp', $codeEfp)
             ->orderBy('code_module')
             ->get();
         
-        // Récupérer les groupes de l'établissement
         $groupes = Groupe::where('code_efp', $codeEfp)
             ->orderBy('code_groupe')
             ->get();
@@ -54,12 +51,10 @@ class HistoriqueController extends Controller
             ->orderBy('code_groupe')
             ->orderBy('code_module');
         
-        // Filtre par date
         if ($request->filled('date')) {
             $query->whereDate('date_capture', $request->date);
         }
         
-        // Filtre par formateur (présentiel ou synchrone)
         if ($request->filled('formateur')) {
             $mle = $request->formateur;
             $query->where(function($q) use ($mle) {
@@ -68,12 +63,10 @@ class HistoriqueController extends Controller
             });
         }
         
-        // Filtre par module
         if ($request->filled('module')) {
             $query->where('code_module', $request->module);
         }
         
-        // Filtre par groupe
         if ($request->filled('groupe')) {
             $query->where('code_groupe', $request->groupe);
         }
@@ -105,12 +98,16 @@ class HistoriqueController extends Controller
     
     /**
      * Compare l'avancement entre deux dates
+     * ✅ VERSION CORRIGÉE avec filtres
      */
     public function compare(Request $request)
     {
         $request->validate([
             'date1' => 'required|date',
-            'date2' => 'required|date|after:date1'
+            'date2' => 'required|date|after:date1',
+            'formateur' => 'nullable|string',
+            'module' => 'nullable|string',
+            'groupe' => 'nullable|string'
         ]);
         
         $user = Auth::user();
@@ -119,25 +116,85 @@ class HistoriqueController extends Controller
         $date1 = Carbon::parse($request->date1);
         $date2 = Carbon::parse($request->date2);
         
-        // Récupérer les données de la première date
-        $historique1 = HistoriqueAvancement::where('code_efp', $codeEfp)
-            ->whereDate('date_capture', $date1)
-            ->get()
-            ->keyBy('affectation_id');
+        // ✅ Récupérer les filtres
+        $formateurMle = $request->input('formateur');
+        $moduleCode = $request->input('module');
+        $groupeCode = $request->input('groupe');
         
-        // Récupérer les données de la deuxième date
-        $historique2 = HistoriqueAvancement::where('code_efp', $codeEfp)
-            ->whereDate('date_capture', $date2)
-            ->get()
-            ->keyBy('affectation_id');
+        // ✅ FIX: Utiliser une clé composite basée sur les identifiants métier
+        // au lieu de l'affectation_id qui peut changer
+        $query1 = HistoriqueAvancement::where('code_efp', $codeEfp)
+            ->whereDate('date_capture', $date1);
+        
+        $query2 = HistoriqueAvancement::where('code_efp', $codeEfp)
+            ->whereDate('date_capture', $date2);
+        
+        // ✅ Appliquer les filtres si présents
+        if ($formateurMle) {
+            $query1->where(function($q) use ($formateurMle) {
+                $q->where('mle_presentiel', $formateurMle)
+                  ->orWhere('mle_syn', $formateurMle);
+            });
+            $query2->where(function($q) use ($formateurMle) {
+                $q->where('mle_presentiel', $formateurMle)
+                  ->orWhere('mle_syn', $formateurMle);
+            });
+        }
+        
+        if ($moduleCode) {
+            $query1->where('code_module', $moduleCode);
+            $query2->where('code_module', $moduleCode);
+        }
+        
+        if ($groupeCode) {
+            $query1->where('code_groupe', $groupeCode);
+            $query2->where('code_groupe', $groupeCode);
+        }
+        
+        $historique1 = $query1->get()
+            ->mapWithKeys(function($item) {
+                // Clé composite: code_groupe + code_module
+                $key = $item->code_groupe . '|' . $item->code_module;
+                return [$key => $item];
+            });
+        
+        $historique2 = $query2->get()
+            ->mapWithKeys(function($item) {
+                $key = $item->code_groupe . '|' . $item->code_module;
+                return [$key => $item];
+            });
+        
+        // ✅ Vérification si des données existent
+        if ($historique1->isEmpty()) {
+            $message = "Aucune donnée trouvée pour la date {$date1->format('d/m/Y')}";
+            if ($formateurMle) {
+                $formateur = Formateur::where('mle', $formateurMle)->first();
+                $message .= " pour le formateur " . ($formateur ? $formateur->nom_complet : $formateurMle);
+            }
+            return redirect()
+                ->route('administration.etablissement.historique.index')
+                ->with('error', $message);
+        }
+        
+        if ($historique2->isEmpty()) {
+            $message = "Aucune donnée trouvée pour la date {$date2->format('d/m/Y')}";
+            if ($formateurMle) {
+                $formateur = Formateur::where('mle', $formateurMle)->first();
+                $message .= " pour le formateur " . ($formateur ? $formateur->nom_complet : $formateurMle);
+            }
+            return redirect()
+                ->route('administration.etablissement.historique.index')
+                ->with('error', $message);
+        }
         
         // Calculer les différences
         $comparaisons = [];
         
-        foreach ($historique2 as $affectationId => $h2) {
-            $h1 = $historique1->get($affectationId);
+        foreach ($historique2 as $key => $h2) {
+            $h1 = $historique1->get($key);
             
             if ($h1) {
+                // ✅ Données trouvées pour les deux dates
                 $comparaisons[] = [
                     'formateur_presentiel' => $h2->formateur_presentiel,
                     'formateur_syn' => $h2->formateur_syn,
@@ -153,6 +210,66 @@ class HistoriqueController extends Controller
                     'taux_realisation_avant' => $h1->taux_realisation_globale,
                     'taux_realisation_apres' => $h2->taux_realisation_globale,
                     'diff_taux' => $h2->taux_realisation_globale - $h1->taux_realisation_globale,
+                    
+                    // ✅ Ajout d'informations supplémentaires
+                    'mh_affectee_globale' => $h2->mh_affectee_globale,
+                    'nb_cc_avant' => $h1->nb_cc,
+                    'nb_cc_apres' => $h2->nb_cc,
+                    'diff_cc' => $h2->nb_cc - $h1->nb_cc,
+                ];
+            } else {
+                // ✅ Nouvelles affectations (présentes uniquement dans date2)
+                $comparaisons[] = [
+                    'formateur_presentiel' => $h2->formateur_presentiel,
+                    'formateur_syn' => $h2->formateur_syn,
+                    'module' => $h2->nom_module,
+                    'code_module' => $h2->code_module,
+                    'groupe' => $h2->code_groupe,
+                    'filiere' => $h2->nom_filiere,
+                    
+                    'mh_realisee_globale_avant' => 0,
+                    'mh_realisee_globale_apres' => $h2->mh_realisee_globale,
+                    'diff_mh' => $h2->mh_realisee_globale,
+                    
+                    'taux_realisation_avant' => 0,
+                    'taux_realisation_apres' => $h2->taux_realisation_globale,
+                    'diff_taux' => $h2->taux_realisation_globale,
+                    
+                    'mh_affectee_globale' => $h2->mh_affectee_globale,
+                    'nb_cc_avant' => 0,
+                    'nb_cc_apres' => $h2->nb_cc,
+                    'diff_cc' => $h2->nb_cc,
+                    
+                    'nouveau' => true, // ✅ Marqueur pour les nouvelles affectations
+                ];
+            }
+        }
+        
+        // ✅ Affectations supprimées (présentes uniquement dans date1)
+        foreach ($historique1 as $key => $h1) {
+            if (!$historique2->has($key)) {
+                $comparaisons[] = [
+                    'formateur_presentiel' => $h1->formateur_presentiel,
+                    'formateur_syn' => $h1->formateur_syn,
+                    'module' => $h1->nom_module,
+                    'code_module' => $h1->code_module,
+                    'groupe' => $h1->code_groupe,
+                    'filiere' => $h1->nom_filiere,
+                    
+                    'mh_realisee_globale_avant' => $h1->mh_realisee_globale,
+                    'mh_realisee_globale_apres' => 0,
+                    'diff_mh' => -$h1->mh_realisee_globale,
+                    
+                    'taux_realisation_avant' => $h1->taux_realisation_globale,
+                    'taux_realisation_apres' => 0,
+                    'diff_taux' => -$h1->taux_realisation_globale,
+                    
+                    'mh_affectee_globale' => $h1->mh_affectee_globale,
+                    'nb_cc_avant' => $h1->nb_cc,
+                    'nb_cc_apres' => 0,
+                    'diff_cc' => -$h1->nb_cc,
+                    
+                    'supprime' => true, // ✅ Marqueur pour les affectations supprimées
                 ];
             }
         }
@@ -162,10 +279,35 @@ class HistoriqueController extends Controller
             return $b['diff_taux'] <=> $a['diff_taux'];
         });
         
+        // ✅ Récupérer les informations du formateur si filtre appliqué
+        $formateurInfo = null;
+        if ($formateurMle) {
+            $formateurInfo = Formateur::where('mle', $formateurMle)->first();
+        }
+        
+        // ✅ Récupérer les informations du module si filtre appliqué
+        $moduleInfo = null;
+        if ($moduleCode) {
+            $moduleInfo = Module::where('code_module', $moduleCode)
+                               ->where('code_efp', $codeEfp)
+                               ->first();
+        }
+        
+        // ✅ Récupérer les informations du groupe si filtre appliqué
+        $groupeInfo = null;
+        if ($groupeCode) {
+            $groupeInfo = Groupe::where('code_groupe', $groupeCode)
+                               ->where('code_efp', $codeEfp)
+                               ->first();
+        }
+        
         return view('administrationetablissement.historique.compare', compact(
             'comparaisons',
             'date1',
-            'date2'
+            'date2',
+            'formateurInfo',
+            'moduleInfo',
+            'groupeInfo'
         ));
     }
     
@@ -182,7 +324,6 @@ class HistoriqueController extends Controller
             ->orderBy('code_groupe')
             ->orderBy('code_module');
         
-        // Appliquer les mêmes filtres que l'index
         if ($request->filled('date')) {
             $query->whereDate('date_capture', $request->date);
         }
@@ -215,10 +356,8 @@ class HistoriqueController extends Controller
         $callback = function() use ($historiques) {
             $file = fopen('php://output', 'w');
             
-            // BOM UTF-8 pour Excel
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
             
-            // En-têtes
             fputcsv($file, [
                 'Date Capture',
                 'Formateur Présentiel',
@@ -238,7 +377,6 @@ class HistoriqueController extends Controller
                 'Validation EFM'
             ], ';');
             
-            // Données
             foreach ($historiques as $h) {
                 fputcsv($file, [
                     $h->date_capture->format('d/m/Y'),

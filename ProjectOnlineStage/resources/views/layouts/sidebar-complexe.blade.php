@@ -53,6 +53,20 @@
                 </div>
             </a>
         </div>
+
+        <div class="sidebar-nav-item">
+            <a href="{{ route('administration.complexe.historique.index') }}" 
+               class="sidebar-nav-link {{ request()->routeIs('administration.complexe.historique.*') ? 'active' : '' }}">
+                <div class="nav-icon-wrapper">
+                    <i class="fas fa-history sidebar-nav-icon"></i>
+                </div>
+                <span>Historique Avancements</span>
+                <div class="nav-arrow">
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </a>
+        </div>
+
         <div class="sidebar-nav-item">
             <a href="#" class="sidebar-nav-link">
                 <div class="nav-icon-wrapper">

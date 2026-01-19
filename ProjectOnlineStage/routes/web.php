@@ -18,6 +18,7 @@ use App\Http\Controllers\AdministrationEtablissement\AvancementController; // À
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\VisitorController;
 use App\Http\Controllers\AdministrationEtablissement\HistoriqueController;
+use App\Http\Controllers\AdministrationComplexe\HistoriqueControllerComplex;
 
 /*
 |--------------------------------------------------------------------------
@@ -76,6 +77,14 @@ Route::middleware(['auth'])->group(function () {
         // Route show personnalisée (avec filtres)
         Route::get('etablissements/{code_efp}', [EtablissementController::class, 'show'])
             ->name('etablissements.show');
+        
+        // Routes pour l'historique des avancements du complexe
+        Route::prefix('historique')->name('historique.')->group(function () {
+            Route::get('/', [HistoriqueControllerComplex::class, 'index'])->name('index');
+            Route::get('/show/{id}', [HistoriqueControllerComplex::class, 'show'])->name('show');
+            Route::get('/compare', [HistoriqueControllerComplex::class, 'compare'])->name('compare');
+            Route::get('/export', [HistoriqueControllerComplex::class, 'export'])->name('export');
+        });
     });
 
 
@@ -134,6 +143,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/compare', [HistoriqueController::class, 'compare'])->name('compare');
             Route::get('/export', [HistoriqueController::class, 'export'])->name('export');
         }); // Ces routes s'appelleront administration.etablissement.historique.*
+      
     });
 
 });

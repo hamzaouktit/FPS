@@ -178,6 +178,52 @@
                             {{ number_format($statistics['difference'], 2) }}h
                         </strong>
                     </div>
+                    
+                    <hr class="my-2">
+                    <div class="mt-2">
+                        <span class="text-muted small fw-bold">Justifications - Heures requises:</span>
+                        <div class="bg-light p-2 rounded mt-1 mb-2" style="max-height: 60px; overflow-y: auto; font-size: 0.75rem;">
+                            @php
+                                $justifsReq = \App\Models\Affectation::with(['module', 'groupe'])->where('code_efp', $etablissement->code_efp)->whereNotNull('justification_heures_demandees')->where('justification_heures_demandees', '!=', 'Aucune justification')->get()->groupBy(function($aff) { return $aff->formateur_affecte_presentiel ?: 'Non assigné'; });
+                            @endphp
+                            @forelse($justifsReq as $formateur => $affectations)
+                                <div class="mb-2">
+                                    <strong class="d-block text-dark border-bottom pb-1 mb-1">{{ $formateur }}</strong>
+                                    @foreach($affectations as $aff)
+                                        <div class="ms-2 text-truncate" title="{{ $aff->justification_heures_demandees }}">
+                                            <span class="fw-bold">{{ $aff->module ? $aff->module->code_module : 'N/A' }} ({{ $aff->groupe ? $aff->groupe->code_groupe : 'N/A' }})</span>
+                                            <i class="fas fa-arrow-right text-muted mx-1" style="font-size: 0.6rem;"></i> 
+                                            <span>{{ $aff->justification_heures_demandees }}</span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @empty
+                                <span class="text-muted fst-italic">Aucune justification</span>
+                            @endforelse
+                        </div>
+
+                        <span class="text-muted small fw-bold">Justifications - Heures affectées:</span>
+                        <div class="bg-light p-2 rounded mt-1" style="max-height: 60px; overflow-y: auto; font-size: 0.75rem;">
+                            @php
+                                $justifsAff = \App\Models\Affectation::with(['module', 'groupe'])->where('code_efp', $etablissement->code_efp)->whereNotNull('justification_heures_affectees')->where('justification_heures_affectees', '!=', 'Aucune justification')->get()->groupBy(function($aff) { return $aff->formateur_affecte_presentiel ?: 'Non assigné'; });
+                            @endphp
+                            @forelse($justifsAff as $formateur => $affectations)
+                                <div class="mb-2">
+                                    <strong class="d-block text-dark border-bottom pb-1 mb-1">{{ $formateur }}</strong>
+                                    @foreach($affectations as $aff)
+                                        <div class="ms-2 text-truncate" title="{{ $aff->justification_heures_affectees }}">
+                                            <span class="fw-bold">{{ $aff->module ? $aff->module->code_module : 'N/A' }} ({{ $aff->groupe ? $aff->groupe->code_groupe : 'N/A' }})</span>
+                                            <i class="fas fa-arrow-right text-muted mx-1" style="font-size: 0.6rem;"></i> 
+                                            <span>{{ $aff->justification_heures_affectees }}</span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @empty
+                                <span class="text-muted fst-italic">Aucune justification</span>
+                            @endforelse
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>

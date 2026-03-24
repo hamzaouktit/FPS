@@ -309,6 +309,19 @@
                             </div>
                         </div>
                     </div>
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="justification_heures_demandees" class="form-label">Justification Heures Demandées</label>
+                                <textarea class="form-control @error('justification_heures_demandees') is-invalid @enderror" 
+                                          id="justification_heures_demandees" name="justification_heures_demandees" 
+                                          rows="2">{{ old('justification_heures_demandees', $affectation->justification_heures_demandees) }}</textarea>
+                                @error('justification_heures_demandees')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -350,6 +363,19 @@
                                        id="mh_affectee_globale" name="mh_affectee_globale" 
                                        value="{{ old('mh_affectee_globale', $affectation->mh_affectee_globale) }}"
                                        readonly>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="justification_heures_affectees" class="form-label">Justification Heures Affectées</label>
+                                <textarea class="form-control @error('justification_heures_affectees') is-invalid @enderror" 
+                                          id="justification_heures_affectees" name="justification_heures_affectees" 
+                                          rows="2">{{ old('justification_heures_affectees', $affectation->justification_heures_affectees) }}</textarea>
+                                @error('justification_heures_affectees')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
                             </div>
                         </div>
                     </div>

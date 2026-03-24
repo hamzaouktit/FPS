@@ -443,6 +443,10 @@
                         </tbody>
                     </table>
                 </div>
+                
+                <div class="alert alert-info py-2 mb-4">
+                    <strong><i class="fas fa-info-circle me-1"></i> Justification des heures demandées:</strong> {{ $affectation->justification_heures_demandees ?? 'Aucune justification' }}
+                </div>
 
                 <h6 class="mb-3"><i class="fas fa-tasks me-2"></i>MH Affectées</h6>
                 <div class="table-responsive">
@@ -462,6 +466,10 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+                
+                <div class="alert alert-info py-2">
+                    <strong><i class="fas fa-info-circle me-1"></i> Justification des heures affectées:</strong> {{ $affectation->justification_heures_affectees ?? 'Aucune justification' }}
                 </div>
             </div>
         </div>

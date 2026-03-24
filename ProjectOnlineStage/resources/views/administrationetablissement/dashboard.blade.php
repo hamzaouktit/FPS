@@ -319,6 +319,26 @@
                                     </div>
                                 </div>
                                 <small class="text-muted">Heures DRIF totales</small>
+                                <hr class="my-2">
+                                <div style="max-height: 80px; overflow-y: auto; font-size: 0.75rem; text-align: left;">
+                                    @php
+                                        $justifDemandees = \App\Models\Affectation::with(['module', 'groupe'])->where('code_efp', $etablissement->code_efp)->whereNotNull('justification_heures_demandees')->where('justification_heures_demandees', '!=', 'Aucune justification')->get()->groupBy(function($aff) { return $aff->formateur_affecte_presentiel ?: 'Non assigné'; });
+                                    @endphp
+                                    @forelse($justifDemandees as $formateur => $affectations)
+                                        <div class="mb-2">
+                                            <strong class="d-block text-dark border-bottom pb-1 mb-1">{{ $formateur }}</strong>
+                                            @foreach($affectations as $aff)
+                                                <div class="ms-2 text-truncate" title="{{ $aff->justification_heures_demandees }}">
+                                                    <span class="fw-bold">{{ $aff->module ? $aff->module->code_module : 'N/A' }} ({{ $aff->groupe ? $aff->groupe->code_groupe : 'N/A' }})</span>
+                                                    <i class="fas fa-arrow-right text-muted mx-1" style="font-size: 0.6rem;"></i> 
+                                                    <span>{{ $aff->justification_heures_demandees }}</span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @empty
+                                        <span class="text-muted">Aucune justification</span>
+                                    @endforelse
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -337,6 +357,26 @@
                                     </div>
                                 </div>
                                 <small class="text-muted">{{ $statistics['taux_affectation'] }}%</small>
+                                <hr class="my-2">
+                                <div style="max-height: 80px; overflow-y: auto; font-size: 0.75rem; text-align: left;">
+                                    @php
+                                        $justifAffectees = \App\Models\Affectation::with(['module', 'groupe'])->where('code_efp', $etablissement->code_efp)->whereNotNull('justification_heures_affectees')->where('justification_heures_affectees', '!=', 'Aucune justification')->get()->groupBy(function($aff) { return $aff->formateur_affecte_presentiel ?: 'Non assigné'; });
+                                    @endphp
+                                    @forelse($justifAffectees as $formateur => $affectations)
+                                        <div class="mb-2">
+                                            <strong class="d-block text-dark border-bottom pb-1 mb-1">{{ $formateur }}</strong>
+                                            @foreach($affectations as $aff)
+                                                <div class="ms-2 text-truncate" title="{{ $aff->justification_heures_affectees }}">
+                                                    <span class="fw-bold">{{ $aff->module ? $aff->module->code_module : 'N/A' }} ({{ $aff->groupe ? $aff->groupe->code_groupe : 'N/A' }})</span>
+                                                    <i class="fas fa-arrow-right text-muted mx-1" style="font-size: 0.6rem;"></i> 
+                                                    <span>{{ $aff->justification_heures_affectees }}</span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @empty
+                                        <span class="text-muted">Aucune justification</span>
+                                    @endforelse
+                                </div>
                             </div>
                         </div>
                     </div>

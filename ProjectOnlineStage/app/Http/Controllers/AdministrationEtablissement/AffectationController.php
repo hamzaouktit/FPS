@@ -216,6 +216,8 @@ class AffectationController extends Controller
             'mhasyn_s2_drif' => 'nullable|numeric|min:0',
             'mh_affectee_presentiel' => 'nullable|numeric|min:0',
             'mh_affectee_sync' => 'nullable|numeric|min:0',
+            'justification_heures_demandees' => 'nullable|string',
+            'justification_heures_affectees' => 'nullable|string',
         ]);
 
         try {
@@ -316,6 +318,8 @@ class AffectationController extends Controller
                 'mh_affectee_presentiel' => $mhPresentiel,
                 'mh_affectee_sync' => $mhSync,
                 'mh_affectee_globale' => $mh_affectee_globale,
+                'justification_heures_demandees' => $request->justification_heures_demandees,
+                'justification_heures_affectees' => $request->justification_heures_affectees,
             ]);
 
             // Créer automatiquement un enregistrement d'avancement vide
@@ -441,6 +445,8 @@ class AffectationController extends Controller
             'mhasyn_s2_drif' => 'nullable|numeric|min:0',
             'mh_affectee_presentiel' => 'nullable|numeric|min:0',
             'mh_affectee_sync' => 'nullable|numeric|min:0',
+            'justification_heures_demandees' => 'nullable|string',
+            'justification_heures_affectees' => 'nullable|string',
         ]);
 
         try {
@@ -550,6 +556,8 @@ class AffectationController extends Controller
                 'mh_affectee_presentiel' => $mhPresentiel,
                 'mh_affectee_sync' => $mhSync,
                 'mh_affectee_globale' => $mh_affectee_globale,
+                'justification_heures_demandees' => $request->justification_heures_demandees,
+                'justification_heures_affectees' => $request->justification_heures_affectees,
             ]);
 
             DB::commit();

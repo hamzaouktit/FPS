@@ -52,11 +52,13 @@ return new class extends Migration
             $table->decimal('mhsyn_totale_drif', 8, 2)->default(0);
             $table->decimal('mhasyn_totale_drif', 8, 2)->default(0);
             $table->decimal('mh_totale_drif', 8, 2)->default(0);
+            $table->text('justification_heures_demandees')->nullable();
             
             // Masses horaires Affectées
             $table->decimal('mh_affectee_presentiel', 8, 2)->default(0);
             $table->decimal('mh_affectee_sync', 8, 2)->default(0);
             $table->decimal('mh_affectee_globale', 8, 2)->default(0);
+            $table->text('justification_heures_affectees')->nullable();
             
             $table->timestamps();
             

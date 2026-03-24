@@ -351,16 +351,57 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-3 text-center mb-3">
-                        <div class="p-3 bg-light rounded">
+                        <div class="p-3 bg-light rounded h-100 pb-0">
                             <h6 class="text-muted mb-2">Heures Requises</h6>
                             <h3 class="text-primary mb-0">{{ number_format($statistics['heures_requises'], 2) }}</h3>
+                            <hr class="my-2">
+                            <div style="max-height: 80px; overflow-y: auto; font-size: 0.75rem; text-align: left;">
+                                @php
+                                    $etabs1 = !empty($filters['etablissement']) ? [$filters['etablissement']] : collect($filterOptions['etablissements'])->pluck('code_efp');
+                                    $justifDemandeesC = \App\Models\Affectation::with(['module', 'groupe'])->whereIn('code_efp', $etabs1)->whereNotNull('justification_heures_demandees')->where('justification_heures_demandees', '!=', 'Aucune justification')->get()->groupBy(function($aff) { return $aff->formateur_affecte_presentiel ?: 'Non assigné'; });
+                                @endphp
+                                @forelse($justifDemandeesC as $formateur => $affectations)
+                                    <div class="mb-2">
+                                        <strong class="d-block text-dark border-bottom pb-1 mb-1">{{ $formateur }}</strong>
+                                        @foreach($affectations as $aff)
+                                            <div class="ms-2 text-truncate" title="{{ $aff->justification_heures_demandees }}">
+                                                <span class="fw-bold">{{ $aff->module ? $aff->module->code_module : 'N/A' }} ({{ $aff->groupe ? $aff->groupe->code_groupe : 'N/A' }})</span>
+                                                <i class="fas fa-arrow-right text-muted mx-1" style="font-size: 0.6rem;"></i> 
+                                                <span>{{ $aff->justification_heures_demandees }}</span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @empty
+                                    <span class="text-muted">Aucune justification</span>
+                                @endforelse
+                            </div>
                         </div>
                     </div>
                     <div class="col-md-3 text-center mb-3">
-                        <div class="p-3 bg-light rounded">
+                        <div class="p-3 bg-light rounded h-100 pb-0">
                             <h6 class="text-muted mb-2">Heures Affectées</h6>
                             <h3 class="text-warning mb-0">{{ number_format($statistics['heures_affectees'], 2) }}</h3>
                             <small class="text-muted">{{ $statistics['taux_affectation'] }}%</small>
+                            <hr class="my-2">
+                            <div style="max-height: 80px; overflow-y: auto; font-size: 0.75rem; text-align: left;">
+                                @php
+                                    $justifAffecteesC = \App\Models\Affectation::with(['module', 'groupe'])->whereIn('code_efp', $etabs1)->whereNotNull('justification_heures_affectees')->where('justification_heures_affectees', '!=', 'Aucune justification')->get()->groupBy(function($aff) { return $aff->formateur_affecte_presentiel ?: 'Non assigné'; });
+                                @endphp
+                                @forelse($justifAffecteesC as $formateur => $affectations)
+                                    <div class="mb-2">
+                                        <strong class="d-block text-dark border-bottom pb-1 mb-1">{{ $formateur }}</strong>
+                                        @foreach($affectations as $aff)
+                                            <div class="ms-2 text-truncate" title="{{ $aff->justification_heures_affectees }}">
+                                                <span class="fw-bold">{{ $aff->module ? $aff->module->code_module : 'N/A' }} ({{ $aff->groupe ? $aff->groupe->code_groupe : 'N/A' }})</span>
+                                                <i class="fas fa-arrow-right text-muted mx-1" style="font-size: 0.6rem;"></i> 
+                                                <span>{{ $aff->justification_heures_affectees }}</span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @empty
+                                    <span class="text-muted">Aucune justification</span>
+                                @endforelse
+                            </div>
                         </div>
                     </div>
                     <div class="col-md-3 text-center mb-3">

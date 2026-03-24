@@ -9,6 +9,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Affectation extends Model
 {
+    protected $attributes = [
+        'justification_heures_demandees' => 'Aucune justification',
+        'justification_heures_affectees' => 'Aucune justification',
+    ];
+
     protected $fillable = [
         'groupe_id', 'module_id', 'code_efp',
         // ✅ AJOUTÉ ICI
@@ -17,8 +22,8 @@ class Affectation extends Model
         'mle_affecte_syn', 'formateur_affecte_syn',
         'mhp_s1_drif', 'mhsyn_s1_drif', 'mhasyn_s1_drif', 'mh_totale_s1_drif',
         'mhp_s2_drif', 'mhsyn_s2_drif', 'mhasyn_s2_drif', 'mh_totale_s2_drif',
-        'mhp_totale_drif', 'mhsyn_totale_drif', 'mhasyn_totale_drif', 'mh_totale_drif',
-        'mh_affectee_presentiel', 'mh_affectee_sync', 'mh_affectee_globale'
+        'mhp_totale_drif', 'mhsyn_totale_drif', 'mhasyn_totale_drif', 'mh_totale_drif', 'justification_heures_demandees',
+        'mh_affectee_presentiel', 'mh_affectee_sync', 'mh_affectee_globale', 'justification_heures_affectees'
     ];
 
     public function groupe()

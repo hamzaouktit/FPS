@@ -19,9 +19,13 @@ use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
+use Maatwebsite\Excel\Concerns\SkipsOnFailure;
+use Maatwebsite\Excel\Concerns\SkipsOnError;
+use Maatwebsite\Excel\Validators\Failure;
 use Carbon\Carbon;
+use Throwable;
 
-class DataImport implements ToCollection, WithHeadingRow, WithValidation
+class DataImport implements ToCollection, WithHeadingRow, WithValidation, SkipsOnFailure, SkipsOnError
 {
     protected $codeEfp;
     protected $efpNom;
@@ -252,6 +256,13 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
                     Log::info("Clé: '{$key}' => Valeur: '{$value}'");
                 }
             }
+            
+            // 🛡️ SANITIZATION: Sanitize all inputs in the row to prevent XSS or HTML injection
+            $sanitizedRow = [];
+            foreach ($row as $key => $value) {
+                $sanitizedRow[$key] = $this->sanitize($value);
+            }
+            $row = $sanitizedRow;
             
             $codeEfp = trim($row['code_efp'] ?? '');
             
@@ -698,9 +709,69 @@ class DataImport implements ToCollection, WithHeadingRow, WithValidation
         return 'permanent';
     }
 
+    /**
+     * Sanitize input value to prevent XSS and invalid data
+     */
+    protected function sanitize($value)
+    {
+        if (is_string($value)) {
+            $value = trim($value);
+            $value = strip_tags($value); // Remove HTML/PHP tags
+            $value = htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); // Convert special characters to HTML entities
+            return $value;
+        }
+        return $value;
+    }
+
     public function rules(): array
     {
-        return ['code_efp' => 'required|string'];
+        return [
+            'code_efp' => ['required', 'string', 'max:255'],
+            'secteur' => ['nullable', 'string', 'max:255'],
+            'niveau' => ['nullable', 'string', 'max:100'],
+            'code_filiere' => ['nullable', 'string', 'max:255'],
+            'filiere' => ['nullable', 'string', 'max:500'],
+            'annee' => ['nullable', 'numeric', 'min:2000', 'max:2100'],
+            'type_de_formation' => ['nullable', 'string', 'max:255'],
+            'mode' => ['nullable', 'string', 'max:255'],
+            'creneau' => ['nullable', 'string', 'max:255'],
+            'groupe' => ['nullable', 'string', 'max:255'],
+            'effectif_groupe' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+            'sous_groupe' => ['nullable', 'string', 'max:255'],
+            'statut_sous_groupe' => ['nullable', 'string', 'max:255'],
+            'annee_de_formation' => ['nullable', 'numeric', 'min:1', 'max:10'],
+            'code_module' => ['nullable', 'string', 'max:255'],
+            'module' => ['nullable', 'string', 'max:500'],
+            'regional' => ['nullable', 'string', 'max:10'],
+            'module_pie' => ['nullable', 'string', 'max:10'],
+            'efp_pie' => ['nullable', 'string', 'max:255'],
+            'mle_affecte_presentiel_actif' => ['nullable', 'string', 'max:255'],
+            'formateur_affecte_presentiel_actif' => ['nullable', 'string', 'max:255'],
+            'mle_affecte_syn_actif' => ['nullable', 'string', 'max:255'],
+            'formateur_affecte_syn_actif' => ['nullable', 'string', 'max:255'],
+            'nb_cc' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'mh_realisee_globale' => ['nullable', 'numeric', 'min:0'],
+        ];
+    }
+
+    /**
+     * Handle row validation failures
+     */
+    public function onFailure(Failure ...$failures)
+    {
+        foreach ($failures as $failure) {
+            $this->errors[] = "Ligne " . $failure->row() . ": " . implode(', ', $failure->errors());
+            $this->skipped++;
+        }
+    }
+
+    /**
+     * Handle general import exceptions gracefully
+     */
+    public function onError(Throwable $e)
+    {
+        $this->errors[] = "Erreur inattendue: " . $e->getMessage();
+        Log::error('❌ Erreur Excel: ' . $e->getMessage());
     }
 
     public function getErrors() { return $this->errors; }

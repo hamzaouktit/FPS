@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use App\Mail\MyEmail;
 
 class ForgotPasswordController extends Controller
@@ -20,16 +21,19 @@ class ForgotPasswordController extends Controller
         $request->validate(['email' => 'required|email']);
 
         $user = User::where('email', $request->email)->first();
-        if (!$user) {
-            return back()->with('error', 'Cet email n\'existe pas.');
+        
+        // Generic response to prevent user enumeration
+        $genericMessage = 'Si votre adresse email existe dans notre base de données, vous recevrez un code de réinitialisation.';
+
+        if ($user) {
+            $code = rand(100000, 999999);
+            session(['reset_code' => $code, 'reset_email' => $user->email]);
+
+            // Utilisation de queue() au lieu de send() pour éviter les attaques temporelles (Timing Attacks)
+            Mail::to($user->email)->queue(new MyEmail($code));
         }
 
-        $code = rand(100000, 999999);
-        session(['reset_code' => $code, 'reset_email' => $user->email]);
-
-        Mail::to($user->email)->send(new MyEmail($code));
-
-        return redirect()->route('forgot.password.code.form')->with('success', 'Code envoyé à votre email.');
+        return redirect()->route('forgot.password.code.form')->with('success', $genericMessage);
     }
 
     public function showVerifyCodeForm()
@@ -41,11 +45,32 @@ class ForgotPasswordController extends Controller
     {
         $request->validate(['code' => 'required']);
 
-        if ($request->code != session('reset_code')) {
-            return back()->with('error', 'Code incorrect.');
+        // Identify the user by session ID to track failed attempts
+        $key = 'verify_code_attempts:' . session()->getId();
+
+        // Check if the user has already exceeded the maximum number of attempts (3)
+        if (RateLimiter::tooManyAttempts($key, 3)) {
+            $seconds = RateLimiter::availableIn($key);
+            // Clear the reset code so they must request a new one
+            session()->forget(['reset_code', 'reset_email']);
+            return redirect()->route('forgot.password.form')->with('error', "Trop de tentatives échouées. Veuillez demander un nouveau code (réessayez dans $seconds secondes).");
         }
 
-        // ✅ Si le code est bon → rediriger vers la page de réinitialisation
+        if ($request->code != session('reset_code')) {
+            // Record a failed attempt
+            RateLimiter::hit($key, 600); // 600 seconds = 10 minutes lockout
+            $attemptsLeft = 3 - RateLimiter::attempts($key);
+            
+            if ($attemptsLeft > 0) {
+                return back()->with('error', "Code incorrect. Il vous reste $attemptsLeft tentative(s).");
+            } else {
+                session()->forget(['reset_code', 'reset_email']);
+                return redirect()->route('forgot.password.form')->with('error', "Trop de tentatives échouées. Veuillez demander un nouveau code.");
+            }
+        }
+
+        // ✅ Si le code est bon → clear the rate limiter and redirect
+        RateLimiter::clear($key);
         return redirect()->route('forgot.password.reset.form')->with('success', 'Code vérifié, vous pouvez maintenant changer votre mot de passe.');
     }
 

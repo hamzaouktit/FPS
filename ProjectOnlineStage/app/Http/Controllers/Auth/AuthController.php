@@ -10,6 +10,8 @@ use App\Models\User;
 use App\Mail\MyEmail;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\ForgotPasswordController;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -51,13 +53,27 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
+        $throttleKey = Str::lower($request->input('email')) . '|' . $request->ip();
+
+        if (RateLimiter::tooManyAttempts($throttleKey, 3)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            $minutes = ceil($seconds / 60);
+
+            return back()->withErrors([
+                'email' => "Trop de tentatives de connexion. Veuillez réessayer dans {$minutes} minute(s).",
+            ])->onlyInput('email');
+        }
+
         $credentials = $request->only('email', 'password');
 
         if (Auth::attempt($credentials)) {
+            RateLimiter::clear($throttleKey);
             $request->session()->regenerate();
             
             return $this->redirectBasedOnRole(Auth::user());
         }
+
+        RateLimiter::hit($throttleKey, 600); // 10 minutes = 600 seconds
 
         return back()->withErrors([
             'email' => 'Les informations d\'identification ne correspondent pas.',

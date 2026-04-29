@@ -68,7 +68,8 @@
         </div>
 
         <div class="sidebar-nav-item">
-            <a href="#" class="sidebar-nav-link">
+            <a href="{{ route('administration.complexe.rapports.globaux') }}" 
+               class="sidebar-nav-link {{ request()->routeIs('administration.complexe.rapports.globaux') ? 'active' : '' }}">
                 <div class="nav-icon-wrapper">
                     <i class="fas fa-chart-line sidebar-nav-icon"></i>
                 </div>
@@ -80,7 +81,8 @@
         </div>
 
         <div class="sidebar-nav-item">
-            <a href="#" class="sidebar-nav-link">
+            <a href="{{ route('administration.complexe.effectifs.index') }}" 
+               class="sidebar-nav-link {{ request()->routeIs('administration.complexe.effectifs.index') ? 'active' : '' }}">
                 <div class="nav-icon-wrapper">
                     <i class="fas fa-users sidebar-nav-icon"></i>
                 </div>

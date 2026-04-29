@@ -19,6 +19,8 @@ use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\VisitorController;
 use App\Http\Controllers\AdministrationEtablissement\HistoriqueController;
 use App\Http\Controllers\AdministrationComplexe\HistoriqueControllerComplex;
+use App\Http\Controllers\AdministrationComplexe\RapportGlobalController;
+use App\Http\Controllers\AdministrationComplexe\EffectifsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -85,6 +87,12 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/compare', [HistoriqueControllerComplex::class, 'compare'])->name('compare');
             Route::get('/export', [HistoriqueControllerComplex::class, 'export'])->name('export');
         });
+
+        // Rapports Globaux
+        Route::get('/rapports-globaux', [RapportGlobalController::class, 'index'])->name('rapports.globaux');
+        
+        // Effectifs
+        Route::get('/effectifs', [EffectifsController::class, 'index'])->name('effectifs.index');
     });
 
 

@@ -356,10 +356,6 @@
                             <h3 class="text-primary mb-0">{{ number_format($statistics['heures_requises'], 2) }}</h3>
                             <hr class="my-2">
                             <div style="max-height: 80px; overflow-y: auto; font-size: 0.75rem; text-align: left;">
-                                @php
-                                    $etabs1 = !empty($filters['etablissement']) ? [$filters['etablissement']] : collect($filterOptions['etablissements'])->pluck('code_efp');
-                                    $justifDemandeesC = \App\Models\Affectation::with(['module', 'groupe'])->whereIn('code_efp', $etabs1)->whereNotNull('justification_heures_demandees')->where('justification_heures_demandees', '!=', 'Aucune justification')->get()->groupBy(function($aff) { return $aff->formateur_affecte_presentiel ?: 'Non assigné'; });
-                                @endphp
                                 @forelse($justifDemandeesC as $formateur => $affectations)
                                     <div class="mb-2">
                                         <strong class="d-block text-dark border-bottom pb-1 mb-1">{{ $formateur }}</strong>
@@ -384,9 +380,6 @@
                             <small class="text-muted">{{ $statistics['taux_affectation'] }}%</small>
                             <hr class="my-2">
                             <div style="max-height: 80px; overflow-y: auto; font-size: 0.75rem; text-align: left;">
-                                @php
-                                    $justifAffecteesC = \App\Models\Affectation::with(['module', 'groupe'])->whereIn('code_efp', $etabs1)->whereNotNull('justification_heures_affectees')->where('justification_heures_affectees', '!=', 'Aucune justification')->get()->groupBy(function($aff) { return $aff->formateur_affecte_presentiel ?: 'Non assigné'; });
-                                @endphp
                                 @forelse($justifAffecteesC as $formateur => $affectations)
                                     <div class="mb-2">
                                         <strong class="d-block text-dark border-bottom pb-1 mb-1">{{ $formateur }}</strong>

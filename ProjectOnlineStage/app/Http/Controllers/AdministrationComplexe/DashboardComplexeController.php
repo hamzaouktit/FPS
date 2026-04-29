@@ -53,6 +53,27 @@ class DashboardComplexeController extends Controller
         // Récupérer les statistiques par établissement
         $etablissementsStats = $this->getEtablissementsStats($complexe->id);
 
+        // Fetch justif data
+        $etabs1 = !empty($filters['etablissement']) ? [$filters['etablissement']] : collect($filterOptions['etablissements'])->pluck('code_efp')->toArray();
+        
+        $justifDemandeesC = Affectation::with(['module', 'groupe'])
+            ->whereIn('code_efp', $etabs1)
+            ->whereNotNull('justification_heures_demandees')
+            ->where('justification_heures_demandees', '!=', 'Aucune justification')
+            ->get()
+            ->groupBy(function($aff) { 
+                return $aff->formateur_affecte_presentiel ?: 'Non assigné'; 
+            });
+
+        $justifAffecteesC = Affectation::with(['module', 'groupe'])
+            ->whereIn('code_efp', $etabs1)
+            ->whereNotNull('justification_heures_affectees')
+            ->where('justification_heures_affectees', '!=', 'Aucune justification')
+            ->get()
+            ->groupBy(function($aff) { 
+                return $aff->formateur_affecte_presentiel ?: 'Non assigné'; 
+            });
+
         return view('administrationcomplexe.dashboard', compact(
             'user', 
             'complexe', 
@@ -61,7 +82,9 @@ class DashboardComplexeController extends Controller
             'chartData', 
             'filterOptions',
             'filters',
-            'etablissementsStats'
+            'etablissementsStats',
+            'justifDemandeesC',
+            'justifAffecteesC'
         ));
     }
 
@@ -427,25 +450,31 @@ class DashboardComplexeController extends Controller
 
     private function getEtablissementsStats($complexeId)
     {
-        $etablissements = Etablissement::where('complexe_id', $complexeId)->get();
+        $etablissements = Etablissement::where('complexe_id', $complexeId)->get()->keyBy('code_efp');
         
+        // Load all affectations in one query
+        $allAffectations = Affectation::query()
+            ->join('etablissements', 'affectations.code_efp', '=', 'etablissements.code_efp')
+            ->join('groupes', 'affectations.groupe_id', '=', 'groupes.id')
+            ->join('formations', 'groupes.formation_id', '=', 'formations.id')
+            ->leftJoin('avancements', 'affectations.id', '=', 'avancements.affectation_id')
+            ->where('etablissements.complexe_id', $complexeId)
+            ->select(
+                'affectations.code_efp',
+                'affectations.mh_totale_drif',
+                'avancements.mh_realisee_globale',
+                'groupes.id as groupe_id',
+                'groupes.effectif_groupe',
+                'formations.id as formation_id',
+                'affectations.mle_affecte_presentiel',
+                'affectations.mle_affecte_syn'
+            )
+            ->get()
+            ->groupBy('code_efp');
+
         $stats = [];
-        foreach ($etablissements as $etablissement) {
-            $affectations = Affectation::query()
-                ->join('groupes', 'affectations.groupe_id', '=', 'groupes.id')
-                ->join('formations', 'groupes.formation_id', '=', 'formations.id')
-                ->leftJoin('avancements', 'affectations.id', '=', 'avancements.affectation_id')
-                ->where('affectations.code_efp', $etablissement->code_efp)
-                ->select(
-                    'affectations.mh_totale_drif',
-                    'avancements.mh_realisee_globale',
-                    'groupes.id as groupe_id',
-                    'groupes.effectif_groupe',
-                    'formations.id as formation_id',
-                    'affectations.mle_affecte_presentiel',
-                    'affectations.mle_affecte_syn'
-                )
-                ->get();
+        foreach ($etablissements as $code_efp => $etablissement) {
+            $affectations = $allAffectations->get($code_efp, collect([]));
 
             $heuresRequises = $affectations->sum('mh_totale_drif') ?: 0;
             $heuresRealisees = $affectations->sum(function($item) {
@@ -466,7 +495,7 @@ class DashboardComplexeController extends Controller
             $nbApprenants = $groupesUniques->sum();
 
             $stats[] = [
-                'code_efp' => $etablissement->code_efp,
+                'code_efp' => $code_efp,
                 'nom_efp' => $etablissement->nom_efp,
                 'nb_formations' => $nbFormations,
                 'nb_groupes' => $nbGroupes,

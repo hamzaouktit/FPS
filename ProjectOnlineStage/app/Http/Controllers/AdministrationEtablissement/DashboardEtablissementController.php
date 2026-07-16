@@ -877,11 +877,8 @@ private function getTauxChartData($affectations)
         return view('administrationetablissement.import', compact('user', 'etablissement'));
     }
 
-    public function importExcel(Request $request)
+    public function importExcel(Request $request, \App\Services\AdministrationEtablissementImportService $importService)
     {
-        ini_set('memory_limit', '512M');
-        set_time_limit(300);
-        
         $request->validate([
             'excel_file' => [
                 'required',
@@ -904,42 +901,14 @@ private function getTauxChartData($affectations)
                     ->with('error', 'Aucun établissement associé à votre compte.');
             }
 
-            DB::beginTransaction();
-            
-            $import = new DataImport();
-            Excel::import($import, $request->file('excel_file'));
+            // Utiliser le service pour stocker et lancer le Job
+            $importService->import($request->file('excel_file'), $etablissement);
 
-            $imported = $import->getImported();
-            $updated = $import->getUpdated();
-            $skipped = $import->getSkipped();
-            $errors = $import->getErrors();
-
-            DB::commit();
-
-            $successMessages = [];
-            if ($imported > 0) {
-                $successMessages[] = "{$imported} nouvel(nouveaux) enregistrement(s) créé(s).";
-            }
-            if ($updated > 0) {
-                $successMessages[] = "{$updated} enregistrement(s) mis à jour.";
-            }
-            if ($skipped > 0) {
-                $successMessages[] = "{$skipped} ligne(s) ignorée(s) (ne concernent pas votre établissement).";
-            }
-
-            if (count($errors) > 0) {
-                return redirect()->back()
-                    ->with('warning', implode(' ', $successMessages))
-                    ->withErrors(['import_errors' => $errors]);
-            } else {
-                $message = !empty($successMessages) ? implode(' ', $successMessages) : 'Importation terminée.';
-                return redirect()->route('administration.etablissement.dashboard')
-                    ->with('success', $message);
-            }
+            return redirect()->route('administration.etablissement.dashboard')
+                ->with('success', 'Le fichier a été validé et l\'import a démarré en arrière-plan.');
 
         } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Erreur lors de l\'importation Excel: ' . $e->getMessage());
+            Log::error('Erreur lors de l\'initialisation de l\'importation Excel: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
             
             return redirect()->back()
